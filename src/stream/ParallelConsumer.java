@@ -13,10 +13,11 @@ public class ParallelConsumer<T> {
 	public ParallelConsumer(int numberOfThreads) {
 		this.ss = new StreamService(numberOfThreads);
 	}
-	
+
 	public ParallelConsumer() {
-		this.ss = new StreamService(OSTools.getNumberOfCores());
-	//	this.ss = new StreamService(1);
+		int numberOfCores = OSTools.getNumberOfCores();
+		System.out.printf("using %d threads for the objective evaluation\n", numberOfCores);
+		this.ss = new StreamService(numberOfCores);
 	}
 
 	public void parallelForEach(Collection<T> col, Consumer<? super T> action) throws InterruptedException {

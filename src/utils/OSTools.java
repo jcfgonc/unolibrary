@@ -10,17 +10,17 @@ public class OSTools {
 	private static int numberOfCores;
 	private static int numberOfSockets;
 	private static int numberOfLogicalProcessors;
-
-	static {
-		OSTools.getCPU_Info();
-	};
+	private static boolean initialized = false;
 
 	/**
 	 * jcfgonc - This only works for Windowz... adapted from some post in stackoverflow, don't remember which
 	 * 
 	 * @return
 	 */
-	private static int getCPU_Info() {
+	private static void getCPU_Info() {
+		if (initialized)
+			return;
+
 		if (!isWindows()) {
 			System.err.println("This can only be run on M$ Windows.");
 			System.exit(-1);
@@ -57,23 +57,27 @@ public class OSTools {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		initialized = true;
 		System.out.println(" done.");
-		return numberOfCores;
 	}
 
 	public static int getNumberOfCores() {
+		getCPU_Info();
 		return numberOfCores;
 	}
 
 	public static int getNumberOfSockets() {
+		getCPU_Info();
 		return numberOfSockets;
 	}
 
 	public static int getNumberOfLogicalProcessors() {
+		getCPU_Info();
 		return numberOfLogicalProcessors;
 	}
 
 	public static boolean hasHyperThreading() throws NumberFormatException, IOException {
+		getCPU_Info();
 		boolean ht = numberOfLogicalProcessors > numberOfCores;
 		return ht;
 	}
