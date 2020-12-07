@@ -11,9 +11,9 @@ import java.util.Set;
 import it.unimi.dsi.fastutil.bytes.ByteArrayList;
 
 /**
- * A directed multigraph where both vertices and edges are String. A directed multigraph is a non-simple directed graph in which no loops are
- * permitted, but multiple edges between any two vertices are. Always use the addEdge/s function to add edges, never add directly to one of the return
- * functions.
+ * A directed multigraph where both vertices and edges are String. A directed multigraph is a non-simple directed graph in which loops are permitted,
+ * as well as multiple edges between any two vertices. Always use the graph's functions to add/remove/etc. edges, never edit directly one of the
+ * return functions/values.
  *
  * @author Joao Goncalves: jcfgonc@gmail.com
  *
