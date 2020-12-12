@@ -159,7 +159,7 @@ public class GraphReadWrite {
 
 	public static void readCSV(BufferedReader br, StringGraph graph) throws IOException, NoSuchFileException {
 		while (br.ready()) {
-			String line = br.readLine();
+			String line = br.readLine().trim();
 //			if (line == null)
 //				break;
 //			// ignore empty lines

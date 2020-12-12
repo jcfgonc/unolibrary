@@ -28,6 +28,7 @@ import org.apache.commons.math3.random.RandomGenerator;
 import org.apache.commons.math3.util.FastMath;
 
 import graph.StringEdge;
+import it.unimi.dsi.fastutil.chars.CharOpenHashSet;
 
 public class VariousUtils {
 	public static String readFile(String path, Charset encoding) throws IOException {
@@ -385,12 +386,12 @@ public class VariousUtils {
 	}
 
 	/**
-	 * adapted from https://codereview.stackexchange.com/a/111257
+	 * adapted from https://codereview.stackexchange.com/a/111257 to support multiple separators
 	 * 
 	 * @param text
 	 * @return
 	 */
-	public static String[] fastSplit(final String text, final char separator0, final char separator1) {
+	public static String[] fastSplit(final String text, CharOpenHashSet separators) {
 		if (text == null) {
 			throw new IllegalArgumentException("the text to split should not be null");
 		}
@@ -404,7 +405,8 @@ public class VariousUtils {
 		for (int pos = 0; pos < len; ++pos) {
 			char c = text.charAt(pos);
 
-			if (c == separator0 || c == separator1) {
+			// if (c == separator0 || c == separator1) {
+			if (separators.contains(c)) {
 				if (!prevCharIsSeparator) {
 					result.add(text.substring(tokenStart, pos));
 					prevCharIsSeparator = true;
@@ -426,11 +428,24 @@ public class VariousUtils {
 	}
 
 	public static String[] fastSplitWhiteSpace(final String text) {
-		return VariousUtils.fastSplit(text, ' ', '\t');
+		CharOpenHashSet separators = new CharOpenHashSet();
+		separators.add(' ');
+		separators.add('\t');
+		return VariousUtils.fastSplit(text, separators);
 	}
 
 	public static String[] fastSplit(final String text, final char separator) {
-		return VariousUtils.fastSplit(text, separator, separator);
+		CharOpenHashSet separators = new CharOpenHashSet();
+		separators.add(separator);
+		return VariousUtils.fastSplit(text, separators);
+	}
+
+	public static String[] fastSplit(final String text, final String separators_str) {
+		CharOpenHashSet separators = new CharOpenHashSet();
+		for (int i = 0; i < separators_str.length(); i++) {
+			separators.add(separators_str.charAt(i));
+		}
+		return VariousUtils.fastSplit(text, separators);
 	}
 
 }

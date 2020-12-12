@@ -7,7 +7,6 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.regex.Pattern;
 
 import utils.VariousUtils;
 
@@ -46,10 +45,10 @@ public class CSVReader {
 		this.header = new ArrayList<>();
 		boolean headRead = false;
 		BufferedReader br = new BufferedReader(new FileReader(file, StandardCharsets.UTF_8), 1 << 24);
-		Pattern patternMatcher = Pattern.compile("[" + columnSeparator + "]+");
 		String line;
 		while ((line = br.readLine()) != null) {
-			String[] cells = patternMatcher.split(line, 0);
+			line = line.trim();
+			String[] cells = VariousUtils.fastSplit(line, columnSeparator);
 			ArrayList<String> asList = VariousUtils.arrayToArrayList(cells);
 			if (fileHasHeader && !headRead) {
 				this.header = asList;

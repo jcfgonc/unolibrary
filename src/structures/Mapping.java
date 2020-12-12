@@ -37,7 +37,7 @@ public class Mapping<T> implements Iterable<ConceptPair<T>> {
 		ArrayList<Mapping<String>> mappings = new ArrayList<Mapping<String>>();
 		BufferedReader br = new BufferedReader(new FileReader(f), 1 << 16);
 		while (br.ready()) { // break into lines
-			String line = br.readLine();
+			String line = br.readLine().trim();
 			// parse lines into a mapping
 			Mapping<String> map = Mapping.readSingleMappingCSVLine(line);
 			mappings.add(map);
