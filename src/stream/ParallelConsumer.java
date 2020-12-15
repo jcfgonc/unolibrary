@@ -15,7 +15,7 @@ public class ParallelConsumer<T> {
 	}
 
 	public ParallelConsumer() {
-		int numberOfThreads = Runtime.getRuntime().availableProcessors();
+		int numberOfThreads = OSTools.getNumberOfCores();
 		System.out.printf("using %d threads for the objective evaluation\n", numberOfThreads);
 		this.ss = new StreamService(numberOfThreads);
 	}

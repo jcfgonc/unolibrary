@@ -27,7 +27,7 @@ import utils.VariousUtils;
 
 @SuppressWarnings("unused")
 public class WordEmbeddingUtils {
-	private static final String WORD_PAIR_SCORES_HEADER = "#relation_a\t#relation_b\t#similarity";
+	private static final String WORD_PAIR_SCORES_HEADER = "s:relation_a\ts:relation_b\tf:similarity";
 
 	public static void main(String[] a) throws IOException, InterruptedException {
 
@@ -99,7 +99,6 @@ public class WordEmbeddingUtils {
 		FrameReadWrite.saveFrameSimilarityStatistics(frameSimilarityStatistics, frameSimilarityFilename);
 	}
 
-
 	public static ArrayList<DescriptiveStatistics> calculateFrameWithinSimilarity(ArrayList<SemanticFrame> frames,
 			Object2DoubleOpenHashMap<UnorderedPair<String>> wps) throws IOException, InterruptedException {
 		ArrayList<DescriptiveStatistics> frameSimilarityStatistics = new ArrayList<DescriptiveStatistics>();
@@ -111,20 +110,26 @@ public class WordEmbeddingUtils {
 		return frameSimilarityStatistics;
 	}
 
-	private static DescriptiveStatistics calculateGraphWithinSimilarity(Object2DoubleOpenHashMap<UnorderedPair<String>> wps, StringGraph graph) {
+	public static DescriptiveStatistics calculateGraphWithinSimilarity(Object2DoubleOpenHashMap<UnorderedPair<String>> wps, StringGraph graph) {
 		double[] sim = calculateEdgeSemanticSimilarity(graph, wps);
 		DescriptiveStatistics ds = new DescriptiveStatistics(sim);
 		return ds;
 	}
 
 	/**
-	 * calculates semantic similarities (based on word embedding) between pairs of connected edges in the given frame/graph
+	 * calculates semantic similarities (based on word embedding) between pairs of connected edges in the given frame/graph. Uses the pair scores
+	 * stored in the given wps argument.
 	 * 
 	 * @param frame
 	 * @param wps
 	 * @return
 	 */
 	public static double[] calculateEdgeSemanticSimilarity(StringGraph graph, Object2DoubleOpenHashMap<UnorderedPair<String>> wps) {
+		// requires at least two edges
+		if (graph.numberOfEdges() < 2) {
+			return new double[0];
+		}
+
 		DoubleArrayList similarities = new DoubleArrayList();
 		ObjectOpenHashSet<UnorderedPair<StringEdge>> visitedEdgePairs = new ObjectOpenHashSet<UnorderedPair<StringEdge>>();
 
@@ -137,12 +142,16 @@ public class WordEmbeddingUtils {
 				visitedEdgePairs.add(curEdgePair);
 				String rel0 = curEdge.getLabel();
 				String rel1 = connectedEdge.getLabel();
-				double sim;
+				double sim = 0;
 				if (rel0.equals(rel1))
 					sim = 1;
 				else {
 					UnorderedPair<String> relationPair = new UnorderedPair<String>(rel0, rel1);
-					sim = wps.getDouble(relationPair);
+					if (wps.containsKey(relationPair)) {
+						sim = wps.getDouble(relationPair);
+					} else {
+						System.err.println("ERROR: score undefined for the pair " + relationPair);
+					}
 				}
 				// System.out.printf("%s %s %f\n", rel0, rel1, sim);
 
@@ -171,7 +180,7 @@ public class WordEmbeddingUtils {
 		bw.close();
 	}
 
-	public static Object2DoubleOpenHashMap<UnorderedPair<String>> loadWordPairScores(String filename) throws IOException {
+	public static Object2DoubleOpenHashMap<UnorderedPair<String>> readWordPairScores(String filename) throws IOException {
 		Object2DoubleOpenHashMap<UnorderedPair<String>> scores = new Object2DoubleOpenHashMap<UnorderedPair<String>>();
 		File file = new File(filename);
 		BufferedReader br = null;

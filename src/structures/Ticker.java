@@ -1,7 +1,7 @@
 package structures;
 
 /**
- * Class to manage elapsed time
+ * Class to manage elapsed time. When I first started this class (some 10 years ago) I didn't knew about Apache's StopWatch.
  * 
  * @author jcfgonc@gmail.com
  * 

@@ -62,8 +62,9 @@ public class OSTools {
 	}
 
 	public static int getNumberOfCores() {
-		getCPU_Info();
-		return numberOfCores;
+		return Runtime.getRuntime().availableProcessors() / 2;
+//		getCPU_Info();
+//		return numberOfCores;
 	}
 
 	public static int getNumberOfSockets() {

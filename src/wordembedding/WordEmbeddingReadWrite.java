@@ -2,13 +2,15 @@ package wordembedding;
 
 import java.io.IOException;
 
+import structures.Ticker;
 import utils.NonblockingBufferedReader;
 import utils.VariousUtils;
 
 public class WordEmbeddingReadWrite {
 
 	public static ListWordEmbedding readCSV(String filename, boolean skipFirstLine) throws IOException {
-		// Ticker t = new Ticker();
+		System.out.print("loading " + filename + " ...");
+		Ticker t = new Ticker();
 		ListWordEmbedding wv = new ListWordEmbedding();
 		NonblockingBufferedReader br = new NonblockingBufferedReader(filename);
 		String line;
@@ -22,7 +24,7 @@ public class WordEmbeddingReadWrite {
 		}
 		// no more data to read
 		br.close();
-		// System.out.println("took " + t.getElapsedTime() + " seconds to read " + wv.toString());
+		System.out.println("done. Took " + t.getElapsedTime() + " seconds.");
 		return wv;
 	}
 
