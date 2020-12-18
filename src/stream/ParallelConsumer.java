@@ -3,6 +3,7 @@ package stream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.function.Consumer;
+import java.util.function.IntConsumer;
 
 import utils.OSTools;
 
@@ -16,7 +17,6 @@ public class ParallelConsumer<T> {
 
 	public ParallelConsumer() {
 		int numberOfThreads = OSTools.getNumberOfCores();
-		System.out.printf("using %d threads for the objective evaluation\n", numberOfThreads);
 		this.ss = new StreamService(numberOfThreads);
 	}
 
@@ -38,6 +38,34 @@ public class ParallelConsumer<T> {
 			}
 		};
 		ss.invoke(list.size(), sp);
+	}
+
+	public void parallelForEach(T[] array, Consumer<? super T> action) throws InterruptedException {
+		StreamProcessor sp = new StreamProcessor() {
+
+			@Override
+			public void run(int processorId, int rangeL, int rangeH, int streamSize) {
+				for (int i = rangeL; i <= rangeH; i++) {
+					T element = array[i];
+					action.accept(element);
+				}
+			}
+		};
+		ss.invoke(array.length, sp);
+	}
+	
+	public void parallelForEach(int[] array, IntConsumer action) throws InterruptedException {
+		StreamProcessor sp = new StreamProcessor() {
+
+			@Override
+			public void run(int processorId, int rangeL, int rangeH, int streamSize) {
+				for (int i = rangeL; i <= rangeH; i++) {
+					int element = array[i];
+					action.accept(element);
+				}
+			}
+		};
+		ss.invoke(array.length, sp);
 	}
 
 	public void shutdown() {
@@ -70,6 +98,10 @@ public class ParallelConsumer<T> {
 		System.out.println("waiting");
 		pc.shutdown();
 		System.out.println("shutdown");
+	}
+
+	public int getNumberOfThreads() {
+		return ss.getNumberOfThreads();
 	}
 
 }
