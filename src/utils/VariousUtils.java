@@ -448,4 +448,22 @@ public class VariousUtils {
 		return VariousUtils.fastSplit(text, separators);
 	}
 
+	/**
+	 * returns an ascending sequence of integers from the range min (inclusive) to max (exclusive)
+	 * 
+	 * @param minInclusive
+	 * @param maxExclusive
+	 * @return
+	 */
+	public static int[] intRange(int minInclusive, int maxExclusive) {
+		int n = maxExclusive - minInclusive;
+		int[] array = new int[n];
+		int val = minInclusive;
+		for (int i = 0; i < n; i++) {
+			array[i] = val;
+			val++;
+		}
+		return array;
+	}
+
 }

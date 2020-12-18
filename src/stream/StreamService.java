@@ -27,18 +27,18 @@ public class StreamService {
 		this.es = Executors.newFixedThreadPool(amountThreads);
 	}
 
-	public <I, O> void invoke(int dataSize, StreamProcessor sp) throws InterruptedException {
+	public <I, O> void invoke(int numberOfElements, StreamProcessor sp) throws InterruptedException {
 		ArrayList<Callable<Object>> tasks = new ArrayList<Callable<Object>>();
-		int range_size = dataSize / this.numberOfThreads;
+		int range_size = numberOfElements / this.numberOfThreads;
 		for (int threadId = 0; threadId < this.numberOfThreads; threadId++) {
 			int rangeL = range_size * threadId;
 			int rangeH;
 			if (threadId == this.numberOfThreads - 1)
-				rangeH = dataSize - 1;
+				rangeH = numberOfElements - 1;
 			else
 				rangeH = range_size * (threadId + 1) - 1;
 
-			tasks.add(new StreamInvoker(threadId, rangeL, rangeH, sp, dataSize));
+			tasks.add(new StreamInvoker(threadId, rangeL, rangeH, sp, numberOfElements));
 		}
 
 		es.invokeAll(tasks, Long.MAX_VALUE, TimeUnit.DAYS);
