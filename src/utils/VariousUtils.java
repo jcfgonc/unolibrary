@@ -63,6 +63,8 @@ public class VariousUtils {
 				c.format(message, args);
 			c.format("\nPress ENTER to proceed.\n");
 			c.readLine();
+		} else {
+			System.err.println("system returned a null console, unable to wait for enter keypress");
 		}
 	}
 
