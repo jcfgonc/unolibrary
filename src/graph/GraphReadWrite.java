@@ -22,6 +22,7 @@ import java.util.StringTokenizer;
 
 import structures.ObjectIndex;
 import utils.NonblockingBufferedReader;
+import utils.VariousUtils;
 
 public class GraphReadWrite {
 
@@ -88,7 +89,7 @@ public class GraphReadWrite {
 			byte ptext[] = line.getBytes(CHARSET_Windows_1252);
 			String lineConverted = new String(ptext, CHARSET_UTF_8);
 
-			String[] tokens = lineConverted.split(",");
+			String[] tokens = VariousUtils.fastSplit(lineConverted, ',');
 			int ntokens = tokens.length;
 			if (ntokens < 3)
 				continue;
@@ -145,7 +146,7 @@ public class GraphReadWrite {
 //			if (line.indexOf('#') == 0)
 //				continue;
 
-			String[] tokens = line.split(",");
+			String[] tokens = VariousUtils.fastSplit(line, ',');
 			int ntokens = tokens.length;
 			if (ntokens != 3)
 				continue;
@@ -170,7 +171,7 @@ public class GraphReadWrite {
 //			if (line.indexOf('#') == 0)
 //				continue;
 
-			String[] tokens = line.split(",");
+			String[] tokens = VariousUtils.fastSplit(line, ',');
 			int ntokens = tokens.length;
 			if (ntokens != 3)
 				continue;
@@ -185,10 +186,10 @@ public class GraphReadWrite {
 	public static StringGraph readCSVFromString(String string) throws NoSuchFileException, IOException {
 		StringGraph graph = new StringGraph();
 		// a,b,c;d,e,f;...;
-		String[] edges_s = string.split(";"); // VariousUtils.fastSplitWhiteSpace(string);
+		String[] edges_s = VariousUtils.fastSplit(string, ';'); // VariousUtils.fastSplitWhiteSpace(string);
 		for (String edge_s : edges_s) {
 
-			String[] tokens = edge_s.split(",");
+			String[] tokens = VariousUtils.fastSplit(edge_s, ',');
 			int ntokens = tokens.length;
 			if (ntokens != 3)
 				continue;
@@ -227,7 +228,7 @@ public class GraphReadWrite {
 			byte ptext[] = line.getBytes(CHARSET_Windows_1252);
 			String lineConverted = new String(ptext, CHARSET_UTF_8);
 
-			String[] tokens = lineConverted.split(",");
+			String[] tokens = VariousUtils.fastSplit(lineConverted, ',');
 			int ntokens = tokens.length;
 			if (ntokens < 3)
 				continue;

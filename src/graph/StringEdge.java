@@ -7,6 +7,8 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 
+import utils.VariousUtils;
+
 public class StringEdge implements Comparable<StringEdge>, Serializable, Cloneable {
 	private static final long serialVersionUID = 8432349686429608349L;
 	private String source = null;
@@ -30,7 +32,7 @@ public class StringEdge implements Comparable<StringEdge>, Serializable, Cloneab
 	 * @param text
 	 */
 	public StringEdge(String text) {
-		String[] tokens = text.split(",");
+		String[] tokens = VariousUtils.fastSplit(text, ',');
 		this.source = tokens[0].trim();
 		this.label = tokens[1].trim();
 		this.target = tokens[2].trim();
@@ -43,7 +45,7 @@ public class StringEdge implements Comparable<StringEdge>, Serializable, Cloneab
 	 * @throws Exception
 	 */
 	public StringEdge(String csvTriple, int csvOrder) {
-		String[] tokens = csvTriple.split(",");
+		String[] tokens = VariousUtils.fastSplit(csvTriple, ',');
 		switch (csvOrder) {
 		case CSV_ORDER_SOURCE_TARGET_LABEL:
 			this.source = tokens[0];
@@ -70,7 +72,11 @@ public class StringEdge implements Comparable<StringEdge>, Serializable, Cloneab
 	}
 
 	@Override
-	protected Object clone() throws CloneNotSupportedException {
+	public Object clone() {
+		return createCopy();
+	}
+
+	public StringEdge createCopy() {
 		return new StringEdge(this);
 	}
 
@@ -158,6 +164,12 @@ public class StringEdge implements Comparable<StringEdge>, Serializable, Cloneab
 		return bi;
 	}
 
+	/**
+	 * returns true if the given reference is the source of this edge, returning false otherwise
+	 * 
+	 * @param reference
+	 * @return
+	 */
 	public boolean incomesTo(String reference) {
 		if (target.equals(reference)) {
 			return true;
@@ -165,6 +177,12 @@ public class StringEdge implements Comparable<StringEdge>, Serializable, Cloneab
 			return false;
 	}
 
+	/**
+	 * returns true if the given reference is the source of this edge, returning false otherwise
+	 * 
+	 * @param reference
+	 * @return
+	 */
 	public boolean outgoesFrom(String reference) {
 		if (source.equals(reference)) {
 			return true;
@@ -174,7 +192,7 @@ public class StringEdge implements Comparable<StringEdge>, Serializable, Cloneab
 
 	/**
 	 * Creates a new StringEdge with the given oldReference (vertex) replaced with the newReference (vertex). Both source and target may be replaced.
-	 * VALIDATED.
+	 * VALIDATED. Remember that this changes the edge, not the graph containing the edge.
 	 *
 	 * @param oldReference
 	 * @param newReference
@@ -193,6 +211,13 @@ public class StringEdge implements Comparable<StringEdge>, Serializable, Cloneab
 		return newEdge;
 	}
 
+	/**
+	 * Remember that this changes the edge, not the graph containing the edge.
+	 * 
+	 * @param oldLabel
+	 * @param newLabel
+	 * @return
+	 */
 	public StringEdge replaceLabel(String oldLabel, String newLabel) {
 		StringEdge newEdge = new StringEdge(this);
 		if (oldLabel.equals(newLabel)) // do nothing is this case, duh
@@ -273,6 +298,12 @@ public class StringEdge implements Comparable<StringEdge>, Serializable, Cloneab
 		}
 	}
 
+	/**
+	 * returns the concept in common between this edge and the given edge, returning null if none
+	 * 
+	 * @param edge
+	 * @return
+	 */
 	public String getCommonConcept(StringEdge edge) {
 		if (this.containsConcept(edge.source))
 			return edge.source;
@@ -292,10 +323,10 @@ public class StringEdge implements Comparable<StringEdge>, Serializable, Cloneab
 			if (target.contains("|")) {
 				// TESTED
 				// both concepts are blends
-				String[] sources = source.split("\\|");
+				String[] sources = VariousUtils.fastSplit(source, '|');
 				String s0 = sources[0];
 				String s1 = sources[1];
-				String[] targets = target.split("\\|");
+				String[] targets = VariousUtils.fastSplit(target, '|');
 				String t0 = targets[0];
 				String t1 = targets[1];
 				split.add(new StringEdge(s0, t0, label));
@@ -305,7 +336,7 @@ public class StringEdge implements Comparable<StringEdge>, Serializable, Cloneab
 			} else {
 				// TESTED
 				// only source is blend
-				String[] sources = source.split("\\|");
+				String[] sources = VariousUtils.fastSplit(source, '|');
 				String s0 = sources[0];
 				String s1 = sources[1];
 				split.add(new StringEdge(s0, target, label));
@@ -316,7 +347,7 @@ public class StringEdge implements Comparable<StringEdge>, Serializable, Cloneab
 			// source is not blend
 			if (target.contains("|")) {
 				// target is blend
-				String[] targets = target.split("\\|");
+				String[] targets = VariousUtils.fastSplit(target, '|');
 				String t0 = targets[0];
 				String t1 = targets[1];
 				split.add(new StringEdge(source, t0, label));
@@ -358,5 +389,17 @@ public class StringEdge implements Comparable<StringEdge>, Serializable, Cloneab
 		if (v0.equals(source) && v1.equals(target))
 			return true;
 		return false;
+	}
+
+	public boolean targetIsBlend() {
+		return target.indexOf('|') != -1;
+	}
+
+	public boolean sourceIsBlend() {
+		return source.indexOf('|') != -1;
+	}
+
+	public boolean containsOnlyBlends() {
+		return sourceIsBlend() && targetIsBlend();
 	}
 }

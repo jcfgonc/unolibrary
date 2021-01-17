@@ -6,6 +6,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
 
 import it.unimi.dsi.fastutil.bytes.ByteArrayList;
@@ -142,21 +143,31 @@ public class StringGraph implements Serializable {
 	}
 
 	/**
-	 * adds a the given labeled edge between two vertices
+	 * adds a the given labeled edge between two vertices, returning true if successfully added it
 	 *
 	 * @param source
 	 * @param target
 	 * @param edgeLabel
+	 * @return
 	 */
-	public void addEdge(String source, String target, String label) {
-		addEdge(new StringEdge(source, target, label));
+	public boolean addEdge(String source, String target, String label) {
+		return addEdge(new StringEdge(source, target, label));
 	}
 
-	public void addEdge(StringEdge edge) {
+	/**
+	 * adds the given edge, returning true if successfully added it
+	 * 
+	 * @param edge
+	 * @return
+	 */
+	public boolean addEdge(StringEdge edge) {
 
 		String source = edge.getSource();
 		String target = edge.getTarget();
 		String label = edge.getLabel();
+
+//		if (edge.sourceIsBlend() && edge.targetIsBlend())
+//			System.lineSeparator();
 
 //		if (anyEdgeConnectsUndirected(source, target)) {
 //			Set<StringEdge> edges = getUndirectedEdgesConnecting(source, target);
@@ -164,18 +175,18 @@ public class StringGraph implements Serializable {
 //		}
 
 		if (containsEdge(edge)) {
-			System.err.printf("edge being added already exists: " + edge);
-			return;
+//			System.err.printf("edge being added already exists: %s\n", edge);
+			return false;
 		}
 
 		if (!allowSelfLoops && source.equals(target)) {
-			System.err.printf("LOOP: %s,%s,%s\n", source, label, target);
-			return;
+//			System.err.printf("LOOP: %s,%s,%s\n", source, label, target);
+			return false;
 		}
 
 		if (!allowSymmetry && edgeSet().contains(edge.reverse())) {
-			System.err.printf("SYMMETRY: %s,%s,%s\n", source, label, target);
-			return;
+//			System.err.printf("SYMMETRY: %s,%s,%s\n", source, label, target);
+			return false;
 		}
 
 		if (source.isEmpty() || target.isEmpty()) {
@@ -187,6 +198,7 @@ public class StringGraph implements Serializable {
 		}
 
 		this.graph.addEdge(source, target, edge);
+		return true;
 	}
 
 	/**
@@ -211,7 +223,7 @@ public class StringGraph implements Serializable {
 	}
 
 	public Set<StringEdge> edgeSet(String edgeLabel) {
-		HashSet<StringEdge> edges = new HashSet<>(1 << 10);
+		HashSet<StringEdge> edges = new HashSet<>(edgeSet().size() * 2);
 		for (StringEdge edge : edgeSet()) {
 			if (edge.getLabel().equals(edgeLabel)) {
 				edges.add(edge);
@@ -230,15 +242,18 @@ public class StringGraph implements Serializable {
 		return graph.edgesOf(vertex);
 	}
 
-	public HashSet<StringEdge> edgesOf(String vertex, String filter) {
-		HashSet<StringEdge> filtered = new HashSet<>(1 << 10);
-		Set<StringEdge> edgesOf = edgesOf(vertex);
-		for (StringEdge edge : edgesOf) {
-			if (edge.getLabel().equals(filter)) {
-				filtered.add(edge);
+	public Set<StringEdge> edgesOf(String vertex, String relation) {
+		Set<StringEdge> edges = edgesOf(vertex);
+		if (edges != null) {
+			Iterator<StringEdge> iterator = edges.iterator();
+			while (iterator.hasNext()) {
+				StringEdge edge = iterator.next();
+				if (!edge.getLabel().equals(relation)) {
+					iterator.remove();
+				}
 			}
 		}
-		return filtered;
+		return edges;
 	}
 
 	/**
@@ -308,15 +323,17 @@ public class StringGraph implements Serializable {
 	 * @return
 	 */
 	public Set<StringEdge> getEdgesConnecting(String source, String target, String relation) {
-		HashSet<StringEdge> set = new HashSet<>(1 << 10);
 		Set<StringEdge> edges = getEdgesConnecting(source, target);
 		if (edges != null) {
-			for (StringEdge edge : edges) {
-				if (edge.getLabel().equals(relation))
-					set.add(edge);
+			Iterator<StringEdge> iterator = edges.iterator();
+			while (iterator.hasNext()) {
+				StringEdge edge = iterator.next();
+				if (!edge.getLabel().equals(relation)) {
+					iterator.remove();
+				}
 			}
 		}
-		return set;
+		return edges;
 	}
 
 	public int getInDegree(String vertexId) {
@@ -333,7 +350,7 @@ public class StringGraph implements Serializable {
 		Set<StringEdge> edgesI = graph.incomingEdgesOf(vertex);
 		Set<StringEdge> edgesO = graph.outgoingEdgesOf(vertex);
 
-		HashSet<String> neighbors = new HashSet<>((edgesI.size() + edgesO.size()) * 2 + 16);
+		HashSet<String> neighbors = new HashSet<>((edgesI.size() + edgesO.size()) * 2);
 
 		for (StringEdge edge : edgesI) {
 			String otherConcept = edge.getOppositeOf(vertex);
@@ -356,7 +373,7 @@ public class StringGraph implements Serializable {
 	}
 
 	public HashSet<String> edgesSources(Set<StringEdge> edges) {
-		HashSet<String> sources = new HashSet<>(1 << 10);
+		HashSet<String> sources = new HashSet<>(edges.size() * 2);
 		for (StringEdge edge : edges) {
 			String source = graph.getEdgeSource(edge);
 			sources.add(source);
@@ -372,7 +389,7 @@ public class StringGraph implements Serializable {
 	}
 
 	public HashSet<String> edgesTargets(Set<StringEdge> edges) {
-		HashSet<String> targets = new HashSet<>(1 << 10);
+		HashSet<String> targets = new HashSet<>(edges.size() * 2);
 		for (StringEdge edge : edges) {
 			String target = graph.getEdgeTarget(edge);
 			targets.add(target);
@@ -413,7 +430,7 @@ public class StringGraph implements Serializable {
 	 */
 	public Set<StringEdge> incomingEdgesOf(String concept, String filter) {
 		Set<StringEdge> incoming = incomingEdgesOf(concept);
-		HashSet<StringEdge> edges = new HashSet<>(incoming.size() + 16);
+		HashSet<StringEdge> edges = new HashSet<>(incoming.size() * 2);
 		for (StringEdge edge : incoming) {
 			if (edge.getLabel().equals(filter)) {
 				edges.add(edge);
@@ -459,7 +476,7 @@ public class StringGraph implements Serializable {
 	 */
 	public Set<StringEdge> outgoingEdgesOf(String concept, String filter) {
 		Set<StringEdge> out = outgoingEdgesOf(concept);
-		HashSet<StringEdge> edges = new HashSet<>(out.size() + 16);
+		HashSet<StringEdge> edges = new HashSet<>(out.size() * 2);
 		for (StringEdge edge : out) {
 			if (edge.getLabel().equals(filter)) {
 				edges.add(edge);
@@ -588,7 +605,7 @@ public class StringGraph implements Serializable {
 	}
 
 	public Collection<String> getEdgeLabelSet() {
-		HashSet<String> edgeLabels = new HashSet<>();
+		HashSet<String> edgeLabels = new HashSet<>(edgeSet().size() * 2);
 		for (StringEdge edge : edgeSet()) {
 			edgeLabels.add(edge.getLabel());
 		}

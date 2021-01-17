@@ -18,6 +18,7 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -31,6 +32,8 @@ import graph.StringEdge;
 import it.unimi.dsi.fastutil.chars.CharOpenHashSet;
 
 public class VariousUtils {
+	public static final Set<StringEdge> unmodifiableSet = Collections.unmodifiableSet(new HashSet<StringEdge>());
+
 	public static String readFile(String path, Charset encoding) throws IOException {
 		byte[] encoded = Files.readAllBytes(Paths.get(path));
 		return new String(encoded, encoding);
@@ -164,7 +167,7 @@ public class VariousUtils {
 	 * @return
 	 */
 	public static <T> HashSet<T> intersection(Collection<T> vertexSet0, Collection<T> vertexSet1) {
-		HashSet<T> intersection = new HashSet<T>();
+		HashSet<T> intersection = new HashSet<T>(2 * (Math.max(vertexSet0.size(), vertexSet1.size())));
 		for (T vertex0 : vertexSet0) {
 			if (vertexSet1.contains(vertex0)) {
 				intersection.add(vertex0);
@@ -174,7 +177,7 @@ public class VariousUtils {
 	}
 
 	public static <T> Set<T> union(Collection<T> set0, Collection<T> set1) {
-		HashSet<T> set = new HashSet<T>();
+		HashSet<T> set = new HashSet<T>(2 * (set0.size() + set1.size()));
 		set.addAll(set0);
 		set.addAll(set1);
 		return set;
@@ -219,7 +222,7 @@ public class VariousUtils {
 	}
 
 	// taken from https://eyalsch.wordpress.com/2010/04/01/random-sample/
-	// Floyd�s Algorithm
+	// Floyd's Algorithm
 	public static <T> HashSet<T> randomSampleArrayList(ArrayList<T> array, int size, RandomGenerator random) {
 		HashSet<T> set = new HashSet<T>(size);
 		int n = array.size();
@@ -251,7 +254,7 @@ public class VariousUtils {
 		return set;
 	}
 
-	// Implementing Fisher�Yates shuffle
+	// Implementing Fisher-Yates shuffle, it shuffles the array in-place
 	public static <T> void shuffleArrayList(ArrayList<T> array, RandomGenerator random) {
 		for (int i = array.size() - 1; i > 0; i--) {
 			int j = random.nextInt(i + 1);
@@ -304,7 +307,7 @@ public class VariousUtils {
 			return new HashSet<E>();
 		}
 
-		HashSet<E> set = new HashSet<E>();
+		HashSet<E> set = new HashSet<E>(2 * a.size());
 		for (E e : a) {
 			if (!b.contains(e)) {
 				set.add(e);
@@ -323,46 +326,20 @@ public class VariousUtils {
 	 * @return
 	 */
 	public static Set<StringEdge> subtract(Set<StringEdge> a, Set<StringEdge> b, boolean processBlends) {
+		processBlends = false;
 		if (b.isEmpty()) {
 			// return new HashSet<StringEdge>(a);
 			return a;
 		}
 
 		if (a.isEmpty()) {
-			return new HashSet<StringEdge>();
+			return unmodifiableSet;
 		}
 
 		if (processBlends) {
-			HashSet<StringEdge> processedB = new HashSet<StringEdge>(b.size() * 2);
-			for (StringEdge edge : b) {
-				if (edge.containsBlendedConcept()) {
-					ArrayList<StringEdge> split = edge.splitBlend();
-					processedB.addAll(split);
-				} else {
-					processedB.add(edge);
-				}
-			}
-			HashSet<StringEdge> set = new HashSet<StringEdge>();
-			for (StringEdge edgeInA : a) {
-				if (edgeInA.containsBlendedConcept()) {
-					// TODO test this
-					System.err.println("TODO test this: search code for 36a86b0f187e4045");
-					// in reality this should not happen, otherwise it implies that the input space has blended concepts
-					ArrayList<StringEdge> split = edgeInA.splitBlend();
-					boolean disjoint = Collections.disjoint(split, processedB);
-					if (disjoint) {
-						set.add(edgeInA);
-					}
-				} else {
-					if (!processedB.contains(edgeInA)) {
-						set.add(edgeInA);
-					}
-				}
-			}
-			return set;
-
+			return subtractBlendedEdges(a, b);
 		} else {
-			HashSet<StringEdge> set = new HashSet<StringEdge>();
+			HashSet<StringEdge> set = new HashSet<StringEdge>(2 * a.size());
 			for (StringEdge e : a) {
 				if (!b.contains(e)) {
 					set.add(e);
@@ -372,17 +349,47 @@ public class VariousUtils {
 		}
 	}
 
-//	public static <E> Set<E> mergeSets(Set<E> el, Set<E> er) {
-//		HashSet<E> merged = new HashSet<E>(el);
-//		merged.addAll(er);
-//		return merged;
-//	}
+	private static Set<StringEdge> subtractBlendedEdges(Set<StringEdge> a, Set<StringEdge> b) {
+		HashSet<StringEdge> processedB = new HashSet<StringEdge>(b.size() * 2);
+		for (StringEdge edge : b) {
+			if (edge.containsBlendedConcept()) {
+				ArrayList<StringEdge> split = edge.splitBlend();
+				processedB.addAll(split);
+			} else {
+				processedB.add(edge);
+			}
+		}
+		HashSet<StringEdge> set = new HashSet<StringEdge>(2 * a.size());
+		for (StringEdge edgeInA : a) {
+			if (edgeInA.containsBlendedConcept()) {
+				// TODO test this
+				System.err.println("TODO test this: search code for 36a86b0f187e4045");
+				// in reality this should not happen, otherwise it implies that the input space has blended concepts
+				ArrayList<StringEdge> split = edgeInA.splitBlend();
+				boolean disjoint = Collections.disjoint(split, processedB);
+				if (disjoint) {
+					set.add(edgeInA);
+				}
+			} else {
+				if (!processedB.contains(edgeInA)) {
+					set.add(edgeInA);
+				}
+			}
+		}
+		return set;
+	}
 
 	@SafeVarargs
 	public static <E> Set<E> mergeSets(Set<E>... sets) {
-		HashSet<E> merged = new HashSet<E>(sets[0]);
-		for (int i = 1; i < sets.length; i++) {
-			merged.addAll(sets[i]);
+		// allocate a large set for the merge
+		int nElements = 0;
+		for (Set<E> set : sets) {
+			nElements += set.size();
+		}
+		HashSet<E> merged = new HashSet<E>(2 * nElements);
+		// do the merge
+		for (Set<E> set : sets) {
+			merged.addAll(set);
 		}
 		return merged;
 	}
@@ -468,4 +475,17 @@ public class VariousUtils {
 		return array;
 	}
 
+	/**
+	 * returns the given collection as a shuffled ArrayList
+	 * 
+	 * @param <T>
+	 * @param col
+	 * @param random
+	 * @return
+	 */
+	public static <T> ArrayList<T> asShuffledArray(Collection<T> col, Random random) {
+		ArrayList<T> shuffledArr = new ArrayList<>(col);
+		Collections.shuffle(shuffledArr, random);
+		return shuffledArr;
+	}
 }

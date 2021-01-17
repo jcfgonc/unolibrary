@@ -16,6 +16,8 @@ import java.util.Random;
 import java.util.Set;
 import java.util.StringTokenizer;
 
+import utils.VariousUtils;
+
 /**
  * A mapping is a set of ConceptPair.
  * 
@@ -55,9 +57,9 @@ public class Mapping<T> implements Iterable<ConceptPair<T>> {
 	 */
 	public static Mapping<String> readSingleMappingCSVLine(String line) {
 		Mapping<String> map = new Mapping<String>();
-		String[] columns = line.split(",");
+		String[] columns = VariousUtils.fastSplit(line, ',');
 		for (String column : columns) { // a|b
-			String[] concepts = column.split("\\|");
+			String[] concepts = VariousUtils.fastSplit(column, '|');
 			if (concepts.length != 2) {
 				System.err.printf("found %n concepts in pair %s\n", concepts.length, line);
 			}
@@ -133,7 +135,7 @@ public class Mapping<T> implements Iterable<ConceptPair<T>> {
 				listOfMappings.add(mapping);
 				continue;
 			}
-			String[] tokens = line.split("\\s+"); // break using white space characters
+			String[] tokens = VariousUtils.fastSplitWhiteSpace(line); // break using white space characters
 			if (tokens.length == 2) {
 				String leftConcept = tokens[0];
 				String rightConcept = tokens[1];

@@ -55,7 +55,7 @@ public class WordEmbeddingUtils {
 		// this is an interactive console to help with word embedding
 		while (true) {
 			String line = s.nextLine();
-			String[] args = line.split("\\s+");
+			String[] args = VariousUtils.fastSplitWhiteSpace(line);
 			try {
 				if (line.startsWith("!q"))
 					break;
