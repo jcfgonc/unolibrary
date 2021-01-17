@@ -5,6 +5,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
@@ -23,6 +24,7 @@ import it.unimi.dsi.fastutil.bytes.ByteArrayList;
 public class StringGraph implements Serializable {
 
 	private static final long serialVersionUID = -1197786236652544325L;
+	private static final Set<StringEdge> unmodifiableEmptySet = Collections.unmodifiableSet(new HashSet<StringEdge>(1));
 
 	public static EdgeDirection getEdgeDirectionRelativeTo(String vertex, StringEdge edge) {
 		if (isIncoming(vertex, edge))
@@ -213,16 +215,24 @@ public class StringGraph implements Serializable {
 	}
 
 	/**
-	 * never EVER add edges directly here
+	 * SAFE, returns all the edges of this graph
 	 * 
 	 * @return
 	 */
 	public Set<StringEdge> edgeSet() {
 		return graph.edgeSet();
-//		return new HashSet<StringEdge>(graph.edgeSet()); //this completely destroys performance
 	}
 
+	/**
+	 * SAFE
+	 * 
+	 * @param edgeLabel
+	 * @return
+	 */
 	public Set<StringEdge> edgeSet(String edgeLabel) {
+		if (isEmpty())
+			return unmodifiableEmptySet;
+
 		HashSet<StringEdge> edges = new HashSet<>(edgeSet().size() * 2);
 		for (StringEdge edge : edgeSet()) {
 			if (edge.getLabel().equals(edgeLabel)) {
@@ -233,7 +243,7 @@ public class StringGraph implements Serializable {
 	}
 
 	/**
-	 * Returns both incoming and outgoing edges from the given vertex
+	 * SAFE, returns both incoming and outgoing edges from the given vertex
 	 *
 	 * @param vertex
 	 * @return
@@ -242,9 +252,20 @@ public class StringGraph implements Serializable {
 		return graph.edgesOf(vertex);
 	}
 
+	/**
+	 * SAFE
+	 * 
+	 * @param vertex
+	 * @param relation
+	 * @return
+	 */
 	public Set<StringEdge> edgesOf(String vertex, String relation) {
 		Set<StringEdge> edges = edgesOf(vertex);
 		if (edges != null) {
+
+			if (edges.isEmpty())
+				return unmodifiableEmptySet;
+
 			Iterator<StringEdge> iterator = edges.iterator();
 			while (iterator.hasNext()) {
 				StringEdge edge = iterator.next();
@@ -325,6 +346,10 @@ public class StringGraph implements Serializable {
 	public Set<StringEdge> getEdgesConnecting(String source, String target, String relation) {
 		Set<StringEdge> edges = getEdgesConnecting(source, target);
 		if (edges != null) {
+
+			if (edges.isEmpty())
+				return unmodifiableEmptySet;
+
 			Iterator<StringEdge> iterator = edges.iterator();
 			while (iterator.hasNext()) {
 				StringEdge edge = iterator.next();
@@ -372,6 +397,12 @@ public class StringGraph implements Serializable {
 		return sources;
 	}
 
+	/**
+	 * SAFE
+	 * 
+	 * @param edges
+	 * @return
+	 */
 	public HashSet<String> edgesSources(Set<StringEdge> edges) {
 		HashSet<String> sources = new HashSet<>(edges.size() * 2);
 		for (StringEdge edge : edges) {
@@ -388,6 +419,12 @@ public class StringGraph implements Serializable {
 		return targets;
 	}
 
+	/**
+	 * SAFE
+	 * 
+	 * @param edges
+	 * @return
+	 */
 	public HashSet<String> edgesTargets(Set<StringEdge> edges) {
 		HashSet<String> targets = new HashSet<>(edges.size() * 2);
 		for (StringEdge edge : edges) {
@@ -412,7 +449,7 @@ public class StringGraph implements Serializable {
 	}
 
 	/**
-	 * returns the edges with the target as the given vertex
+	 * SAFE, returns the edges with the target as the given vertex
 	 * 
 	 * @param vertex
 	 * @return
@@ -422,7 +459,7 @@ public class StringGraph implements Serializable {
 	}
 
 	/**
-	 * returns the edges with the target as the given vertex
+	 * SAFE, returns the edges with the target as the given vertex
 	 * 
 	 * @param concept
 	 * @param filter
@@ -458,7 +495,7 @@ public class StringGraph implements Serializable {
 	}
 
 	/**
-	 * returns the edges with the source as the given vertex
+	 * SAFE, returns the edges with the source as the given vertex
 	 * 
 	 * @param vertex
 	 * @return
@@ -468,7 +505,7 @@ public class StringGraph implements Serializable {
 	}
 
 	/**
-	 * returns the edges with the source as the given vertex
+	 * SAFE, returns the edges with the source as the given vertex
 	 * 
 	 * @param concept
 	 * @param filter
@@ -487,14 +524,6 @@ public class StringGraph implements Serializable {
 
 	public void removeEdge(StringEdge edgeToDelete) {
 		graph.removeEdge(edgeToDelete);
-		// String source = edgeToDelete.getSource();
-		// String target = edgeToDelete.getTarget();
-		// if (containsVertex(source) && edgesOf(source).isEmpty()) {
-		// removeVertex(source);
-		// }
-		// if (containsVertex(target) && edgesOf(target).isEmpty()) {
-		// removeVertex(target);
-		// }
 	}
 
 	public void removeEdge(String source, String target, String label) {
@@ -622,7 +651,7 @@ public class StringGraph implements Serializable {
 	}
 
 	/**
-	 * returns the edges touching this edge's source and target vertices
+	 * SAFE, returns the edges touching this edge's source and target vertices
 	 * 
 	 * @param edge
 	 * @return
@@ -634,7 +663,7 @@ public class StringGraph implements Serializable {
 		Set<StringEdge> sourceEdges = this.edgesOf(source);
 		Set<StringEdge> targetEdges = this.edgesOf(target);
 
-		HashSet<StringEdge> touching = new HashSet<>((sourceEdges.size() + targetEdges.size()) * 2 + 16);
+		HashSet<StringEdge> touching = new HashSet<>((sourceEdges.size() + targetEdges.size()) * 2);
 		touching.addAll(sourceEdges);
 		touching.addAll(targetEdges);
 		touching.remove(edge);
@@ -642,6 +671,12 @@ public class StringGraph implements Serializable {
 		return touching;
 	}
 
+	/**
+	 * SAFE
+	 * 
+	 * @param vertices
+	 * @return
+	 */
 	public HashSet<StringEdge> edgesOf(Collection<String> vertices) {
 		HashSet<StringEdge> edges = new HashSet<StringEdge>(1 << 10);
 		for (String vertex : vertices) {
@@ -650,6 +685,13 @@ public class StringGraph implements Serializable {
 		return edges;
 	}
 
+	/**
+	 * SAFE
+	 * 
+	 * @param vertices
+	 * @param filter
+	 * @return
+	 */
 	public HashSet<StringEdge> edgesOf(Set<String> vertices, String filter) {
 		HashSet<StringEdge> edges = new HashSet<StringEdge>(1 << 10);
 		for (String vertex : vertices) {

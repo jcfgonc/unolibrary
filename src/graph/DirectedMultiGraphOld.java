@@ -1,6 +1,7 @@
 package graph;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
@@ -25,6 +26,7 @@ public class DirectedMultiGraphOld<V, E> {
 	private MapOfSet<V, E> outgoingEdges;
 	private HashSet<V> vertexSet;
 	private static final int DEFAULT_DATA_SIZE = 1 << 8;
+	private final Set<E> unmodifiableEmptyEdgeSet = Collections.unmodifiableSet(new HashSet<E>(1));
 
 	public DirectedMultiGraphOld(int numEdges, int inEdges, int outEdges, int numVertices) {
 		edgeSet = new HashSet<>(numEdges);
@@ -93,14 +95,22 @@ public class DirectedMultiGraphOld<V, E> {
 	}
 
 	/**
-	 * unsafe, returns internal set of edges
+	 * SAFE, returns the set of edges of this graph
 	 * 
 	 * @return
 	 */
 	public Set<E> edgeSet() {
-		return edgeSet;
+		if (edgeSet.isEmpty())
+			return unmodifiableEmptyEdgeSet;
+		return Collections.unmodifiableSet(edgeSet);
 	}
 
+	/**
+	 * SAFE, returns the edges touching (both incoming and outgoing to) the given vertex
+	 * 
+	 * @param vertex
+	 * @return
+	 */
 	public Set<E> edgesOf(V vertex) {
 		// union of
 		Set<E> in = incomingEdgesOf(vertex);
@@ -110,7 +120,7 @@ public class DirectedMultiGraphOld<V, E> {
 	}
 
 	/**
-	 * get edges outgoing from v0 incoming to v1
+	 * SAFE, get edges outgoing from v0 incoming to v1
 	 * 
 	 * @param v0
 	 * @param v1
@@ -126,14 +136,10 @@ public class DirectedMultiGraphOld<V, E> {
 		boolean emptyOut = out == null || out.isEmpty();
 
 		if (emptyIn || emptyOut) {
-			return new HashSet<>(1);
+			return unmodifiableEmptyEdgeSet;
 		}
 
 		return VariousUtils.intersection(in, out);
-
-//		Set<E> intersection = new HashSet<>(in);
-//		intersection.retainAll(out);
-//		return intersection;
 	}
 
 	public V getEdgeSource(E edge) {
@@ -145,17 +151,17 @@ public class DirectedMultiGraphOld<V, E> {
 	}
 
 	/**
-	 * returns the edges with the target as the given vertex UNTESTED
+	 * SAFE, returns the edges with the target as the given vertex
 	 * 
 	 * @param vertex
 	 * @return
 	 */
 	public Set<E> incomingEdgesOf(V vertex) {
 		Set<E> set = incomingEdges.get(vertex);
-		if (set == null) {
-			return new HashSet<>();
+		if (set == null || set.isEmpty()) {
+			return unmodifiableEmptyEdgeSet;
 		}
-		return new HashSet<>(set);
+		return Collections.unmodifiableSet(set);
 	}
 
 	public int inDegreeOf(V vertexId) {
@@ -175,14 +181,14 @@ public class DirectedMultiGraphOld<V, E> {
 	}
 
 	/**
-	 * returns the edges with the source as the given vertex UNTESTED
+	 * SAFE, returns the edges with the source as the given vertex
 	 */
 	public Set<E> outgoingEdgesOf(V vertex) {
 		Set<E> set = outgoingEdges.get(vertex);
-		if (set == null) {
-			return new HashSet<>();
+		if (set == null || set.isEmpty()) {
+			return unmodifiableEmptyEdgeSet;
 		}
-		return new HashSet<>(set);
+		return Collections.unmodifiableSet(set);
 	}
 
 	public void removeEdge(E edge) {
@@ -238,12 +244,12 @@ public class DirectedMultiGraphOld<V, E> {
 	}
 
 	/**
-	 * unsafe, returns internal set of vertices
+	 * SAFE, returns internal set of vertices
 	 * 
 	 * @return
 	 */
 	public Set<V> vertexSet() {
-		return vertexSet;
+		return Collections.unmodifiableSet(vertexSet);
 	}
 
 	public void clear() {
