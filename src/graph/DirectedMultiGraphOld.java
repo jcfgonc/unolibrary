@@ -26,6 +26,7 @@ public class DirectedMultiGraphOld<V, E> {
 	private MapOfSet<V, E> outgoingEdges;
 	private HashSet<V> vertexSet;
 	private static final int DEFAULT_DATA_SIZE = 1 << 8;
+	private static final float DEFAULT_LOAD_FACTOR = 0.333333f;
 	private final Set<E> unmodifiableEmptyEdgeSet = Collections.unmodifiableSet(new HashSet<E>(1));
 
 	public DirectedMultiGraphOld(int numEdges, int inEdges, int outEdges, int numVertices) {
@@ -38,12 +39,12 @@ public class DirectedMultiGraphOld<V, E> {
 	}
 
 	public DirectedMultiGraphOld() {
-		edgeSet = new HashSet<>(DEFAULT_DATA_SIZE);
-		edgeSource = new HashMap<>(DEFAULT_DATA_SIZE);
-		edgeTarget = new HashMap<>(DEFAULT_DATA_SIZE);
-		incomingEdges = new MapOfSet<>(DEFAULT_DATA_SIZE);
-		outgoingEdges = new MapOfSet<>(DEFAULT_DATA_SIZE);
-		vertexSet = new HashSet<>(DEFAULT_DATA_SIZE);
+		edgeSet = new HashSet<>(DEFAULT_DATA_SIZE, DEFAULT_LOAD_FACTOR);
+		edgeSource = new HashMap<>(DEFAULT_DATA_SIZE, DEFAULT_LOAD_FACTOR);
+		edgeTarget = new HashMap<>(DEFAULT_DATA_SIZE, DEFAULT_LOAD_FACTOR);
+		incomingEdges = new MapOfSet<>(DEFAULT_DATA_SIZE, DEFAULT_LOAD_FACTOR);
+		outgoingEdges = new MapOfSet<>(DEFAULT_DATA_SIZE, DEFAULT_LOAD_FACTOR);
+		vertexSet = new HashSet<>(DEFAULT_DATA_SIZE, DEFAULT_LOAD_FACTOR);
 	}
 
 	/**
@@ -164,20 +165,12 @@ public class DirectedMultiGraphOld<V, E> {
 		return Collections.unmodifiableSet(set);
 	}
 
-	public int inDegreeOf(V vertexId) {
-		Set<E> i = incomingEdgesOf(vertexId);
-		if (i == null) {
-			return 0;
-		}
-		return i.size();
+	public int inDegreeOf(V vertex) {
+		return incomingEdges.get(vertex).size();
 	}
 
-	public int outDegreeOf(V vertexId) {
-		Set<E> o = outgoingEdgesOf(vertexId);
-		if (o == null) {
-			return 0;
-		}
-		return o.size();
+	public int outDegreeOf(V vertex) {
+		return outgoingEdges.get(vertex).size();
 	}
 
 	/**
