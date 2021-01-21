@@ -16,12 +16,16 @@ public class MapOfSet<K, V> {
 
 	private HashMap<K, Set<V>> map;
 
-	public MapOfSet(int a) {
-		map = new HashMap<K, Set<V>>(a);
+	public MapOfSet(int initialCapacity) {
+		map = new HashMap<K, Set<V>>(initialCapacity);
+	}
+
+	public MapOfSet(int initialCapacity, float loadFactor) {
+		map = new HashMap<K, Set<V>>(initialCapacity, loadFactor);
 	}
 
 	public MapOfSet() {
-		map = new HashMap<K, Set<V>>();
+		map = new HashMap<K, Set<V>>(16, 0.333333f);
 	}
 
 	public void clear() {

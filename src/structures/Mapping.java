@@ -8,6 +8,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -148,13 +149,16 @@ public class Mapping<T> implements Iterable<ConceptPair<T>> {
 	}
 
 	private HashMap<T, ConceptPair<T>> conceptToPair; // maps a concept to its pair
-
 	private Set<ConceptPair<T>> mapping;
+	private Set<T> leftConcepts;
+	private Set<T> rightConcepts;
 
 	public Mapping() {
 		super();
-		this.mapping = new HashSet<>();
-		this.conceptToPair = new HashMap<T, ConceptPair<T>>();
+		this.mapping = new HashSet<>(16, 0.333333f);
+		this.conceptToPair = new HashMap<T, ConceptPair<T>>(16, 0.333333f);
+		this.leftConcepts = new HashSet<>(16, 0.333333f);
+		this.rightConcepts = new HashSet<>(16, 0.333333f);
 	}
 
 	public Mapping(Collection<ConceptPair<T>> mapping_) {
@@ -174,6 +178,8 @@ public class Mapping<T> implements Iterable<ConceptPair<T>> {
 		mapping.add(pair);
 		conceptToPair.put(l, pair);
 		conceptToPair.put(r, pair);
+		leftConcepts.add(l);
+		rightConcepts.add(r);
 	}
 
 	public void add(T leftConcept, T rightConcept) {
@@ -189,6 +195,8 @@ public class Mapping<T> implements Iterable<ConceptPair<T>> {
 	public void clear() {
 		mapping.clear();
 		conceptToPair.clear();
+		leftConcepts.clear();
+		rightConcepts.clear();
 	}
 
 	/**
@@ -246,6 +254,7 @@ public class Mapping<T> implements Iterable<ConceptPair<T>> {
 
 	private Set<ConceptPair<T>> getMapping() {
 		return mapping;
+//		return Collections.unmodifiableSet(mapping);
 	}
 
 	/**
@@ -287,8 +296,12 @@ public class Mapping<T> implements Iterable<ConceptPair<T>> {
 	}
 
 	public boolean remove(ConceptPair<T> o) {
-		conceptToPair.remove(o.getLeftConcept());
-		conceptToPair.remove(o.getRightConcept());
+		T l = o.getLeftConcept();
+		T r = o.getRightConcept();
+		conceptToPair.remove(l);
+		conceptToPair.remove(r);
+		leftConcepts.remove(l);
+		rightConcepts.remove(r);
 		return mapping.remove(o);
 	}
 
@@ -363,6 +376,14 @@ public class Mapping<T> implements Iterable<ConceptPair<T>> {
 	 */
 	public int getSize() {
 		return mapping.size();
+	}
+
+	public Set<T> getLeftConcepts() {
+		return Collections.unmodifiableSet(leftConcepts);
+	}
+
+	public Set<T> getRightConcepts() {
+		return Collections.unmodifiableSet(rightConcepts);
 	}
 
 }

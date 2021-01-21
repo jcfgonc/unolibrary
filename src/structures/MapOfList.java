@@ -9,7 +9,7 @@ import java.util.Set;
 /**
  * A Map where each mapping is a Set of the given type, mapped to by a key. Created for convenience.
  * 
- * @author Jo�o Gon�alves: jcfgonc@gmail.com
+ * @author Joao Goncalves: jcfgonc@gmail.com
  * @param <K>
  * @param <V>
  */
@@ -18,7 +18,7 @@ public class MapOfList<K, V> {
 	private HashMap<K, List<V>> map;
 
 	public MapOfList() {
-		map = new HashMap<K, List<V>>();
+		map = new HashMap<K, List<V>>(16, 0.333333f);
 	}
 
 	public void put(K key, Collection<V> values) {
