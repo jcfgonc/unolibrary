@@ -166,11 +166,19 @@ public class DirectedMultiGraphOld<V, E> {
 	}
 
 	public int inDegreeOf(V vertex) {
-		return incomingEdges.get(vertex).size();
+		Set<E> i = incomingEdgesOf(vertex);
+		if (i == null) {// it is null when the given vertex has no incoming edges
+			return 0;
+		}
+		return i.size();
 	}
 
 	public int outDegreeOf(V vertex) {
-		return outgoingEdges.get(vertex).size();
+		Set<E> o = outgoingEdgesOf(vertex);
+		if (o == null) { // it is null when the given vertex has no outgoing edges
+			return 0;
+		}
+		return o.size();
 	}
 
 	/**
