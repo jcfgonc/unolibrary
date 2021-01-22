@@ -24,7 +24,7 @@ import it.unimi.dsi.fastutil.bytes.ByteArrayList;
 public class StringGraph implements Serializable {
 
 	private static final long serialVersionUID = -1197786236652544325L;
-	private static final Set<StringEdge> unmodifiableEmptySet = Collections.unmodifiableSet(new HashSet<StringEdge>(1));
+	private static final Set<StringEdge> unmodifiableEmptySet = Collections.unmodifiableSet(new HashSet<StringEdge>(0));
 
 	public static EdgeDirection getEdgeDirectionRelativeTo(String vertex, StringEdge edge) {
 		if (isIncoming(vertex, edge))

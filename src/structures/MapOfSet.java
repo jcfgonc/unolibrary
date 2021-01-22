@@ -24,11 +24,11 @@ public class MapOfSet<K, V> {
 	}
 
 	public MapOfSet(int initialCapacity) {
-		this(initialCapacity, 0.333333f);
+		this(initialCapacity, 0.75f);
 	}
 
 	public MapOfSet() {
-		this(16, 0.333333f);
+		this(16, 0.75f);
 	}
 
 	public void clear() {

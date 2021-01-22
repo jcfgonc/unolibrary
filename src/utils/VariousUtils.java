@@ -32,7 +32,7 @@ import graph.StringEdge;
 import it.unimi.dsi.fastutil.chars.CharOpenHashSet;
 
 public class VariousUtils {
-	public static final Set<StringEdge> unmodifiableEmptySet = Collections.unmodifiableSet(new HashSet<StringEdge>(1));
+	public static final Set<StringEdge> unmodifiableEmptySet = Collections.unmodifiableSet(new HashSet<StringEdge>(0));
 
 	public static String readFile(String path, Charset encoding) throws IOException {
 		byte[] encoded = Files.readAllBytes(Paths.get(path));

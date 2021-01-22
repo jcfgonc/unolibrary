@@ -25,9 +25,9 @@ public class DirectedMultiGraphOld<V, E> {
 	private MapOfSet<V, E> incomingEdges;
 	private MapOfSet<V, E> outgoingEdges;
 	private HashSet<V> vertexSet;
-	private static final int DEFAULT_DATA_SIZE = 1 << 8;
+	private static final int DEFAULT_DATA_SIZE = 4;
 	private static final float DEFAULT_LOAD_FACTOR = 0.333333f;
-	private final Set<E> unmodifiableEmptyEdgeSet = Collections.unmodifiableSet(new HashSet<E>(1));
+	private final Set<E> unmodifiableEmptyEdgeSet = Collections.unmodifiableSet(new HashSet<E>(0));
 
 	public DirectedMultiGraphOld(int numEdges, int inEdges, int outEdges, int numVertices) {
 		edgeSet = new HashSet<>(numEdges);
