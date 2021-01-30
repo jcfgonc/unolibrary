@@ -186,7 +186,7 @@ public class GraphReadWrite {
 	public static StringGraph readCSVFromString(String string) throws NoSuchFileException, IOException {
 		StringGraph graph = new StringGraph();
 		// a,b,c;d,e,f;...;
-		String[] edges_s = VariousUtils.fastSplit(string, ';'); // VariousUtils.fastSplitWhiteSpace(string);
+		String[] edges_s = VariousUtils.fastSplit(string, ';');
 		for (String edge_s : edges_s) {
 
 			String[] tokens = VariousUtils.fastSplit(edge_s, ',');
