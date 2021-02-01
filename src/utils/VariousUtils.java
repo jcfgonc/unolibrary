@@ -488,4 +488,20 @@ public class VariousUtils {
 		Collections.shuffle(shuffledArr, random);
 		return shuffledArr;
 	}
+
+	public static void printArray(double[] arr) {
+		if (arr == null) {
+			System.out.println("null");
+		} else {
+			if (arr.length == 0) {
+				return;
+			} else {
+				for (int i = 0; i < arr.length - 1; i++) {
+					System.out.print(Double.toString(arr[i]));
+					System.out.print('\t');
+				}
+				System.out.println(Double.toString(arr[arr.length - 1]));
+			}
+		}
+	}
 }

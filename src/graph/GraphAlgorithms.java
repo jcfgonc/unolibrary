@@ -925,6 +925,7 @@ public class GraphAlgorithms {
 	 */
 	public static Object2IntOpenHashMap<String> countRelations(Set<StringEdge> edges) {
 		Object2IntOpenHashMap<String> counter = new Object2IntOpenHashMap<>();
+		counter.defaultReturnValue(0);
 		for (StringEdge edge : edges) {
 			String relation = edge.getLabel();
 			counter.addTo(relation, 1);
@@ -958,10 +959,6 @@ public class GraphAlgorithms {
 
 	public static DescriptiveStatistics getRelationStatisticsNormalized(Object2IntOpenHashMap<String> count, double divider) {
 		int numRelations = count.size();
-		if (numRelations == 0) {
-			throw new RuntimeException("empty relation histogram, unable to compute statistics");
-		}
-
 		double[] count_d = new double[numRelations];
 		int i = 0;
 		for (String key : count.keySet()) {
