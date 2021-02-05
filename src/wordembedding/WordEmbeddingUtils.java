@@ -149,6 +149,9 @@ public class WordEmbeddingUtils {
 					UnorderedPair<String> relationPair = new UnorderedPair<String>(rel0, rel1);
 					if (wps.containsKey(relationPair)) {
 						sim = wps.getDouble(relationPair);
+						if (sim > 1.1) {
+							System.err.println("questionable semantic similarity for " + relationPair + " = " + sim);
+						}
 					} else {
 						System.err.println("ERROR: score undefined for the pair " + relationPair);
 					}

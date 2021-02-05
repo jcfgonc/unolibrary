@@ -372,21 +372,22 @@ public class StringGraph implements Serializable {
 	 * @return
 	 */
 	public Set<String> getNeighborVertices(String vertex) {
-		Set<StringEdge> edgesI = graph.incomingEdgesOf(vertex);
-		Set<StringEdge> edgesO = graph.outgoingEdgesOf(vertex);
+		Set<StringEdge> edgesI = incomingEdgesOf(vertex);
+		Set<StringEdge> edgesO = outgoingEdgesOf(vertex);
 
 		HashSet<String> neighbors = new HashSet<>((edgesI.size() + edgesO.size()) * 2);
 
 		for (StringEdge edge : edgesI) {
-			String otherConcept = edge.getOppositeOf(vertex);
-			neighbors.add(otherConcept);
+			neighbors.add(edge.getSource());
+			neighbors.add(edge.getTarget());
 		}
 
 		for (StringEdge edge : edgesO) {
-			String otherConcept = edge.getOppositeOf(vertex);
-			neighbors.add(otherConcept);
+			neighbors.add(edge.getSource());
+			neighbors.add(edge.getTarget());
 		}
 
+		neighbors.remove(vertex);
 		return neighbors;
 	}
 
@@ -394,21 +395,6 @@ public class StringGraph implements Serializable {
 		Set<StringEdge> edges = incomingEdgesOf(vertex);
 		HashSet<String> sources = edgesSources(edges);
 		sources.remove(vertex);
-		return sources;
-	}
-
-	/**
-	 * SAFE
-	 * 
-	 * @param edges
-	 * @return
-	 */
-	public HashSet<String> edgesSources(Set<StringEdge> edges) {
-		HashSet<String> sources = new HashSet<>(edges.size() * 2);
-		for (StringEdge edge : edges) {
-			String source = graph.getEdgeSource(edge);
-			sources.add(source);
-		}
 		return sources;
 	}
 
@@ -425,10 +411,25 @@ public class StringGraph implements Serializable {
 	 * @param edges
 	 * @return
 	 */
-	public HashSet<String> edgesTargets(Set<StringEdge> edges) {
+	public static HashSet<String> edgesSources(Set<StringEdge> edges) {
+		HashSet<String> sources = new HashSet<>(edges.size() * 2);
+		for (StringEdge edge : edges) {
+			String source = edge.getSource();
+			sources.add(source);
+		}
+		return sources;
+	}
+
+	/**
+	 * SAFE
+	 * 
+	 * @param edges
+	 * @return
+	 */
+	public static HashSet<String> edgesTargets(Set<StringEdge> edges) {
 		HashSet<String> targets = new HashSet<>(edges.size() * 2);
 		for (StringEdge edge : edges) {
-			String target = graph.getEdgeTarget(edge);
+			String target = edge.getTarget();
 			targets.add(target);
 		}
 		return targets;

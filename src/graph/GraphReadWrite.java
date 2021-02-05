@@ -188,6 +188,8 @@ public class GraphReadWrite {
 		// a,b,c;d,e,f;...;
 		String[] edges_s = VariousUtils.fastSplit(string, ';');
 		for (String edge_s : edges_s) {
+			if (edge_s.isEmpty())
+				continue;
 
 			String[] tokens = VariousUtils.fastSplit(edge_s, ',');
 			int ntokens = tokens.length;

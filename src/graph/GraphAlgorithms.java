@@ -69,8 +69,8 @@ public class GraphAlgorithms {
 	public static Set<String> expandFromOpenSetOneLevel(Set<String> openSet, Set<String> closedSet, StringGraph graph, ExpandingEdge ee) {
 		// changes to be done to open and closed sets (to prevent concurrent
 		// modification exception)
-		Set<String> openSetAddition = new HashSet<String>();
-		Set<String> openSetRemoval = new HashSet<String>();
+		Set<String> openSetAddition = new HashSet<String>(16, 0.333f);
+		Set<String> openSetRemoval = new HashSet<String>(16, 0.333f);
 		// for each vertex in the open set not in the closed set
 		for (String vertexId : openSet) {
 			if (closedSet.contains(vertexId))
@@ -108,8 +108,8 @@ public class GraphAlgorithms {
 	public static Set<String> expandFromVertexOneLevel(String vertexId, Set<String> closedSet, StringGraph graph, ExpandingEdge ee) {
 		// changes to be done to open and closed sets (to prevent concurrent
 		// modification exception)
-		Set<String> openSetAddition = new HashSet<String>();
-		Set<String> openSetRemoval = new HashSet<String>();
+		Set<String> openSetAddition = new HashSet<String>(16, 0.333f);
+		Set<String> openSetRemoval = new HashSet<String>(16, 0.333f);
 		// not in the closed set
 		if (!closedSet.contains(vertexId)) {
 			// get the vertex neighbors not in the closed set
@@ -259,8 +259,8 @@ public class GraphAlgorithms {
 	public static int getDistance(String startingVertex0, String startingVertex1, StringGraph graph) {
 		// set of visited and to visit vertices for the expansion process
 		// expand from vertex0 until arriving at vertex1
-		Set<String> openSet = new HashSet<String>();
-		Set<String> closedSet = new HashSet<String>();
+		Set<String> openSet = new HashSet<String>(16, 0.333f);
+		Set<String> closedSet = new HashSet<String>(16, 0.333f);
 		openSet.add(startingVertex0);
 
 		int distance = 0;
@@ -284,13 +284,13 @@ public class GraphAlgorithms {
 
 		// do the left-right breadth first expansion
 		{
-			HashSet<String> closedSetL = new HashSet<>();
+			HashSet<String> closedSetL = new HashSet<>(16, 0.333f);
 			ArrayDeque<String> openSetL = new ArrayDeque<>();
-			HashSet<String> touchedL = new HashSet<>();
+			HashSet<String> touchedL = new HashSet<>(16, 0.333f);
 
-			HashSet<String> closedSetR = new HashSet<>();
+			HashSet<String> closedSetR = new HashSet<>(16, 0.333f);
 			ArrayDeque<String> openSetR = new ArrayDeque<>();
-			HashSet<String> touchedR = new HashSet<>();
+			HashSet<String> touchedR = new HashSet<>(16, 0.333f);
 
 			openSetL.addLast(vertexL);
 			openSetR.addLast(vertexR);
@@ -339,7 +339,7 @@ public class GraphAlgorithms {
 
 	public static ArrayList<StringEdge> removeRepeatedEdges(ArrayList<StringEdge> edges) {
 		ArrayList<StringEdge> newEdges = new ArrayList<>(edges.size());
-		HashSet<StringEdge> closedSet = new HashSet<>();
+		HashSet<StringEdge> closedSet = new HashSet<>(16, 0.333f);
 		for (StringEdge edge : edges) {
 			if (closedSet.contains(edge))
 				continue;
@@ -624,8 +624,8 @@ public class GraphAlgorithms {
 		while (potentialSet.size() > 0) {
 			// just get a vertex
 			String firstVertex = potentialSet.iterator().next();
-			HashSet<String> closedSet = new HashSet<>();
-			HashSet<String> openSet = new HashSet<>();
+			HashSet<String> closedSet = new HashSet<>(16, 0.333f);
+			HashSet<String> openSet = new HashSet<>(16, 0.333f);
 			// start in a given vertex
 			openSet.add(firstVertex);
 			// expand all neighbors
@@ -680,8 +680,8 @@ public class GraphAlgorithms {
 			RandomGenerator random) {
 		// just get a vertex
 		String firstVertex = VariousUtils.getRandomElementFromCollection(graph.getVertexSet(), random);
-		HashSet<String> closedSet = new HashSet<>();
-		HashSet<String> openSet = new HashSet<>();
+		HashSet<String> closedSet = new HashSet<>(16, 0.333f);
+		HashSet<String> openSet = new HashSet<>(16, 0.333f);
 		// start in a given vertex
 		openSet.add(firstVertex);
 		// ---
@@ -706,10 +706,10 @@ public class GraphAlgorithms {
 	}
 
 	public static Set<String> getNeighborhoodDepth(String from, int maxDepth, StringGraph graph) {
-		Set<String> openSet = new HashSet<String>();
-		Set<String> openSetRemoval = new HashSet<String>();
-		Set<String> openSetAddition = new HashSet<String>();
-		Set<String> closedSet = new HashSet<String>();
+		Set<String> openSet = new HashSet<String>(16, 0.333f);
+		Set<String> openSetRemoval = new HashSet<String>(16, 0.333f);
+		Set<String> openSetAddition = new HashSet<String>(16, 0.333f);
+		Set<String> closedSet = new HashSet<String>(16, 0.333f);
 		openSet.addAll(graph.getNeighborVertices(from));
 		closedSet.add(from);
 		for (int currentDepth = 1; currentDepth < maxDepth; currentDepth++) {
@@ -766,7 +766,7 @@ public class GraphAlgorithms {
 
 	public static HashSet<String> getNameSpaces(StringGraph graph) {
 		Set<String> concepts = graph.getVertexSet();
-		HashSet<String> namespaces = new HashSet<>();
+		HashSet<String> namespaces = new HashSet<>(16, 0.333f);
 		for (String concept : concepts) {
 			String namespace = GraphAlgorithms.getConceptNamespace(concept);
 			if (!namespaces.contains(namespace)) {
@@ -1018,7 +1018,7 @@ public class GraphAlgorithms {
 			return new HashSet<StringEdge>();
 		}
 
-		HashSet<StringEdge> filtered_a = new HashSet<StringEdge>();
+		HashSet<StringEdge> filtered_a = new HashSet<StringEdge>(16, 0.333f);
 		for (StringEdge edge : a) {
 			boolean connected = areVerticesConnectedUndirected(b, edge.getSource(), edge.getTarget());
 			if (!connected) {
@@ -1053,8 +1053,8 @@ public class GraphAlgorithms {
 		// TODO: adapt this to support multiple components
 		ArrayDeque<StringEdge> edgesToVisit = new ArrayDeque<>();
 		// TODO if there are errors in cycle counting replace unorderedpair with orderedpair
-		HashSet<UnorderedPair<String>> edgesVisited = new HashSet<>();
-		HashSet<String> verticesVisited = new HashSet<>();
+		HashSet<UnorderedPair<String>> edgesVisited = new HashSet<>(16, 0.333f);
+		HashSet<String> verticesVisited = new HashSet<>(16, 0.333f);
 
 		StringEdge startingEdge = pattern.edgeSet().iterator().next();
 		edgesToVisit.add(startingEdge);

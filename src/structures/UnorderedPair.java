@@ -34,10 +34,7 @@ public class UnorderedPair<T> {
 
 	@Override
 	public int hashCode() {
-		// I am pretty sure this is serious
-		// right is reversed so that the hashcode depends on the order between the pair elements
-		// int result = left.hashCode() ^ Integer.reverse(right.hashCode());
-		
+		// hashcode must be independent of the left/right order
 		int result = left.hashCode() ^ right.hashCode();
 		return result;
 	}
@@ -55,7 +52,7 @@ public class UnorderedPair<T> {
 		}
 		@SuppressWarnings("unchecked")
 		UnorderedPair<T> other = (UnorderedPair<T>) obj;
-		if ((left.equals(other.left) && right.equals(other.right)) || // ----
+		if (	(left.equals(other.left)  && right.equals(other.right)) || // ----
 				(left.equals(other.right) && right.equals(other.left))) {
 			return true;
 		}

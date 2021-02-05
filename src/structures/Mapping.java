@@ -152,6 +152,7 @@ public class Mapping<T> implements Iterable<ConceptPair<T>> {
 	private Set<ConceptPair<T>> mapping;
 	private Set<T> leftConcepts;
 	private Set<T> rightConcepts;
+	private HashMap<T, T> opposingConcepts;
 
 	public Mapping() {
 		super();
@@ -159,6 +160,7 @@ public class Mapping<T> implements Iterable<ConceptPair<T>> {
 		this.conceptToPair = new HashMap<T, ConceptPair<T>>(16, 0.333333f);
 		this.leftConcepts = new HashSet<>(16, 0.333333f);
 		this.rightConcepts = new HashSet<>(16, 0.333333f);
+		this.opposingConcepts = new HashMap<>(16, 0.333333f);
 	}
 
 	public Mapping(Collection<ConceptPair<T>> mapping_) {
@@ -180,6 +182,8 @@ public class Mapping<T> implements Iterable<ConceptPair<T>> {
 		conceptToPair.put(r, pair);
 		leftConcepts.add(l);
 		rightConcepts.add(r);
+		opposingConcepts.put(l, r);
+		opposingConcepts.put(r, l);
 	}
 
 	public void add(T leftConcept, T rightConcept) {
@@ -384,6 +388,14 @@ public class Mapping<T> implements Iterable<ConceptPair<T>> {
 
 	public Set<T> getRightConcepts() {
 		return Collections.unmodifiableSet(rightConcepts);
+	}
+
+	public boolean isOppositePair(String l, String r) {
+		return opposingConcepts.get(l).equals(r);
+	}
+	
+	public T getOppositeConcept(String concept) {
+		return opposingConcepts.get(concept);
 	}
 
 }
