@@ -17,8 +17,8 @@ public class GraphStreamUtils {
 
 	private static String CSS = "css/graph.css";
 
-	public static MultiGraph initializeGraphStream() {
-		MultiGraph visualGraph = new MultiGraph("output space");
+	public static MultiGraph initializeGraphStream(String id) {
+		MultiGraph visualGraph = new MultiGraph("graph" + id);
 
 		String styleSheet = null;
 		try {
@@ -28,9 +28,9 @@ public class GraphStreamUtils {
 			System.exit(-1);
 		}
 
-		visualGraph.addAttribute("ui.stylesheet", styleSheet);
-		visualGraph.addAttribute("ui.quality");
-		visualGraph.addAttribute("ui.antialias");
+		visualGraph.setAttribute("ui.stylesheet", styleSheet);
+//		visualGraph.setAttribute("ui.quality");
+		// visualGraph.setAttribute("ui.antialias");
 
 		return visualGraph;
 	}
@@ -39,7 +39,7 @@ public class GraphStreamUtils {
 		Node node = visualGraph.getNode(nodeLabel);
 		if (node == null) {
 			node = visualGraph.addNode(nodeLabel);
-			node.addAttribute("ui.label", nodeLabel);
+			node.setAttribute("ui.label", nodeLabel);
 			// if (nodeLabel.contains("|")) {
 			// node.addAttribute("ui.class", "blend");
 			// }
@@ -59,7 +59,7 @@ public class GraphStreamUtils {
 		Edge addEdge = visualGraph.getEdge(edgeID);
 		if (addEdge == null) {
 			addEdge = visualGraph.addEdge(edgeID, sourceNode, targetNode, true);
-			addEdge.addAttribute("ui.label", edgeLabel);
+			addEdge.setAttribute("ui.label", edgeLabel);
 //			if (Blend.isInterspaceEdge(edge)) {
 //				addEdge.addAttribute("ui.class", "red");
 //			}
