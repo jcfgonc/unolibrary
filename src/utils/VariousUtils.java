@@ -504,4 +504,26 @@ public class VariousUtils {
 			}
 		}
 	}
+
+	public static <T> HashSet<T> calculateRemovedElements(HashSet<T> oldSet, HashSet<T> newSet) {
+		// what's in old which ain't in new
+		HashSet<T> removed = new HashSet<>();
+		for (T element : oldSet) {
+			if (!newSet.contains(element)) {
+				removed.add(element);
+			}
+		}
+		return removed;
+	}
+
+	public static <T> HashSet<T> calculateAddedElements(HashSet<T> oldSet, HashSet<T> newSet) {
+		// what's in new which ain't in old
+		HashSet<T> added = new HashSet<>();
+		for (T element : newSet) {
+			if (!oldSet.contains(element)) {
+				added.add(element);
+			}
+		}
+		return added;
+	}
 }

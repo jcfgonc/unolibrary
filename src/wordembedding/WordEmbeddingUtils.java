@@ -32,12 +32,23 @@ public class WordEmbeddingUtils {
 	public static void main(String[] a) throws IOException, InterruptedException {
 
 		String frames_filename = "..\\PatternMiner\\results\\resultsV22.csv";
-		String synonyms_filename = "C:\\Desktop\\github\\my source code\\PatternMiner\\results\\synonyms.txt";
+		String synonyms_filename = "..\\PatternMiner\\results\\synonyms.txt";
 		String wordembedding_filename = "D:\\\\Temp\\\\ontologies\\\\word emb\\\\ConceptNet Numberbatch 19.08\\\\numberbatch-en.txt";
 		String frameSimilarityFilename = "..\\PatternMiner\\results\\patterns_semantic_similarityV22.tsv";
-		calculateAndSaveFrameSimilarity(frames_filename, wordembedding_filename, synonyms_filename, frameSimilarityFilename);
+		String wordPairScores_filename = "C:\\Desktop\\github\\BlenderMO\\data\\relation_pair_scores.tsv";
 
+//		calculateAndSaveFrameSimilarity(frames_filename, wordembedding_filename, synonyms_filename, frameSimilarityFilename);
+
+		calculateAndSaveWordPairScores(synonyms_filename, wordembedding_filename, wordPairScores_filename);
 //		interactiveConsole(synonyms_filename, wordembedding_filename);
+	}
+
+	private static void calculateAndSaveWordPairScores(String synonyms_filename, String wordembedding_filename, String wordPairScores_filename)
+			throws IOException {
+		ListWordEmbedding we = WordEmbeddingReadWrite.readCSV(wordembedding_filename, true);
+		MapOfList<String, String> synonyms = readSynonymWordList(synonyms_filename, we);
+		Object2DoubleOpenHashMap<UnorderedPair<String>> wps = scoreWordPairs(we, synonyms);
+		saveWordPairScores(wps, wordPairScores_filename);
 	}
 
 	private static void interactiveConsole(String synonyms_filename, String wordembedding_filename) throws IOException {
