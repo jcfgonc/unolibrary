@@ -19,7 +19,12 @@ public class GraphStreamUtils {
 
 	public static MultiGraph initializeGraphStream(String id) {
 		MultiGraph visualGraph = new MultiGraph("graph" + id);
+		setupStyleSheet(visualGraph);
 
+		return visualGraph;
+	}
+
+	public static void setupStyleSheet(MultiGraph visualGraph) {
 		String styleSheet = null;
 		try {
 			styleSheet = new String(Files.readAllBytes(Paths.get(CSS)));
@@ -31,8 +36,6 @@ public class GraphStreamUtils {
 		visualGraph.setAttribute("ui.stylesheet", styleSheet);
 //		visualGraph.setAttribute("ui.quality");
 		// visualGraph.setAttribute("ui.antialias");
-
-		return visualGraph;
 	}
 
 	private static Node addNodeToVisualGraph(MultiGraph visualGraph, String nodeLabel) {
@@ -67,7 +70,7 @@ public class GraphStreamUtils {
 		return addEdge;
 	}
 
-	public static void addEdgesToVisualGraph(MultiGraph visualGraph, Set<StringEdge> edgesToAdd) {
+	public static void addEdgesToGraph(MultiGraph visualGraph, Set<StringEdge> edgesToAdd) {
 		for (StringEdge edge : edgesToAdd) {
 			addEdgeToVisualGraph(visualGraph, edge);
 		}
@@ -124,7 +127,7 @@ public class GraphStreamUtils {
 				addedEdges.add(newEdge);
 			}
 		}
-		addEdgesToVisualGraph(multiGraph, addedEdges);
+		addEdgesToGraph(multiGraph, addedEdges);
 
 		return !addedEdges.isEmpty() || !removedEdges.isEmpty();
 	}
