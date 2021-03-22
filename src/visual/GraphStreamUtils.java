@@ -34,8 +34,8 @@ public class GraphStreamUtils {
 		}
 
 		visualGraph.setAttribute("ui.stylesheet", styleSheet);
-//		visualGraph.setAttribute("ui.quality");
-		// visualGraph.setAttribute("ui.antialias");
+		visualGraph.setAttribute("ui.quality");
+		visualGraph.setAttribute("ui.antialias");
 	}
 
 	private static Node addNodeToVisualGraph(MultiGraph visualGraph, String nodeLabel) {

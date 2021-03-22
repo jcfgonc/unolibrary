@@ -659,6 +659,7 @@ public class GraphAlgorithms {
 			HashSet<String> componentVertices = components.getSetAt(0);
 			// graph vertices in a array for better caching
 			ArrayList<String> graphVertices = new ArrayList<String>(graph.getVertexSet());
+			// remove from graph the vertices not contained in the component
 			for (String vertice : graphVertices) {
 				if (componentVertices.contains(vertice))
 					continue;
@@ -1090,5 +1091,84 @@ public class GraphAlgorithms {
 			}
 		}
 		return cycles;
+	}
+
+	/**
+	 * returns the blended concept (if existing) containing the given text. The concept will be a blend of the form *|text OR text|*
+	 * 
+	 * @param blendSpace
+	 * @param text
+	 * @return
+	 */
+	public static String getBlendContainingConcept(StringGraph blendSpace, String text) {
+		for (String vertex : blendSpace.getVertexSet()) {
+			if (vertex.indexOf('|') < 0)
+				continue;
+			String[] vertexTokens = VariousUtils.fastSplit(vertex, '|');
+			for (String token : vertexTokens) {
+				if (token.equals(text)) {
+					return vertex;
+				}
+			}
+		}
+		return null;
+	}
+
+	public static int countBlendedConcepts(StringGraph blendSpace) {
+		int numberMappings = 0;
+		for (String vertex : blendSpace.getVertexSet()) {
+			if (vertex.indexOf('|') >= 0) {
+				numberMappings++;
+			}
+		}
+		return numberMappings;
+	}
+
+	/**
+	 * Returns a new graph with the all the edges converted to facts (i.e., vertices are represented as integer constants).
+	 * 
+	 * @param graph
+	 * @return
+	 */
+	public static StringGraph convertGraphToConstantGraph(StringGraph graph) {
+		StringGraph ngraph = new StringGraph();
+		// first: map vertices to numbers
+		HashMap<String, String> varToConstant = new HashMap<String, String>(graph.numberOfVertices() * 2);
+		for (String variable : graph.getVertexSet()) {
+			String constant = Integer.toString(varToConstant.size());
+			varToConstant.put(variable, constant);
+		}
+		// second: copy edges from the given graph to the newgraph while renaming the vertices
+		for (StringEdge edge : graph.edgeSet()) {
+			ngraph.addEdge(//
+					varToConstant.get(edge.getSource()), //
+					varToConstant.get(edge.getTarget()), //
+					edge.getLabel());
+		}
+		return ngraph;
+	}
+
+	/**
+	 * Returns a new graph with the all the edges converted to rules (i.e., vertices are represented as variables/capitalized words).
+	 * 
+	 * @param graph
+	 * @return
+	 */
+	public static StringGraph convertGraphToVariableGraph(StringGraph graph) {
+		StringGraph ngraph = new StringGraph();
+		// first: map vertices to numbers
+		HashMap<String, String> vertexToVar = new HashMap<String, String>(graph.numberOfVertices() * 2);
+		for (String variable : graph.getVertexSet()) {
+			String var = "V" + Integer.toString(vertexToVar.size());
+			vertexToVar.put(variable, var);
+		}
+		// second: copy edges from the given graph to the newgraph while renaming the vertices
+		for (StringEdge edge : graph.edgeSet()) {
+			ngraph.addEdge(//
+					vertexToVar.get(edge.getSource()), //
+					vertexToVar.get(edge.getTarget()), //
+					edge.getLabel());
+		}
+		return ngraph;
 	}
 }

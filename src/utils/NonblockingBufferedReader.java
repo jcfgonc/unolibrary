@@ -45,6 +45,7 @@ public class NonblockingBufferedReader {
 						// lines.add(line);
 					}
 				} catch (IOException | InterruptedException e) {
+					e.printStackTrace();
 					throw new RuntimeException(e);
 				} finally {
 					closed = true;

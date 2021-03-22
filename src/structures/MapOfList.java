@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Set;
 
 /**
@@ -92,6 +93,10 @@ public class MapOfList<K, V> {
 		for (V value : values) {
 			removeFromValues(value);
 		}
+	}
+	
+	public Set<Entry<K, List<V>>> entrySet() {
+		return map.entrySet();
 	}
 
 }

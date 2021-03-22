@@ -1,5 +1,6 @@
 package utils;
 
+import java.awt.Dimension;
 import java.awt.Toolkit;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -103,8 +104,15 @@ public class OSTools {
 		return Toolkit.getDefaultToolkit().getScreenResolution();
 	}
 
+	public static Dimension getEquivalentResolutionDPI(Dimension d) {
+		double k = getScreenScale();
+		double w = d.getWidth() * k;
+		double h = d.getHeight() * k;
+		return new Dimension((int) w, (int) h);
+	}
+
 	/**
-	 * Only works for windowze as it is my OS and I don't know how to convert to other OSes.
+	 * Only works for windows as it is my OS and I don't know how to convert to other OSes.
 	 * 
 	 * @return
 	 */
@@ -114,7 +122,9 @@ public class OSTools {
 			double defaultDPI = 96;
 			double scale = dpi / defaultDPI;
 			return scale;
-		} else
-			return 1; // yeah...
+		} else {
+			System.err.println("TODO: implement getScreenScale() for a Non-Windows OS");
+			return 1; // lol
+		}
 	}
 }

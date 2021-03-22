@@ -47,7 +47,12 @@ public class SemanticFrame {
 		return frame_str;
 	}
 
-	public StringGraph getGraph() {
+	/**
+	 * returns the graph which has variables (capital words) as vertices
+	 * 
+	 * @return
+	 */
+	public StringGraph getFrame() {
 		return frameGraph;
 	}
 

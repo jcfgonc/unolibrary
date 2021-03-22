@@ -114,7 +114,7 @@ public class WordEmbeddingUtils {
 			Object2DoubleOpenHashMap<UnorderedPair<String>> wps) throws IOException, InterruptedException {
 		ArrayList<DescriptiveStatistics> frameSimilarityStatistics = new ArrayList<DescriptiveStatistics>();
 		for (SemanticFrame frame : frames) {
-			StringGraph graph = frame.getGraph();
+			StringGraph graph = frame.getFrame();
 			DescriptiveStatistics ds = calculateGraphWithinSimilarity(wps, graph);
 			frameSimilarityStatistics.add(ds);
 		}

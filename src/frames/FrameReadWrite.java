@@ -28,12 +28,10 @@ public class FrameReadWrite {
 		FileWriter fw = new FileWriter(file, StandardCharsets.UTF_8);
 		BufferedWriter bw = new BufferedWriter(fw);
 		// write header
-		bw.write("n:time\tn:relationTypes\tn:relationTypesStd\tn:cycles\tn:patternEdges\tn:patternVertices\tn:matches\ts:query\ts:pattern");
+		bw.write(FRAME_PATTERN_HEADER);
 		bw.newLine();
 		for (SemanticFrame frame : frames) {
-			StringGraph graph = frame.getGraph();
-			bw.write("0"); // n:time
-			bw.write('\t');
+			StringGraph graph = frame.getFrame();
 			bw.write(Integer.toString(frame.getRelationTypes()));
 			bw.write('\t');
 			bw.write(Double.toString(frame.getRelationTypesStd()));
