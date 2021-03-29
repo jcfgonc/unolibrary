@@ -353,37 +353,48 @@ public class GraphReadWrite {
 		readDivago(new File(filename), graph);
 	}
 
-	public static void readPrologFromString(String text, StringGraph graph) {
+	public static StringGraph readPrologFromString(String text, StringGraph graph) {
 		StringReader sr = new StringReader(text);
-		readProlog(sr, graph);
-		sr.close();
-	}
-
-	public static void readProlog(Readable r, StringGraph graph) {
-		Scanner sc = new Scanner(r);
-		Pattern factSeparator = Pattern.compile("[\s]*\\.[\s]*");
-		sc.useDelimiter(factSeparator);
-		// while there are facts
-		while (sc.hasNext()) {
-			String fact = sc.next().trim(); // of the form p(a,b)
-
-			String relation = fact.substring(0, fact.indexOf('(')).trim();
-			String source = fact.substring(fact.indexOf('(') + 1, fact.indexOf(',')).trim();
-			String target = fact.substring(fact.indexOf(',') + 1, fact.indexOf(')')).trim();
-
-			graph.addEdge(source, target, relation);
+		try {
+			return readProlog(sr, graph);
+		} finally {
+			sr.close();
 		}
-		sc.close();
 	}
 
-	public static void readProlog(File file, StringGraph graph) throws IOException {
-		BufferedReader br = new BufferedReader(new FileReader(file, StandardCharsets.UTF_8));
-		readProlog(br, graph);
-		br.close();
+	public static StringGraph readProlog(Readable r, StringGraph graph) {
+		Scanner sc = new Scanner(r);
+		try {
+			Pattern factSeparator = Pattern.compile("[\s]*\\.[\s]*");
+			sc.useDelimiter(factSeparator);
+			// while there are facts
+			while (sc.hasNext()) {
+				String fact = sc.next().trim(); // of the form p(a,b)
+
+				String relation = fact.substring(0, fact.indexOf('(')).trim();
+				String source = fact.substring(fact.indexOf('(') + 1, fact.indexOf(',')).trim();
+				String target = fact.substring(fact.indexOf(',') + 1, fact.indexOf(')')).trim();
+
+				graph.addEdge(source, target, relation);
+			}
+			return graph;
+		} finally {
+			sc.close();
+		}
 	}
 
-	public static void readProlog(String filename, StringGraph graph) throws IOException {
-		readProlog(new File(filename), graph);
+	public static StringGraph readProlog(File file, StringGraph graph) throws IOException {
+		FileReader fr = new FileReader(file, StandardCharsets.UTF_8);
+		BufferedReader br = new BufferedReader(fr);
+		try {
+			return readProlog(br, graph);
+		} finally {
+			br.close();
+		}
+	}
+
+	public static StringGraph readProlog(String filename, StringGraph graph) throws IOException {
+		return readProlog(new File(filename), graph);
 	}
 
 	public static void readTGF(BufferedReader br, StringGraph graph) throws IOException {

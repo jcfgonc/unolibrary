@@ -2,6 +2,7 @@ package utils;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -35,21 +36,28 @@ public class AbcDatalogInterface {
 		datalog.addFacts(kb);
 
 		text = "partof(A,C)." + "ability(C,D)." + "partof(B,C)." + "ability(C,E).";
-		StringGraph frame = new StringGraph();
-		GraphReadWrite.readPrologFromString(text, frame);
+		StringGraph frame0 = GraphReadWrite.readPrologFromString(text, new StringGraph());
+		PositiveAtom q0 = datalog.addRuleFromStringGraphUniqueInstantiation("q0", frame0);
+		
+		text = "partof(A,C)." + "ability(C,D).";
+		StringGraph frame1 = GraphReadWrite.readPrologFromString(text, new StringGraph());
+		PositiveAtom q1 = datalog.addRuleFromStringGraphUniqueInstantiation("q1", frame1);
+		datalog.initialize();
 
-		datalog.addRuleFromStringGraphUniqueInstantiation("q0", frame);
+		System.out.println(datalog.query(q0));
+		System.out.println(datalog.query(q1));
 
 //		ArrayList<PositiveAtom> q1 = datalog.createQueryFromStringGraph(frame);
 //		System.out.println(datalog.query(q1));
 
 		// ArrayList<PositiveAtom> q2 = di.createRuleFromStringGraphUniqueInstantiation(String ruleId, StringGraph frame)
 		// System.out.println(di.query(q2));
+		System.lineSeparator();
 	}
 
 	private DatalogEngine abcDatalog;
-	private static final List<Premise> emptyBody = new ArrayList<>(0);
-	private static final Term[] emptyArgs = {};
+	private static final List<Premise> emptyPremiseList = Collections.unmodifiableList(new ArrayList<>(0));
+	private static final Term[] emptyTermArray = {};
 	private Set<Clause> clauses;
 	private boolean initialized;
 
@@ -121,7 +129,7 @@ public class AbcDatalogInterface {
 			constants[0] = createConstant(source);
 			constants[1] = createConstant(target);
 			PositiveAtom head = PositiveAtom.create(PredicateSym.create(relation, 2), constants);
-			clauses.add(new Clause(head, emptyBody));
+			clauses.add(new Clause(head, emptyPremiseList));
 		}
 	}
 
@@ -167,14 +175,15 @@ public class AbcDatalogInterface {
 	}
 
 	/**
-	 * Obviously that each graph vertex must be a variable.
+	 * Obviously that each graph vertex must be a variable. Returns the ruleId rule term (head of the clause).
 	 * 
 	 * @param graph
 	 * @return
+	 * @return
 	 */
-	public void addRuleFromStringGraphUniqueInstantiation(String ruleId, StringGraph graph) {
+	public PositiveAtom addRuleFromStringGraphUniqueInstantiation(String ruleId, StringGraph graph) {
 		// ruleId := baseQuery, A!=B, A!=C, ...
-		PositiveAtom head = PositiveAtom.create(PredicateSym.create(ruleId, 0), emptyArgs);
+		PositiveAtom head = PositiveAtom.create(PredicateSym.create(ruleId, 0), emptyTermArray);
 
 		ArrayList<Premise> body = new ArrayList<Premise>();
 
@@ -198,6 +207,17 @@ public class AbcDatalogInterface {
 		// create the rule and add it
 		Clause clause = new Clause(head, body);
 		clauses.add(clause);
+
+		PositiveAtom query = PositiveAtom.create(PredicateSym.create(ruleId, 0), emptyTermArray);
+		return query;
+	}
+
+	public Set<PositiveAtom> query(PositiveAtom query) {
+		if (!initialized) {
+			throw new RuntimeException("must be initialized() before a query");
+		}
+		Set<PositiveAtom> bindings = abcDatalog.query(query);
+		return bindings;
 	}
 
 	public Set<ConstOnlySubstitution> query(List<PositiveAtom> query) {
