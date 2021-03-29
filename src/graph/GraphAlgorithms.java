@@ -1135,7 +1135,8 @@ public class GraphAlgorithms {
 		// first: map vertices to numbers
 		HashMap<String, String> varToConstant = new HashMap<String, String>(graph.numberOfVertices() * 2);
 		for (String variable : graph.getVertexSet()) {
-			String constant = Integer.toString(varToConstant.size());
+			int constantCounter = varToConstant.size();
+			String constant = Integer.toString(constantCounter);
 			varToConstant.put(variable, constant);
 		}
 		// second: copy edges from the given graph to the newgraph while renaming the vertices
@@ -1159,7 +1160,8 @@ public class GraphAlgorithms {
 		// first: map vertices to numbers
 		HashMap<String, String> vertexToVar = new HashMap<String, String>(graph.numberOfVertices() * 2);
 		for (String variable : graph.getVertexSet()) {
-			String var = "V" + Integer.toString(vertexToVar.size());
+			int varCounter = vertexToVar.size();
+			String var = "V" + Integer.toString(varCounter);
 			vertexToVar.put(variable, var);
 		}
 		// second: copy edges from the given graph to the newgraph while renaming the vertices

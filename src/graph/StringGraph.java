@@ -55,8 +55,8 @@ public class StringGraph implements Serializable {
 
 	// DirectedPseudograph<String, StringEdge> graph;
 	private DirectedMultiGraphOld<String, StringEdge> graph;
-	private final boolean allowSelfLoops = false;
-	private final boolean allowSymmetry = false;
+	private final boolean allowSelfLoops = true;
+	private final boolean allowSymmetry = true;
 
 	public StringGraph(int numEdges, int inEdges, int outEdges, int numVertices) {
 		this.graph = new DirectedMultiGraphOld<String, StringEdge>(numEdges, inEdges, outEdges, numVertices);

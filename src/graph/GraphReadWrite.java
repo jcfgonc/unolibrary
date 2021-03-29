@@ -8,6 +8,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.io.StringReader;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
@@ -17,8 +18,10 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Scanner;
 import java.util.Set;
 import java.util.StringTokenizer;
+import java.util.regex.Pattern;
 
 import structures.ObjectIndex;
 import utils.NonblockingBufferedReader;
@@ -111,11 +114,11 @@ public class GraphReadWrite {
 		if (extension.equalsIgnoreCase("csv")) {
 			readCSV(filename, graph);
 		} else if (extension.equalsIgnoreCase("dt")) {
-			readDT(filename, graph);
+			readDivago(filename, graph);
 		} else if (extension.equalsIgnoreCase("tgf")) {
 			readTGF(filename, graph);
-		} else if (extension.equalsIgnoreCase("pro")) {
-			readPRO(filename, graph);
+		} else if (extension.equalsIgnoreCase("pro") || extension.equalsIgnoreCase("pl")) {
+			readProlog(filename, graph);
 		} else {
 			System.err.println("unknown file extension: " + extension);
 			System.exit(-1);
@@ -313,7 +316,7 @@ public class GraphReadWrite {
 
 	}
 
-	public static void readDT(BufferedReader br, StringGraph graph) throws IOException {
+	public static void readDivago(BufferedReader br, StringGraph graph) throws IOException {
 		// :- multifile r/4, neg/4, arc/5, rule/6, frame/6, integrity/3.
 		// r(bird,group,call,call).
 		while (br.ready()) {
@@ -340,49 +343,47 @@ public class GraphReadWrite {
 		br.close();
 	}
 
-	public static void readDT(File file, StringGraph graph) throws IOException {
+	public static void readDivago(File file, StringGraph graph) throws IOException {
 		BufferedReader br = new BufferedReader(new FileReader(file, StandardCharsets.UTF_8));
-		readDT(br, graph);
+		readDivago(br, graph);
 		br.close();
 	}
 
-	public static void readDT(String filename, StringGraph graph) throws IOException {
-		readDT(new File(filename), graph);
+	public static void readDivago(String filename, StringGraph graph) throws IOException {
+		readDivago(new File(filename), graph);
 	}
 
-	public static void readPRO(BufferedReader br, StringGraph graph) throws IOException {
-		// reads stuff such as:
-		// isa(paper1, paper).
-		// property(area, recent).
+	public static void readPrologFromString(String text, StringGraph graph) {
+		StringReader sr = new StringReader(text);
+		readProlog(sr, graph);
+		sr.close();
+	}
 
-		// rel(source,target).
-		while (br.ready()) {
-			String line = br.readLine();
-			if (line == null)
-				break;
-			line = line.trim();
-			// ignore empty lines
-			if (line.length() == 0)
-				continue;
+	public static void readProlog(Readable r, StringGraph graph) {
+		Scanner sc = new Scanner(r);
+		Pattern factSeparator = Pattern.compile("[\s]*\\.[\s]*");
+		sc.useDelimiter(factSeparator);
+		// while there are facts
+		while (sc.hasNext()) {
+			String fact = sc.next().trim(); // of the form p(a,b)
 
-			String relation = line.substring(0, line.indexOf('(')).trim();
-			String source = line.substring(line.indexOf('(') + 1, line.indexOf(',')).trim();
-			String target = line.substring(line.indexOf(',') + 1, line.indexOf(')')).trim();
+			String relation = fact.substring(0, fact.indexOf('(')).trim();
+			String source = fact.substring(fact.indexOf('(') + 1, fact.indexOf(',')).trim();
+			String target = fact.substring(fact.indexOf(',') + 1, fact.indexOf(')')).trim();
 
 			graph.addEdge(source, target, relation);
 		}
-		br.close();
-
+		sc.close();
 	}
 
-	public static void readPRO(File file, StringGraph graph) throws IOException {
+	public static void readProlog(File file, StringGraph graph) throws IOException {
 		BufferedReader br = new BufferedReader(new FileReader(file, StandardCharsets.UTF_8));
-		readPRO(br, graph);
+		readProlog(br, graph);
 		br.close();
 	}
 
-	public static void readPRO(String filename, StringGraph graph) throws IOException {
-		readPRO(new File(filename), graph);
+	public static void readProlog(String filename, StringGraph graph) throws IOException {
+		readProlog(new File(filename), graph);
 	}
 
 	public static void readTGF(BufferedReader br, StringGraph graph) throws IOException {
