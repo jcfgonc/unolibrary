@@ -18,8 +18,8 @@ import utils.NonblockingBufferedReader;
 import utils.VariousUtils;
 
 public class FrameReadWrite {
-	private static final String FRAME_PATTERN_HEADER = "n:relationTypes\tn:relationTypesStd\tn:cycles\tn:patternEdges\tn:patternVertices\tn:matches\ts:query\ts:pattern";
-	private static final String FRAME_SIMILARITY_HEADER = "#edgePairs\tSSsum\tSSmean\tSSstandardDeviation\tSSmin\tSSmax";
+	private static final String FRAME_PATTERN_HEADER = "i:relationTypes	f:relationTypesStd	f:edgesPerRelationTypes	i:cycles	i:patternEdges	i:patternVertices	f:matches	g:query	s:pattern";
+	private static final String FRAME_SIMILARITY_HEADER = "i:edgePairs	f:SSsum	f:SSmean	f:SSstandardDeviation	f:SSmin	f:SSmax";
 
 	public static void writePatternFramesCSV(Collection<SemanticFrame> frames, String framesPath) throws IOException {
 		// order is
@@ -35,6 +35,8 @@ public class FrameReadWrite {
 			bw.write(Integer.toString(frame.getRelationTypes()));
 			bw.write('\t');
 			bw.write(Double.toString(frame.getRelationTypesStd()));
+			bw.write('\t');
+			bw.write(Double.toString(frame.getEdgesPerRelationTypes()));
 			bw.write('\t');
 			bw.write(Integer.toString(frame.getCycles()));
 			bw.write('\t');
@@ -67,7 +69,7 @@ public class FrameReadWrite {
 			line = line.trim();
 			if (!readFirstLine) {
 				if (!line.equals(FRAME_PATTERN_HEADER)) {
-					throw new RuntimeException("first line must be of the form:" + FRAME_PATTERN_HEADER);
+					throw new RuntimeException("first line must be:" + FRAME_PATTERN_HEADER);
 				}
 				readFirstLine = true;
 				continue;
@@ -79,17 +81,22 @@ public class FrameReadWrite {
 			// store frame data
 			sf.setRelationTypes(Integer.parseInt(cells[0]));
 			sf.setRelationTypesStd(Double.parseDouble(cells[1]));
-			sf.setCycles(Integer.parseInt(cells[2]));
-			// sf.setPatternEdges(Integer.parseInt(cells[3]));
-			// sf.setPatternVertices(Integer.parseInt(cells[4]));
-			sf.setMatches(Double.parseDouble(cells[5]));
-			sf.setFrame(cells[6]);
+			sf.setEdgesPerRelationTypes(Double.parseDouble(cells[2]));
+			sf.setCycles(Integer.parseInt(cells[3]));
+
+			sf.setMatches(Double.parseDouble(cells[6]));
+			sf.setFrame(cells[7]);
 			// sf.setPatternGraph(GraphReadWrite.readCSVFromString(cells[6])); // graph is built from the query
-			sf.setOriginalGraph(cells[7]);
+			sf.setOriginalGraph(cells[8]);
 
 			frames.add(sf);
 		}
 		br.close();
+
+		String filenameSemanticStuff = VariousUtils.appendSuffixToFilename(filename, "_semantic_similarity");
+		if (new File(filenameSemanticStuff).isFile()) {
+			FrameReadWrite.updatePatternFrameSimilarity(frames, filenameSemanticStuff);
+		}
 
 		System.out.printf("loaded %d frames from %s\n", frames.size(), filename);
 		System.out.println("loading took " + ticker.getTimeDeltaLastCall() + " s");
@@ -117,7 +124,7 @@ public class FrameReadWrite {
 			line = line.trim();
 			if (!readFirstLine) {
 				if (!line.equals(FRAME_SIMILARITY_HEADER)) {
-					throw new RuntimeException("first line must be of the form:" + FRAME_SIMILARITY_HEADER);
+					throw new RuntimeException("first line must be:" + FRAME_SIMILARITY_HEADER);
 				}
 				readFirstLine = true;
 				continue;

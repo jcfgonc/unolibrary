@@ -17,6 +17,17 @@ import utils.VariousUtils;
  *
  */
 public class CSVReader {
+	public static CSVReader readCSV(String columnSeparator, File file, boolean fileHasHeader) throws IOException {
+		CSVReader c = new CSVReader(columnSeparator, file, fileHasHeader);
+		c.read();
+		c.close();
+		return c;
+	}
+
+	public static CSVReader readCSV(String columnSeparator, String filename, boolean fileHasHeader) throws IOException {
+		return readCSV(columnSeparator, new File(filename), fileHasHeader);
+	}
+
 	private boolean fileHasHeader;
 	private ArrayList<String> header;
 	private ArrayList<ArrayList<String>> rows;
@@ -40,7 +51,53 @@ public class CSVReader {
 	public void close() throws IOException {
 	}
 
-	public void read() throws IOException {
+	public ArrayList<String> getHeader() throws IOException {
+		read();
+		return header;
+	}
+
+	/**
+	 * calls getNumberOfColumns(0)
+	 * 
+	 * @return
+	 */
+	public int getNumberOfColumns() {
+		return getNumberOfColumns(0);
+	}
+
+	public int getNumberOfColumns(int row) {
+		return rows.get(row).size();
+	}
+
+	/**
+	 * returns the number of rows, excluding the header row
+	 * 
+	 * @return
+	 */
+	public int getNumberOfRows() {
+		return rows.size();
+	}
+
+	public ArrayList<String> getRow(int row) {
+		return rows.get(row);
+	}
+
+	/**
+	 * reads the file and returns the rows
+	 * 
+	 * @return
+	 * @throws IOException
+	 */
+	public ArrayList<ArrayList<String>> getRows() throws IOException {
+		read();
+		return rows;
+	}
+
+	private void read() throws IOException {
+		if (dataRead) {
+			return;
+		}
+
 		this.rows = new ArrayList<ArrayList<String>>();
 		this.header = new ArrayList<>();
 		boolean headRead = false;
@@ -58,56 +115,7 @@ public class CSVReader {
 			}
 		}
 		br.close();
-		this.dataRead = true;
-	}
-
-	public ArrayList<String> getHeader() throws IOException {
-		if (!dataRead) {
-			read();
-		}
-		return header;
-	}
-
-	/**
-	 * reads the file and returns the rows
-	 * 
-	 * @return
-	 * @throws IOException
-	 */
-	public ArrayList<ArrayList<String>> getRows() throws IOException {
-		if (!dataRead) {
-			read();
-		}
-		return rows;
-	}
-
-	public static CSVReader readCSV(String columnSeparator, File file, boolean fileHasHeader) throws IOException {
-		CSVReader c = new CSVReader(columnSeparator, file, fileHasHeader);
-		c.read();
-		c.close();
-		return c;
-	}
-
-	/**
-	 * returns the number of rows, excluding the header row
-	 * 
-	 * @return
-	 */
-	public int getNumberOfRows() {
-		return rows.size();
-	}
-
-	public int getNumberOfColumns(int row) {
-		return rows.get(row).size();
-	}
-
-	/**
-	 * calls getNumberOfColumns(0)
-	 * 
-	 * @return
-	 */
-	public int getNumberOfColumns() {
-		return getNumberOfColumns(0);
+		dataRead = true;
 	}
 
 }

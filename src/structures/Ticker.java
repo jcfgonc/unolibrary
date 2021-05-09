@@ -66,7 +66,6 @@ public class Ticker {
 
 	public void showTimeDeltaLastCall() {
 		System.out.println("d(t)=" + getTimeDeltaLastCall());
-//		System.out.printf("d(t)=%f\n", getTimeDeltaLastCall());
 	}
 
 }

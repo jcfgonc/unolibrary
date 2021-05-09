@@ -30,6 +30,7 @@ public class SemanticFrame {
 	private int ssEdgePairs;
 	private double ssSum;
 	private double ssStdDev;
+	private double edgesPerRelationTypes;
 
 	public SemanticFrame() {
 	}
@@ -38,13 +39,8 @@ public class SemanticFrame {
 		return cycles;
 	}
 
-	/**
-	 * frame is the subgraph from the input spaces which has variables as vertices
-	 * 
-	 * @return
-	 */
-	public String getFrameString() {
-		return frame_str;
+	public double getEdgesPerRelationTypes() {
+		return edgesPerRelationTypes;
 	}
 
 	/**
@@ -54,6 +50,15 @@ public class SemanticFrame {
 	 */
 	public StringGraph getFrame() {
 		return frameGraph;
+	}
+
+	/**
+	 * frame is the subgraph from the input spaces which has variables as vertices
+	 * 
+	 * @return
+	 */
+	public String getFrameString() {
+		return frame_str;
 	}
 
 	public double getMatches() {
@@ -107,6 +112,10 @@ public class SemanticFrame {
 
 	public void setCycles(int c) {
 		this.cycles = c;
+	}
+
+	public void setEdgesPerRelationTypes(double val) {
+		this.edgesPerRelationTypes=val;
 	}
 
 	/**
