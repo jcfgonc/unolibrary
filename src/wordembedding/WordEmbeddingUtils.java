@@ -31,10 +31,10 @@ public class WordEmbeddingUtils {
 
 	public static void main(String[] a) throws IOException, InterruptedException {
 
-		String frames_filename = "..\\PatternMiner\\results\\resultsV22.csv";
+//		String frames_filename = "..\\PatternMiner\\results\\resultsV22.csv";
 		String synonyms_filename = "..\\PatternMiner\\results\\synonyms.txt";
 		String wordembedding_filename = "D:\\\\Temp\\\\ontologies\\\\word emb\\\\ConceptNet Numberbatch 19.08\\\\numberbatch-en.txt";
-		String frameSimilarityFilename = "..\\PatternMiner\\results\\patterns_semantic_similarityV22.tsv";
+//		String frameSimilarityFilename = "..\\PatternMiner\\results\\patterns_semantic_similarityV22.tsv";
 		String wordPairScores_filename = "C:\\Desktop\\github\\BlenderMO\\data\\relation_pair_scores.tsv";
 
 //		calculateAndSaveFrameSimilarity(frames_filename, wordembedding_filename, synonyms_filename, frameSimilarityFilename);
@@ -217,6 +217,12 @@ public class WordEmbeddingUtils {
 				String word0 = cells[0];
 				String word1 = cells[1];
 				double score = Double.parseDouble(cells[2]);
+				// prevent under/over flow
+				if (score > 1) {
+					score = 1;
+				} else if (score < -1) {
+					score = -1;
+				}
 				UnorderedPair<String> pair = new UnorderedPair<String>(word0, word1);
 				scores.put(pair, score);
 			}

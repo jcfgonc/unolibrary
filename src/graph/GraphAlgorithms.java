@@ -651,20 +651,16 @@ public class GraphAlgorithms {
 	 * @param graph
 	 */
 	public static void removeSmallerComponents(StringGraph graph) {
-		if (graph.numberOfEdges() > 0) {
-			return;
-		} else {
-			ListOfSet<String> components = extractGraphComponents(graph);
-			// vertices in the largest component
-			HashSet<String> componentVertices = components.getSetAt(0);
-			// graph vertices in a array for better caching
-			ArrayList<String> graphVertices = new ArrayList<String>(graph.getVertexSet());
-			// remove from graph the vertices not contained in the component
-			for (String vertice : graphVertices) {
-				if (componentVertices.contains(vertice))
-					continue;
-				graph.removeVertex(vertice);
-			}
+		ListOfSet<String> components = extractGraphComponents(graph);
+		// vertices in the largest component
+		HashSet<String> componentVertices = components.getSetAt(0);
+		// graph vertices in a array for better caching
+		ArrayList<String> graphVertices = new ArrayList<String>(graph.getVertexSet());
+		// remove from graph the vertices not contained in the component
+		for (String vertice : graphVertices) {
+			if (componentVertices.contains(vertice))
+				continue;
+			graph.removeVertex(vertice);
 		}
 	}
 
