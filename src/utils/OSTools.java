@@ -63,7 +63,7 @@ public class OSTools {
 	}
 
 	public static int getNumberOfCores() {
-		return Runtime.getRuntime().availableProcessors() / 2;
+		return Runtime.getRuntime().availableProcessors() ;/// 2;
 //		getCPU_Info();
 //		return numberOfCores;
 	}

@@ -14,6 +14,7 @@ import org.apache.commons.math3.random.RandomGenerator;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import structures.ConceptPair;
 import structures.ListOfSet;
 import structures.MapOfSet;
 import structures.ObjectIndex;
@@ -1168,5 +1169,25 @@ public class GraphAlgorithms {
 					edge.getLabel());
 		}
 		return ngraph;
+	}
+
+	/**
+	 * Returns the concept (source or target) which exists in the given conceptPair. Assumes that the conceptPair does not contain both source and
+	 * target concepts (it will return the pair's left concept in that case) and that the edge does not self-connect only one of the pair's concepts.
+	 * 
+	 * @param conceptPair
+	 * @param stringEdge
+	 * @return
+	 */
+	public static String getConceptExistingInConceptPair(ConceptPair<String> conceptPair, StringEdge stringEdge) {
+		String left = conceptPair.getLeftConcept();
+		if (stringEdge.containsConcept(left)) {
+			return left;
+		}
+		String right = conceptPair.getRightConcept();
+		if (stringEdge.containsConcept(right)) {
+			return right;
+		}
+		return null;
 	}
 }

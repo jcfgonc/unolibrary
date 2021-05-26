@@ -300,12 +300,11 @@ public class VariousUtils {
 	 */
 	public static <E> Set<E> subtract(Set<E> a, Set<E> b) {
 		if (b.isEmpty()) {
-			// return new HashSet<E>(a);
 			return a;
 		}
 
 		if (a.isEmpty()) {
-			return new HashSet<E>();
+			return a;
 		}
 
 		HashSet<E> set = new HashSet<E>(2 * a.size());
@@ -314,6 +313,11 @@ public class VariousUtils {
 				set.add(e);
 			}
 		}
+
+		// cache optimization
+		if (set.size() == a.size())
+			return a;
+
 		return set;
 	}
 
@@ -329,12 +333,11 @@ public class VariousUtils {
 	public static Set<StringEdge> subtract(Set<StringEdge> a, Set<StringEdge> b, boolean processBlends) {
 		processBlends = false;
 		if (b.isEmpty()) {
-			// return new HashSet<StringEdge>(a);
 			return a;
 		}
 
 		if (a.isEmpty()) {
-			return unmodifiableEmptySet;
+			return a;
 		}
 
 		if (processBlends) {

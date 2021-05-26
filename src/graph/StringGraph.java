@@ -335,32 +335,6 @@ public class StringGraph implements Serializable {
 		return edgeSet;
 	}
 
-	/**
-	 * Returns the set of all edges in this graph connecting the given source to the given target with the given relation.
-	 *
-	 * @param source
-	 * @param target
-	 * @param relation
-	 * @return
-	 */
-	public Set<StringEdge> getEdgesConnecting(String source, String target, String relation) {
-		Set<StringEdge> edges = getEdgesConnecting(source, target);
-		if (edges != null) {
-
-			if (edges.isEmpty())
-				return unmodifiableEmptySet;
-
-			Iterator<StringEdge> iterator = edges.iterator();
-			while (iterator.hasNext()) {
-				StringEdge edge = iterator.next();
-				if (!edge.getLabel().equals(relation)) {
-					iterator.remove();
-				}
-			}
-		}
-		return edges;
-	}
-
 	public int getInDegree(String vertexId) {
 		return graph.inDegreeOf(vertexId);
 	}
@@ -623,7 +597,7 @@ public class StringGraph implements Serializable {
 	}
 
 	public boolean containsEdge(StringEdge se) {
-		return this.graph.containsEdge(se);
+		return graph.containsEdge(se);
 	}
 
 	public boolean containsEdge(String source, String target, String label) {

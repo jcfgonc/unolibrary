@@ -36,37 +36,27 @@ public class Mapping<T> implements Iterable<ConceptPair<T>> {
 	 * 
 	 * @return
 	 */
-	public static ArrayList<Mapping<String>> readMultipleMappingsCSV(File f) throws IOException {
+	public static ArrayList<Mapping<String>> readMappingsCSV(File f) throws IOException {
 		ArrayList<Mapping<String>> mappings = new ArrayList<Mapping<String>>();
 		BufferedReader br = new BufferedReader(new FileReader(f), 1 << 16);
 		while (br.ready()) { // break into lines
 			String line = br.readLine().trim();
 			// parse lines into a mapping
-			Mapping<String> map = Mapping.readSingleMappingCSVLine(line);
+			Mapping<String> map = new Mapping<String>();
+			// split line into N pairs
+			String[] columns = VariousUtils.fastSplit(line, ',');
+			for (String column : columns) { // a|b
+				// split pair
+				String[] concepts = VariousUtils.fastSplit(column, '|');
+				if (concepts.length != 2) {
+					System.err.printf("found %n concepts in pair %s, should be only 2\n", concepts.length, line);
+				}
+				map.add(concepts[0], concepts[1]);
+			}
 			mappings.add(map);
 		}
 		br.close();
 		return mappings;
-	}
-
-	/**
-	 * parses a line containing comma separated pairs of concepts, i.e.
-	 * <p>
-	 * a|b,c|d,e|f,...
-	 * 
-	 * @return
-	 */
-	public static Mapping<String> readSingleMappingCSVLine(String line) {
-		Mapping<String> map = new Mapping<String>();
-		String[] columns = VariousUtils.fastSplit(line, ',');
-		for (String column : columns) { // a|b
-			String[] concepts = VariousUtils.fastSplit(column, '|');
-			if (concepts.length != 2) {
-				System.err.printf("found %n concepts in pair %s\n", concepts.length, line);
-			}
-			map.add(concepts[0], concepts[1]);
-		}
-		return map;
 	}
 
 	/**
@@ -77,7 +67,7 @@ public class Mapping<T> implements Iterable<ConceptPair<T>> {
 	 * @return
 	 * @throws IOException
 	 */
-	public static Mapping<String> readMultipleMappingsDT(File file) throws IOException {
+	public static Mapping<String> readMappingsDT(File file) throws IOException {
 		Mapping<String> map = new Mapping<>();
 		BufferedReader br = new BufferedReader(new FileReader(file));
 		while (br.ready()) {
@@ -124,7 +114,7 @@ public class Mapping<T> implements Iterable<ConceptPair<T>> {
 	 * @return
 	 * @throws IOException
 	 */
-	public static List<Mapping<String>> readMultipleMappingsTXT(File file) throws IOException {
+	public static List<Mapping<String>> readMappingsTXT(File file) throws IOException {
 		ArrayList<Mapping<String>> listOfMappings = new ArrayList<>();
 		BufferedReader br = new BufferedReader(new FileReader(file));
 		Mapping<String> mapping = new Mapping<>();
@@ -148,10 +138,90 @@ public class Mapping<T> implements Iterable<ConceptPair<T>> {
 		return listOfMappings;
 	}
 
+	/**
+	 * parses a line containing comma separated pairs of concepts, i.e.
+	 * <p>
+	 * a|b,c|d,e|f,...
+	 * 
+	 * @return
+	 */
+	public static Mapping<String> readMappingCSVLine(String line) {
+		Mapping<String> map = new Mapping<String>();
+		String[] columns = VariousUtils.fastSplit(line, ',');
+		for (String column : columns) { // a|b
+			String[] concepts = VariousUtils.fastSplit(column, '|');
+			if (concepts.length != 2) {
+				System.err.printf("found %n concepts in pair %s\n", concepts.length, line);
+			}
+			map.add(concepts[0], concepts[1]);
+		}
+		return map;
+	}
+
+	public static <T> void writeMappingCSV(Mapping<T> map, File file) throws IOException {
+		BufferedWriter bw = new BufferedWriter(new FileWriter(file));
+		// go trough the pairs
+		Set<ConceptPair<T>> mapping = map.getConceptPairsUnsafe();
+		Iterator<ConceptPair<T>> iterator = mapping.iterator();
+		while (iterator.hasNext()) {
+			ConceptPair<T> pair = iterator.next();
+			bw.write(pair.toString());
+			// if there are more pairs, put them after a comma
+			if (iterator.hasNext()) {
+				bw.write(',');
+			}
+		}
+		bw.newLine();
+		bw.close();
+	}
+
+	public static <T> void writeMappingDT(Mapping<T> map, File file) throws IOException {
+		BufferedWriter bw = new BufferedWriter(new FileWriter(file));
+		bw.write(":-multifile m/3.");
+		bw.newLine();
+		bw.newLine();
+
+		Set<ConceptPair<T>> conceptPairs = map.getConceptPairsUnsafe();
+		for (ConceptPair<T> pair : conceptPairs) {
+			// m(alignment,horse,dragon).
+			String leftConcept = pair.getLeftConcept().toString();
+			String rightConcept = pair.getRightConcept().toString();
+			String r = String.format("m(%s,%s,%s).", "alignment", leftConcept, rightConcept);
+			bw.write(r);
+			bw.newLine();
+		}
+		bw.close();
+	}
+
+	public static <T> void writeMappingsCSV(Collection<Mapping<T>> mappings, String filename) throws IOException {
+		writeMappingsCSV(mappings, new File(filename));
+	}
+
+	public static <T> void writeMappingsCSV(Collection<Mapping<T>> mappings, File file) throws IOException {
+		BufferedWriter bw = new BufferedWriter(new FileWriter(file));
+		for (Mapping<T> mapping : mappings) {
+			// go trough the pairs
+			Set<ConceptPair<T>> cps = mapping.getConceptPairsUnsafe();
+			Iterator<ConceptPair<T>> iterator = cps.iterator();
+			while (iterator.hasNext()) {
+				ConceptPair<T> pair = iterator.next();
+				bw.write(pair.toString());
+				// if there are more pairs, put them after a comma
+				if (iterator.hasNext()) {
+					bw.write(',');
+				}
+			}
+			bw.newLine();
+		}
+		bw.close();
+	}
+
 	private HashMap<T, ConceptPair<T>> conceptToPair; // maps a concept to its pair
 	private Set<ConceptPair<T>> mapping;
 	private Set<T> leftConcepts;
+
 	private Set<T> rightConcepts;
+
 	private HashMap<T, T> opposingConcepts;
 
 	public Mapping() {
@@ -172,10 +242,12 @@ public class Mapping<T> implements Iterable<ConceptPair<T>> {
 		T l = pair.getLeftConcept();
 		T r = pair.getRightConcept();
 		if (conceptToPair.containsKey(l)) {
-			throw new IllegalArgumentException("Concept " + l + " is already in the mapping.");
+			System.err.println("adding " + pair + " error: concept " + l + " is already in the mapping as " + conceptToPair.get(l));
+			return;
 		}
 		if (conceptToPair.containsKey(r)) {
-			throw new IllegalArgumentException("Concept " + r + " is already in the mapping.");
+			System.err.println("adding " + pair + " error: concept " + r + " is already in the mapping as " + conceptToPair.get(r));
+			return;
 		}
 		mapping.add(pair);
 		conceptToPair.put(l, pair);
@@ -252,13 +324,34 @@ public class Mapping<T> implements Iterable<ConceptPair<T>> {
 	 * @param concept
 	 * @return
 	 */
-	public ConceptPair<T> getConceptPair(String concept) {
+	public ConceptPair<T> getConceptPair(T concept) {
 		return conceptToPair.get(concept);
 	}
 
-	private Set<ConceptPair<T>> getMapping() {
+	/**
+	 * the same as getMapping() but SAFE
+	 * 
+	 * @return
+	 */
+	public Set<ConceptPair<T>> getConceptPairs() {
+		return Collections.unmodifiableSet(mapping);
+	}
+
+	/**
+	 * the same as getConceptPairs() but UNSAFE
+	 * 
+	 * @return
+	 */
+	private Set<ConceptPair<T>> getConceptPairsUnsafe() {
 		return mapping;
-//		return Collections.unmodifiableSet(mapping);
+	}
+
+	public Set<T> getLeftConcepts() {
+		return Collections.unmodifiableSet(leftConcepts);
+	}
+
+	public T getOppositeConcept(T concept) {
+		return opposingConcepts.get(concept);
 	}
 
 	/**
@@ -286,6 +379,19 @@ public class Mapping<T> implements Iterable<ConceptPair<T>> {
 		return getPair(index);
 	}
 
+	public Set<T> getRightConcepts() {
+		return Collections.unmodifiableSet(rightConcepts);
+	}
+
+	/**
+	 * returns the number of concept pairs in this mapping
+	 * 
+	 * @return
+	 */
+	public int getSize() {
+		return mapping.size();
+	}
+
 	@Override
 	public int hashCode() {
 		return mapping.hashCode();
@@ -293,6 +399,10 @@ public class Mapping<T> implements Iterable<ConceptPair<T>> {
 
 	public boolean isEmpty() {
 		return mapping.isEmpty();
+	}
+
+	public boolean isOppositePair(T l, T r) {
+		return opposingConcepts.get(l).equals(r);
 	}
 
 	public Iterator<ConceptPair<T>> iterator() {
@@ -316,7 +426,7 @@ public class Mapping<T> implements Iterable<ConceptPair<T>> {
 	public String toString() {
 		StringBuilder s = new StringBuilder();
 		// go trough the pairs
-		Iterator<ConceptPair<T>> iterator = getMapping().iterator();
+		Iterator<ConceptPair<T>> iterator = getConceptPairsUnsafe().iterator();
 		while (iterator.hasNext()) {
 			ConceptPair<T> pair = iterator.next();
 			s.append(pair.toString());
@@ -328,74 +438,23 @@ public class Mapping<T> implements Iterable<ConceptPair<T>> {
 		return s.toString();
 	}
 
-	public void toString(BufferedWriter bw) throws IOException {
-		// go trough the pairs
-		Iterator<ConceptPair<T>> iterator = getMapping().iterator();
-		while (iterator.hasNext()) {
-			ConceptPair<T> pair = iterator.next();
-			bw.write(pair.toString());
-			// if there are more pairs, put them after a comma
-			if (iterator.hasNext()) {
-				bw.write(',');
-			}
+	public void renameConcept(T old, T neww) {
+		if (!containsConcept(old))
+			return;
+		// is old left or right?
+		if (leftConcepts.contains(old)) {
+			T other = getOppositeConcept(old);
+			ConceptPair<T> oldCP = getConceptPair(old);
+			remove(oldCP);
+			// section differs here
+			add(neww, other);
+		} else if (rightConcepts.contains(old)) {
+			T other = getOppositeConcept(old);
+			ConceptPair<T> oldCP = getConceptPair(old);
+			remove(oldCP);
+			// section differs here
+			add(other, neww);
 		}
-	}
-
-	public void writeMappingDT(BufferedWriter bw) throws IOException {
-		bw.write(":-multifile m/3.");
-		bw.newLine();
-		bw.newLine();
-
-		for (ConceptPair<T> pair : mapping) {
-			// m(alignment,horse,dragon).
-			String leftConcept = pair.getLeftConcept().toString();
-			String rightConcept = pair.getRightConcept().toString();
-			String r = String.format("m(%s,%s,%s).", "alignment", leftConcept, rightConcept);
-			bw.write(r);
-			bw.newLine();
-		}
-	}
-
-	public void writeMappingsCSV(BufferedWriter bw) throws IOException {
-		toString(bw);
-		bw.newLine();
-	}
-
-	public void writeMappingsCSV(File file) throws IOException {
-		BufferedWriter bw = new BufferedWriter(new FileWriter(file));
-		writeMappingsCSV(bw);
-		bw.close();
-	}
-
-	public void writeMappingsDT(File file) throws IOException {
-		BufferedWriter bw = new BufferedWriter(new FileWriter(file));
-		writeMappingDT(bw);
-		bw.close();
-	}
-
-	/**
-	 * returns the number of concept pairs in this mapping
-	 * 
-	 * @return
-	 */
-	public int getSize() {
-		return mapping.size();
-	}
-
-	public Set<T> getLeftConcepts() {
-		return Collections.unmodifiableSet(leftConcepts);
-	}
-
-	public Set<T> getRightConcepts() {
-		return Collections.unmodifiableSet(rightConcepts);
-	}
-
-	public boolean isOppositePair(String l, String r) {
-		return opposingConcepts.get(l).equals(r);
-	}
-	
-	public T getOppositeConcept(String concept) {
-		return opposingConcepts.get(concept);
 	}
 
 }
