@@ -3,14 +3,17 @@ package utils;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.Reader;
+import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Version of BufferedReader which maintains the buffer full in background. Adapted from https://stackoverflow.com/a/32013595
+ * Custom version of BufferedReader which maintains the buffer full in background. Adapted from https://stackoverflow.com/a/32013595
  * 
  * @author jcfgonc@gmail.com
  *
@@ -20,7 +23,6 @@ public class NonblockingBufferedReader {
 	final BlockingQueue<String> lines = new ArrayBlockingQueue<String>(1 << 20);
 	volatile boolean closed = false;
 	Thread backgroundReaderThread = null;
-	Reader reader;
 	BufferedReader br;
 
 	public NonblockingBufferedReader(String filename) throws IOException {
@@ -28,8 +30,16 @@ public class NonblockingBufferedReader {
 	}
 
 	public NonblockingBufferedReader(Reader in) throws IOException {
-		this.reader = in;
 		br = new BufferedReader(in, BUFSIZE);
+		startBackgroundThread();
+	}
+
+	public NonblockingBufferedReader(InputStream input) throws UnsupportedEncodingException {
+		br = new BufferedReader(new InputStreamReader(input, "UTF-8"), BUFSIZE);
+		startBackgroundThread();
+	}
+
+	private void startBackgroundThread() {
 		backgroundReaderThread = new Thread(new Runnable() {
 			@Override
 			public void run() {
@@ -42,13 +52,17 @@ public class NonblockingBufferedReader {
 						if (line.isBlank()) // empty lines are useless
 							continue;
 						lines.offer(line, Long.MAX_VALUE, TimeUnit.DAYS);
-						// lines.add(line);
 					}
 				} catch (IOException | InterruptedException e) {
 					e.printStackTrace();
 					throw new RuntimeException(e);
 				} finally {
+					try {
+						br.close();
+					} catch (IOException e) {
+					}
 					closed = true;
+					backgroundReaderThread = null;
 				}
 			}
 		});
@@ -71,7 +85,6 @@ public class NonblockingBufferedReader {
 			backgroundReaderThread.interrupt();
 			backgroundReaderThread = null;
 			br.close();
-			reader.close();
 		}
 	}
 }

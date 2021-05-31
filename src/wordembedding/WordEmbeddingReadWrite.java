@@ -1,6 +1,13 @@
 package wordembedding;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.Enumeration;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
+import java.util.zip.ZipInputStream;
 
 import structures.Ticker;
 import utils.NonblockingBufferedReader;
@@ -28,9 +35,35 @@ public class WordEmbeddingReadWrite {
 		return wv;
 	}
 
-	public static void main(String[] args) throws IOException {
-		String filename = "D:\\Temp\\ontologies\\word emb\\GloVe - Global Vectors for Word Representation\\glove.6B.300d.txt";
-		while (true)
-			readCSV(filename, false);
+	public static ListWordEmbedding readAutoDetect(String filename, boolean skipFirstLine) {
+		return null;
+
+	}
+
+	public static ListWordEmbedding readZippedCSV(String filename, boolean skipFirstLine) throws IOException {
+		System.out.print("loading " + filename + " ...");
+		Ticker t = new Ticker();
+		ListWordEmbedding wv = new ListWordEmbedding();
+		
+		final ZipFile zipFile = new ZipFile(filename);
+		final ZipEntry firstEntry = zipFile.entries().nextElement();
+		if (!firstEntry.isDirectory()) {
+			InputStream input = zipFile.getInputStream(firstEntry);
+			NonblockingBufferedReader br = new NonblockingBufferedReader(input);
+			String line;
+			while ((line = br.readLine()) != null) {
+				if (skipFirstLine) {
+					skipFirstLine = false;
+					continue;
+				}
+				String[] tokens = VariousUtils.fastSplitWhiteSpace(line);
+				wv.addWordVector(tokens);
+			}
+			// no more data to read
+			br.close();
+			System.out.println("done. Took " + t.getElapsedTime() + " seconds.");
+		}
+		zipFile.close();
+		return wv;
 	}
 }
