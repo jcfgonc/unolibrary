@@ -1,13 +1,9 @@
 package wordembedding;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.util.Enumeration;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
-import java.util.zip.ZipInputStream;
 
 import structures.Ticker;
 import utils.NonblockingBufferedReader;
@@ -35,16 +31,18 @@ public class WordEmbeddingReadWrite {
 		return wv;
 	}
 
-	public static ListWordEmbedding readAutoDetect(String filename, boolean skipFirstLine) {
-		return null;
-
+	public static ListWordEmbedding readAutoDetect(String filename, boolean skipFirstLine) throws IOException {
+		if (filename.endsWith(".zip"))
+			return readZippedCSV(filename, skipFirstLine);
+		else
+			return readCSV(filename, skipFirstLine);
 	}
 
 	public static ListWordEmbedding readZippedCSV(String filename, boolean skipFirstLine) throws IOException {
 		System.out.print("loading " + filename + " ...");
 		Ticker t = new Ticker();
 		ListWordEmbedding wv = new ListWordEmbedding();
-		
+
 		final ZipFile zipFile = new ZipFile(filename);
 		final ZipEntry firstEntry = zipFile.entries().nextElement();
 		if (!firstEntry.isDirectory()) {
