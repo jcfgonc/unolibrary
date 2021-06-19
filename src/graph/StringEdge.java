@@ -27,18 +27,6 @@ public class StringEdge implements Comparable<StringEdge>, Serializable, Cloneab
 	}
 
 	/**
-	 * allows a StringEdge to be constructed from text in the form source,relation,target
-	 * 
-	 * @param text
-	 */
-	public StringEdge(String text) {
-		String[] tokens = VariousUtils.fastSplit(text, ',');
-		this.source = tokens[0].trim();
-		this.label = tokens[1].trim();
-		this.target = tokens[2].trim();
-	}
-
-	/**
 	 * source,target,label
 	 * 
 	 * @param csvTriple

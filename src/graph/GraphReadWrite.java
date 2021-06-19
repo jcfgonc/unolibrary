@@ -186,23 +186,28 @@ public class GraphReadWrite {
 		}
 	}
 
+	/**
+	 * creates a StringGraph from a text description of the form source0,label0,target0;source1,label1,target1;...;
+	 * 
+	 * @param string
+	 * @return
+	 * @throws NoSuchFileException
+	 * @throws IOException
+	 */
 	public static StringGraph readCSVFromString(String string) throws NoSuchFileException, IOException {
 		StringGraph graph = new StringGraph();
-		// a,b,c;d,e,f;...;
+		//
 		String[] edges_s = VariousUtils.fastSplit(string, ';');
 		for (String edge_s : edges_s) {
 			if (edge_s.isEmpty())
 				continue;
-
 			String[] tokens = VariousUtils.fastSplit(edge_s, ',');
 			int ntokens = tokens.length;
-			if (ntokens != 3)
-				continue;
-			String sourceLabel = tokens[0];
-			String edgeLabel = tokens[1];
-			String targetLabel = tokens[2];
-
-			graph.addEdge(sourceLabel, targetLabel, edgeLabel);
+			if (ntokens == 3) {
+				graph.addEdge(tokens[0], tokens[2], tokens[1]);
+			} else if (ntokens == 2) {
+				graph.addEdge(tokens[0], tokens[1], "");
+			}
 		}
 		return graph;
 	}

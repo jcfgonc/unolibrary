@@ -608,6 +608,11 @@ public class StringGraph implements Serializable {
 		graph.showStructureSizes();
 	}
 
+	/**
+	 * Returns the set of relations/labels in this graph's edges.
+	 * 
+	 * @return
+	 */
 	public Collection<String> getEdgeLabelSet() {
 		HashSet<String> edgeLabels = new HashSet<>(edgeSet().size() * 2);
 		for (StringEdge edge : edgeSet()) {
@@ -616,10 +621,20 @@ public class StringGraph implements Serializable {
 		return edgeLabels;
 	}
 
+	/**
+	 * Returns true if this graph contains no edges, false otherwise.
+	 * 
+	 * @return
+	 */
 	public boolean isEmpty() {
 		return edgeSet().isEmpty();
 	}
 
+	/**
+	 * Removes all the edges containing the given relation/label.
+	 * 
+	 * @param relationFilter
+	 */
 	public void removeEdges(String relationFilter) {
 		Set<StringEdge> edges = edgeSet(relationFilter);
 		removeEdges(edges);
