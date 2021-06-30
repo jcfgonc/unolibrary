@@ -19,6 +19,7 @@ public class ObjectCounter<T> {
 
 	public ObjectCounter() {
 		counter = new Object2IntOpenHashMap<>();
+		counter.defaultReturnValue(0);
 	}
 
 	public int addObject(T obj) {

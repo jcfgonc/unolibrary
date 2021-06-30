@@ -879,6 +879,14 @@ public class GraphAlgorithms {
 		return strings;
 	}
 
+	/**
+	 * Converts a string graph using textual concepts/relations to a graph of integers.
+	 * 
+	 * @param graph
+	 * @param vertexLabels
+	 * @param relationLabels
+	 * @return
+	 */
 	public static IntDirectedMultiGraph convertStringGraph2IntDirectedMultiGraph(StringGraph graph, // --
 			ObjectIndex<String> vertexLabels, // --
 			ObjectIndex<String> relationLabels) {

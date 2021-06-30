@@ -1,9 +1,7 @@
 package frames;
 
-import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -18,7 +16,6 @@ import utils.NonblockingBufferedReader;
 import utils.VariousUtils;
 
 public class FrameReadWrite {
-	private static final String FRAME_PATTERN_HEADER = "i:relationTypes	f:relationTypesStd	f:edgesPerRelationTypes	i:cycles	i:patternEdges	i:patternVertices	f:matches	g:query	s:pattern";
 	private static final String FRAME_SIMILARITY_HEADER = "i:edgePairs	f:SSsum	f:SSmean	f:SSstandardDeviation	f:SSmin	f:SSmax";
 
 	public static void writePatternFramesCSV(Collection<SemanticFrame> frames, String framesPath) throws IOException {
@@ -28,7 +25,7 @@ public class FrameReadWrite {
 		FileWriter fw = new FileWriter(file, StandardCharsets.UTF_8);
 		BufferedWriter bw = new BufferedWriter(fw);
 		// write header
-		bw.write(FRAME_PATTERN_HEADER);
+		bw.write("i:relationTypes\tf:relationTypesStd\tf:edgesPerRelationTypes\ti:cycles\ti:patternEdges\ti:patternVertices\tf:matches\tg:query");
 		bw.newLine();
 		for (SemanticFrame frame : frames) {
 			StringGraph graph = frame.getFrame();
@@ -63,90 +60,152 @@ public class FrameReadWrite {
 
 		String line;
 		boolean readFirstLine = false;
+
+		// if later is still set to -1 it will not be used
+		int relationTypesColumn = -1;
+		int relationTypesStdColumn = -1;
+		int edgesPerRelationTypesColumn = -1;
+		int cyclesColumn = -1;
+		int patternEdgesColumn = -1;
+		int patternVerticesColumn = -1;
+		int matchesColumn = -1;
+		int queryColumn = -1;
+		int patternColumn = -1;
+		int edgePairsColumn = -1;
+		int semanticSimilaritySumColumn = -1;
+		int semanticSimilarityMeanColumn = -1;
+		int semanticSimilarityStdDevColumn = -1;
+		int semanticSimilarityMinimumColumn = -1;
+		int semanticSimilarityMaximumColumn = -1;
+
 		while ((line = br.readLine()) != null) {
 			if (line.isBlank())
 				continue;
 			line = line.trim();
+			String[] cells = VariousUtils.fastSplitWhiteSpace(line);
+
 			if (!readFirstLine) {
-				if (!line.equals(FRAME_PATTERN_HEADER)) {
-					throw new RuntimeException("first line must be:" + FRAME_PATTERN_HEADER);
+				//
+				// store available columns
+				for (int i = 0; i < cells.length; i++) {
+					String columnName = cells[i];
+
+					switch (columnName) {
+					case "i:relationTypes":
+						relationTypesColumn = i;
+						break;
+					case "f:relationTypesStd":
+						relationTypesStdColumn = i;
+						break;
+					case "f:edgesPerRelationTypes":
+						edgesPerRelationTypesColumn = i;
+						break;
+					case "i:cycles":
+						cyclesColumn = i;
+						break;
+					case "i:patternEdges":
+						patternEdgesColumn = i;
+						break;
+					case "i:patternVertices":
+						patternVerticesColumn = i;
+						break;
+					case "f:matches":
+						matchesColumn = i;
+						break;
+					case "g:query":
+						queryColumn = i;
+						break;
+					case "s:pattern":
+						patternColumn = i;
+						break;
+
+					case "i:edgePairs":
+						edgePairsColumn = i;
+						break;
+					case "f:SSsum":
+						semanticSimilaritySumColumn = i;
+						break;
+					case "f:SSmean":
+						semanticSimilarityMeanColumn = i;
+						break;
+					case "f:SSstandardDeviation":
+						semanticSimilarityStdDevColumn = i;
+						break;
+					case "f:SSmin":
+						semanticSimilarityMinimumColumn = i;
+						break;
+					case "f:SSmax":
+						semanticSimilarityMaximumColumn = i;
+						break;
+					}
 				}
 				readFirstLine = true;
 				continue;
 			}
 
-			String[] cells = VariousUtils.fastSplitWhiteSpace(line);
-
 			SemanticFrame sf = new SemanticFrame();
 			// store frame data
-			sf.setRelationTypes(Integer.parseInt(cells[0]));
-			sf.setRelationTypesStd(Double.parseDouble(cells[1]));
-			sf.setEdgesPerRelationTypes(Double.parseDouble(cells[2]));
-			sf.setCycles(Integer.parseInt(cells[3]));
+			for (int i = 0; i < cells.length; i++) {
+				String cell = cells[i];
+				if (i == relationTypesColumn) {
+					sf.setRelationTypes(Integer.parseInt(cell));
+					continue;
+				} else if (i == relationTypesStdColumn) {
+					sf.setRelationTypesStd(Double.parseDouble(cell));
+					continue;
+				} else if (i == edgesPerRelationTypesColumn) {
+					sf.setEdgesPerRelationTypes(Double.parseDouble(cell));
+					continue;
+				} else if (i == cyclesColumn) {
+					sf.setCycles(Integer.parseInt(cell));
+					continue;
+				} else if (i == patternEdgesColumn) {
+					sf.setNumberOfEdges(Integer.parseInt(cell));
+					continue;
+				} else if (i == patternVerticesColumn) {
+					sf.setNumberOfVertices(Integer.parseInt(cell));
+					continue;
+				} else if (i == matchesColumn) {
+					sf.setMatches(Double.parseDouble(cell));
+					continue;
+				} else if (i == queryColumn) {
+					sf.setQuery(cell);
+					continue;
+					// .setFrame(cell); //same as above
+				} else if (i == patternColumn) {
+					sf.setOriginalGraph(cell);
+					continue;
 
-			sf.setMatches(Double.parseDouble(cells[6]));
-			sf.setFrame(cells[7]);
-			// sf.setPatternGraph(GraphReadWrite.readCSVFromString(cells[6])); // graph is built from the query
-			sf.setOriginalGraph(cells[8]);
+					// semantic similarity stuff added later
+				} else if (i == edgePairsColumn) {
+					sf.setSemanticSimilarityNumberEdgePairs(Integer.parseInt(cell));
+					continue;
+				} else if (i == semanticSimilaritySumColumn) {
+					sf.setSemanticSimilaritySum(Double.parseDouble(cell));
+					continue;
+				} else if (i == semanticSimilarityMeanColumn) {
+					sf.setSemanticSimilarityMean(Double.parseDouble(cell));
+					continue;
+				} else if (i == semanticSimilarityStdDevColumn) {
+					sf.setSemanticSimilarityStdDev(Double.parseDouble(cell));
+					continue;
+				} else if (i == semanticSimilarityMinimumColumn) {
+					sf.setSemanticSimilarityMin(Double.parseDouble(cell));
+					continue;
+				} else if (i == semanticSimilarityMaximumColumn) {
+					sf.setSemanticSimilarityMax(Double.parseDouble(cell));
+					continue;
+				}
+			}
 
 			frames.add(sf);
 		}
 		br.close();
 
-		String filenameSemanticStuff = VariousUtils.appendSuffixToFilename(filename, "_semantic_similarity");
-		if (new File(filenameSemanticStuff).isFile()) {
-			FrameReadWrite.updatePatternFrameSimilarity(frames, filenameSemanticStuff);
-		}
-
 		System.out.printf("loaded %d frames from %s\n", frames.size(), filename);
 		System.out.println("loading took " + ticker.getTimeDeltaLastCall() + " s");
 
 		return frames;
-	}
-
-	/**
-	 * updates the given list of frames with semantic similarity data from the specified filename
-	 * 
-	 * @param frames
-	 * @param similarity_filename
-	 * @throws IOException
-	 */
-	public static void updatePatternFrameSimilarity(ArrayList<SemanticFrame> frames, String similarity_filename) throws IOException {
-		FileReader fr = new FileReader(similarity_filename);
-		@SuppressWarnings("resource")
-		BufferedReader br = new BufferedReader(fr);
-		String line;
-		int counter = 0;
-		boolean readFirstLine = false;
-		while ((line = br.readLine()) != null) {
-			if (line.isBlank())
-				continue;
-			line = line.trim();
-			if (!readFirstLine) {
-				if (!line.equals(FRAME_SIMILARITY_HEADER)) {
-					throw new RuntimeException("first line must be:" + FRAME_SIMILARITY_HEADER);
-				}
-				readFirstLine = true;
-				continue;
-			}
-
-			SemanticFrame frame = frames.get(counter);
-			String[] cells = VariousUtils.fastSplitWhiteSpace(line);
-
-			// 0----------1-----2------3-------------------4-----5
-			// #edgePairs SSsum SSmean SSstandardDeviation SSmin SSmax;
-			frame.setSemanticSimilarityNumberEdgePairs(Integer.parseInt(cells[0]));
-			frame.setSemanticSimilaritySum(Double.parseDouble(cells[1]));
-			frame.setSemanticSimilarityMean(Double.parseDouble(cells[2]));
-			frame.setSemanticSimilarityStdDev(Double.parseDouble(cells[3]));
-			frame.setSemanticSimilarityMin(Double.parseDouble(cells[4]));
-			frame.setSemanticSimilarityMax(Double.parseDouble(cells[5]));
-
-			counter++;
-		}
-		br.close();
-
-		System.out.printf("loaded %d frames from %s\n", frames.size(), similarity_filename);
 	}
 
 	public static void saveFrameSimilarityStatistics(ArrayList<DescriptiveStatistics> frameSimilarityStatistics, String filename) throws IOException {

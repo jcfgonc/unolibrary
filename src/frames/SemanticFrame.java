@@ -31,6 +31,16 @@ public class SemanticFrame {
 	private double ssSum;
 	private double ssStdDev;
 	private double edgesPerRelationTypes;
+	private int numberOfEdges;
+	private int numberOfVertices;
+
+	public int getNumberOfEdges() {
+		return numberOfEdges;
+	}
+
+	public int getNumberOfVertices() {
+		return numberOfVertices;
+	}
 
 	public SemanticFrame() {
 	}
@@ -44,7 +54,7 @@ public class SemanticFrame {
 	}
 
 	/**
-	 * returns the graph which has variables (capital words) as vertices
+	 * returns the graph which has variables (capital words) as vertices (the query)
 	 * 
 	 * @return
 	 */
@@ -115,11 +125,11 @@ public class SemanticFrame {
 	}
 
 	public void setEdgesPerRelationTypes(double val) {
-		this.edgesPerRelationTypes=val;
+		this.edgesPerRelationTypes = val;
 	}
 
 	/**
-	 * frame is the subgraph from the input spaces which has variables as vertices
+	 * frame/query is the subgraph from the input spaces which has variables as vertices
 	 * 
 	 * @param string
 	 * @throws NoSuchFileException
@@ -141,6 +151,17 @@ public class SemanticFrame {
 	 */
 	public void setOriginalGraph(String string) {
 		this.originalGraph = string;
+	}
+
+	/**
+	 * frame/query is the subgraph from the input spaces which has concepts as vertices
+	 * 
+	 * @param string
+	 * @throws NoSuchFileException
+	 * @throws IOException
+	 */
+	public void setQuery(String string) throws NoSuchFileException, IOException {
+		setFrame(string);
 	}
 
 	public void setRelationTypes(int rt) {
@@ -183,6 +204,14 @@ public class SemanticFrame {
 				", query=" + frame_str + //
 				", original=" + originalGraph + //
 				", graph=" + frameGraph + "]";
+	}
+
+	public void setNumberOfEdges(int parseInt) {
+		this.numberOfEdges = parseInt;
+	}
+
+	public void setNumberOfVertices(int parseInt) {
+		this.numberOfVertices = parseInt;
 	}
 
 }
