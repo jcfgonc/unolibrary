@@ -106,6 +106,7 @@ public class VisualGraph {
 	 */
 	public void refreshGraph(StringGraph stringGraph) {
 		clear();
+		resetView();
 		GraphStreamUtils.addEdgesToGraph(multiGraph, stringGraph.edgeSet()); // copy edges from the data-graph to the visual-graph
 	}
 

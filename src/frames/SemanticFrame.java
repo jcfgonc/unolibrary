@@ -24,6 +24,7 @@ public class SemanticFrame {
 	 * frame_str is the subgraph from the input spaces which has variables as vertices
 	 */
 	private String frame_str;
+
 	private double ssmin;
 	private double ssmean;
 	private double ssmax;
@@ -31,8 +32,13 @@ public class SemanticFrame {
 	private double ssSum;
 	private double ssStdDev;
 	private double edgesPerRelationTypes;
+
 	private int numberOfEdges;
 	private int numberOfVertices;
+	private int degreeHdv;
+
+	private double vrScoreMean;
+	private double vrScoreMin;
 
 	public int getNumberOfEdges() {
 		return numberOfEdges;
@@ -206,12 +212,36 @@ public class SemanticFrame {
 				", graph=" + frameGraph + "]";
 	}
 
-	public void setNumberOfEdges(int parseInt) {
-		this.numberOfEdges = parseInt;
+	public void setNumberOfEdges(int v) {
+		this.numberOfEdges = v;
 	}
 
-	public void setNumberOfVertices(int parseInt) {
-		this.numberOfVertices = parseInt;
+	public void setNumberOfVertices(int v) {
+		this.numberOfVertices = v;
+	}
+
+	public double getVitalRelationsMean() {
+		return vrScoreMean;
+	}
+
+	public void setVitalRelationsMean(double v) {
+		this.vrScoreMean = v;
+	}
+
+	public double getVitalRelationsMin() {
+		return vrScoreMin;
+	}
+
+	public void setVitalRelationsMin(double v) {
+		this.vrScoreMin = v;
+	}
+
+	public void setHighestVertexDegree(int v) {
+		this.degreeHdv = v;
+	}
+
+	public int getHighestVertexDegree() {
+		return degreeHdv;
 	}
 
 }

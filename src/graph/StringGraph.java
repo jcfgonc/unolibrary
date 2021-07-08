@@ -613,8 +613,8 @@ public class StringGraph implements Serializable {
 	 * 
 	 * @return
 	 */
-	public Collection<String> getEdgeLabelSet() {
-		HashSet<String> edgeLabels = new HashSet<>(edgeSet().size() * 2);
+	public HashSet<String> getEdgeLabelSet() {
+		HashSet<String> edgeLabels = new HashSet<>(16, 0.333f);
 		for (StringEdge edge : edgeSet()) {
 			edgeLabels.add(edge.getLabel());
 		}

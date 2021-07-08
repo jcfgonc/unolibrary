@@ -8,24 +8,24 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 
-import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
-
 import graph.StringGraph;
 import structures.Ticker;
 import utils.NonblockingBufferedReader;
 import utils.VariousUtils;
 
 public class FrameReadWrite {
-	private static final String FRAME_SIMILARITY_HEADER = "i:edgePairs	f:SSsum	f:SSmean	f:SSstandardDeviation	f:SSmin	f:SSmax";
 
 	public static void writePatternFramesCSV(Collection<SemanticFrame> frames, String framesPath) throws IOException {
-		// order is
-		// n:time n:relationTypes n:relationTypesStd n:cycles n:patternEdges n:patternVertices n:matches s:query s:pattern
 		File file = new File(framesPath);
 		FileWriter fw = new FileWriter(file, StandardCharsets.UTF_8);
 		BufferedWriter bw = new BufferedWriter(fw);
+		// ALL IS HERE
 		// write header
-		bw.write("i:relationTypes\tf:relationTypesStd\tf:edgesPerRelationTypes\ti:cycles\ti:patternEdges\ti:patternVertices\tf:matches\tg:query");
+		bw.write("i:relationTypes" + "\t" + "f:relationTypesStd" + "\t" + "f:edgesPerRelationTypes" + "\t" + "i:cycles" + "\t" + "i:patternEdges"
+				+ "\t" + "i:patternVertices" + "\t" + "i:highestDegreeVertex" + "\t" + "f:matches" + "\t" //
+				+ "i:edgePairs" + "\t" + "f:SSsum" + "\t" + "f:SSmean" + "\t" + "f:SSstandardDeviation" + "\t" + "f:SSmin" + "\t" + "f:SSmax" + "\t" //
+				+ "f:vrMean" + "\t" + "f:vrMin" + "\t" //
+				+ "g:query" + "\t" + "s:pattern");
 		bw.newLine();
 		for (SemanticFrame frame : frames) {
 			StringGraph graph = frame.getFrame();
@@ -41,12 +41,32 @@ public class FrameReadWrite {
 			bw.write('\t');
 			bw.write(Integer.toString(graph.numberOfVertices()));
 			bw.write('\t');
+			bw.write(Integer.toString(frame.getHighestVertexDegree()));
+			bw.write('\t');
 			bw.write(Double.toString(frame.getMatches()));
 			bw.write('\t');
+
+			bw.write(Integer.toString(frame.getSemanticSimilarityNumberEdgePairs()));
+			bw.write('\t');
+			bw.write(Double.toString(frame.getSemanticSimilaritySum()));
+			bw.write('\t');
+			bw.write(Double.toString(frame.getSemanticSimilarityMean()));
+			bw.write('\t');
+			bw.write(Double.toString(frame.getSemanticSimilarityStdDev()));
+			bw.write('\t');
+			bw.write(Double.toString(frame.getSemanticSimilarityMin()));
+			bw.write('\t');
+			bw.write(Double.toString(frame.getSemanticSimilarityMax()));
+			bw.write('\t');
+
+			bw.write(Double.toString(frame.getVitalRelationsMean()));
+			bw.write('\t');
+			bw.write(Double.toString(frame.getVitalRelationsMin()));
+			bw.write('\t');
+
 			bw.write(frame.getFrameString());
 			bw.write('\t');
 			bw.write(frame.getOriginalGraph());
-			bw.write('\t');
 			bw.newLine();
 		}
 		bw.close();
@@ -68,15 +88,18 @@ public class FrameReadWrite {
 		int cyclesColumn = -1;
 		int patternEdgesColumn = -1;
 		int patternVerticesColumn = -1;
+		int highestDegreeColumn=-1;
 		int matchesColumn = -1;
-		int queryColumn = -1;
-		int patternColumn = -1;
 		int edgePairsColumn = -1;
 		int semanticSimilaritySumColumn = -1;
 		int semanticSimilarityMeanColumn = -1;
 		int semanticSimilarityStdDevColumn = -1;
 		int semanticSimilarityMinimumColumn = -1;
 		int semanticSimilarityMaximumColumn = -1;
+		int vrMeanColumn = -1;
+		int vrMinColumn = -1;
+		int queryColumn = -1;
+		int patternColumn = -1;
 
 		while ((line = br.readLine()) != null) {
 			if (line.isBlank())
@@ -108,17 +131,14 @@ public class FrameReadWrite {
 						break;
 					case "i:patternVertices":
 						patternVerticesColumn = i;
-						break;
+						break;						
+					case "i:highestDegreeVertex":
+						highestDegreeColumn = i;
+						break;						
 					case "f:matches":
 						matchesColumn = i;
 						break;
-					case "g:query":
-						queryColumn = i;
-						break;
-					case "s:pattern":
-						patternColumn = i;
-						break;
-
+						
 					case "i:edgePairs":
 						edgePairsColumn = i;
 						break;
@@ -136,6 +156,20 @@ public class FrameReadWrite {
 						break;
 					case "f:SSmax":
 						semanticSimilarityMaximumColumn = i;
+						break;
+
+					case "f:vrMean":
+						vrMeanColumn = i;
+						break;
+					case "f:vrMin":
+						vrMinColumn = i;
+						break;
+						
+					case "g:query":
+						queryColumn = i;
+						break;
+					case "s:pattern":
+						patternColumn = i;
 						break;
 					}
 				}
@@ -165,15 +199,11 @@ public class FrameReadWrite {
 				} else if (i == patternVerticesColumn) {
 					sf.setNumberOfVertices(Integer.parseInt(cell));
 					continue;
+				} else if (i == highestDegreeColumn) {
+					sf.setHighestVertexDegree(Integer.parseInt(cell));
+					continue;
 				} else if (i == matchesColumn) {
 					sf.setMatches(Double.parseDouble(cell));
-					continue;
-				} else if (i == queryColumn) {
-					sf.setQuery(cell);
-					continue;
-					// .setFrame(cell); //same as above
-				} else if (i == patternColumn) {
-					sf.setOriginalGraph(cell);
 					continue;
 
 					// semantic similarity stuff added later
@@ -195,37 +225,30 @@ public class FrameReadWrite {
 				} else if (i == semanticSimilarityMaximumColumn) {
 					sf.setSemanticSimilarityMax(Double.parseDouble(cell));
 					continue;
+
+				} else if (i == vrMeanColumn) {
+					sf.setVitalRelationsMean(Double.parseDouble(cell));
+					continue;
+				} else if (i == vrMinColumn) {
+					sf.setVitalRelationsMin(Double.parseDouble(cell));
+					continue;
+					
+				} else if (i == queryColumn) {
+					sf.setQuery(cell);
+					continue;
+					// .setFrame(cell); //same as above
+				} else if (i == patternColumn) {
+					sf.setOriginalGraph(cell);
+					continue;
 				}
+
 			}
 
 			frames.add(sf);
 		}
 		br.close();
 
-		System.out.printf("loaded %d frames from %s\n", frames.size(), filename);
-		System.out.println("loading took " + ticker.getTimeDeltaLastCall() + " s");
-
+		System.out.printf("loaded %d frames from %s in %f s\n", frames.size(), filename, ticker.getTimeDeltaLastCall());
 		return frames;
 	}
-
-	public static void saveFrameSimilarityStatistics(ArrayList<DescriptiveStatistics> frameSimilarityStatistics, String filename) throws IOException {
-		File file = new File(filename);
-		BufferedWriter bw = new BufferedWriter(new FileWriter(file), 1 << 16);
-		// write header
-		bw.write(FRAME_SIMILARITY_HEADER);
-		bw.newLine();
-		for (DescriptiveStatistics ds : frameSimilarityStatistics) {
-			long edgePairs = ds.getN();
-			double sum = ds.getSum();
-			double mean = ds.getMean();
-			double sd = ds.getStandardDeviation();
-			double min = ds.getMin();
-			double max = ds.getMax();
-			String text = edgePairs + "\t" + sum + "\t" + mean + "\t" + sd + "\t" + min + "\t" + max;
-			bw.write(text);
-			bw.newLine();
-		}
-		bw.close();
-	}
-
 }

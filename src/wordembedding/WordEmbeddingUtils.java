@@ -106,25 +106,29 @@ public class WordEmbeddingUtils {
 		ListWordEmbedding we = WordEmbeddingReadWrite.readCSV(wordembedding_filename, true);
 		MapOfList<String, String> synonyms = readSynonymWordList(synonyms_filename, we);
 		Object2DoubleOpenHashMap<UnorderedPair<String>> wps = scoreWordPairs(we, synonyms);
-		ArrayList<DescriptiveStatistics> frameSimilarityStatistics = calculateFrameWithinSimilarity(frames, wps);
-		FrameReadWrite.saveFrameSimilarityStatistics(frameSimilarityStatistics, frameSimilarityFilename);
+		calculateFrameWithinSimilarity(frames, wps);
+		FrameReadWrite.writePatternFramesCSV(frames, frameSimilarityFilename);
 	}
 
-	public static ArrayList<DescriptiveStatistics> calculateFrameWithinSimilarity(ArrayList<SemanticFrame> frames,
-			Object2DoubleOpenHashMap<UnorderedPair<String>> wps) throws IOException, InterruptedException {
-		ArrayList<DescriptiveStatistics> frameSimilarityStatistics = new ArrayList<DescriptiveStatistics>();
+	public static void calculateFrameWithinSimilarity(ArrayList<SemanticFrame> frames, Object2DoubleOpenHashMap<UnorderedPair<String>> wps)
+			throws IOException, InterruptedException {
 		for (SemanticFrame frame : frames) {
 			StringGraph graph = frame.getFrame();
-			DescriptiveStatistics ds = calculateGraphWithinSimilarity(wps, graph);
-			frameSimilarityStatistics.add(ds);
+			double[] sim = calculateEdgeSemanticSimilarity(graph, wps);
+			DescriptiveStatistics ds = new DescriptiveStatistics(sim);
+			long edgePairs = ds.getN();
+			double sum = ds.getSum();
+			double mean = ds.getMean();
+			double sd = ds.getStandardDeviation();
+			double min = ds.getMin();
+			double max = ds.getMax();
+			frame.setSemanticSimilarityNumberEdgePairs((int) edgePairs);
+			frame.setSemanticSimilaritySum(sum);
+			frame.setSemanticSimilarityMean(mean);
+			frame.setSemanticSimilarityStdDev(sd);
+			frame.setSemanticSimilarityMin(min);
+			frame.setSemanticSimilarityMax(max);
 		}
-		return frameSimilarityStatistics;
-	}
-
-	public static DescriptiveStatistics calculateGraphWithinSimilarity(Object2DoubleOpenHashMap<UnorderedPair<String>> wps, StringGraph graph) {
-		double[] sim = calculateEdgeSemanticSimilarity(graph, wps);
-		DescriptiveStatistics ds = new DescriptiveStatistics(sim);
-		return ds;
 	}
 
 	/**

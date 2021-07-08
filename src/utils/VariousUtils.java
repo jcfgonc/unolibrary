@@ -31,9 +31,28 @@ import org.apache.commons.math3.util.FastMath;
 
 import graph.StringEdge;
 import it.unimi.dsi.fastutil.chars.CharOpenHashSet;
+import it.unimi.dsi.fastutil.objects.Object2DoubleOpenHashMap;
 
 public class VariousUtils {
 	public static final Set<StringEdge> unmodifiableEmptySet = Collections.unmodifiableSet(new HashSet<StringEdge>(0));
+
+	public static Object2DoubleOpenHashMap<String> readVitalRelations(String path) throws IOException {
+		Object2DoubleOpenHashMap<String> relationToImportance = new Object2DoubleOpenHashMap<String>();
+		BufferedReader br = new BufferedReader(new FileReader(path, StandardCharsets.UTF_8), 1 << 24);
+		String line;
+		while ((line = br.readLine()) != null) {
+			line = line.trim();
+			if (line.contains(":")) // header, eg, s:relation
+				continue;
+			String[] cells = VariousUtils.fastSplitWhiteSpace(line);
+			String relation = cells[0];
+			double importance = Double.parseDouble(cells[1]);
+			relationToImportance.put(relation, importance);
+		}
+		br.close();
+		System.out.printf("using the definition of %d vital relations from %s\n", relationToImportance.size(), path);
+		return relationToImportance;
+	}
 
 	public static String readFile(String path, Charset encoding) throws IOException {
 		byte[] encoded = Files.readAllBytes(Paths.get(path));
@@ -573,9 +592,9 @@ public class VariousUtils {
 		// bases, correct the result, NOT this number!
 	}
 
-	public static String appendSuffixToFilename(String r, String suffix) {
-		int lastDotIndex = r.lastIndexOf('.');
-		String s = r.substring(0, lastDotIndex) + suffix + r.substring(lastDotIndex);
+	public static String appendSuffixToFilename(String prefix, String suffix) {
+		int lastDotIndex = prefix.lastIndexOf('.');
+		String s = prefix.substring(0, lastDotIndex) + suffix + prefix.substring(lastDotIndex);
 		return s;
 	}
 }

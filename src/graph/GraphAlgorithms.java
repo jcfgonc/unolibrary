@@ -793,6 +793,10 @@ public class GraphAlgorithms {
 		}
 		return highestDegreeConcept;
 	}
+	
+	public static String getHighestDegreeVertex(StringGraph graph) {
+		return getHighestDegreeVertex(graph.getVertexSet(), graph);
+	}
 
 	/**
 	 * self-explanatory
@@ -812,6 +816,10 @@ public class GraphAlgorithms {
 			}
 		}
 		return lowestDegreeConcept;
+	}
+	
+	public static String getLowestDegreeVertex(StringGraph graph) {
+		return getLowestDegreeVertex(graph.getVertexSet(), graph);
 	}
 
 	public static ArrayList<StringEdge> getEdgesWithSources(Collection<StringEdge> edges, Collection<String> collection) {
