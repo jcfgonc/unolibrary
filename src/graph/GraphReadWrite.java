@@ -133,9 +133,11 @@ public class GraphReadWrite {
 	}
 
 	public static void readCSV(String filename, StringGraph graph) throws IOException, NoSuchFileException {
+		System.out.print("reading " + filename + " ...");
 		BufferedReader br = Files.newBufferedReader(Paths.get(filename));
 		readCSV(br, graph);
 		br.close();
+		System.out.println("done.");
 	}
 
 	public static void readCSV(NonblockingBufferedReader br, StringGraph graph) throws IOException, NoSuchFileException {

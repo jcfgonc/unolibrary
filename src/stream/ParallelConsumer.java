@@ -13,11 +13,11 @@ public class ParallelConsumer<T> {
 
 	public ParallelConsumer(int numberOfThreads) {
 		this.ss = new StreamService(numberOfThreads);
+		System.err.println("Parallel Consumer running with " + getNumberOfThreads() + " threads");
 	}
 
 	public ParallelConsumer() {
-		int numberOfThreads = OSTools.getNumberOfCores();
-		this.ss = new StreamService(numberOfThreads);
+		this(OSTools.getNumberOfCores());
 	}
 
 	public void parallelForEach(Collection<T> col, Consumer<? super T> action) throws InterruptedException {
@@ -53,7 +53,7 @@ public class ParallelConsumer<T> {
 		};
 		ss.invoke(array.length, sp);
 	}
-	
+
 	public void parallelForEach(int[] array, IntConsumer action) throws InterruptedException {
 		StreamProcessor sp = new StreamProcessor() {
 
@@ -66,6 +66,19 @@ public class ParallelConsumer<T> {
 			}
 		};
 		ss.invoke(array.length, sp);
+	}
+
+	public void parallelForEach(int numElements, Consumer<Integer> action) throws InterruptedException {
+		StreamProcessor sp = new StreamProcessor() {
+
+			@Override
+			public void run(int processorId, int rangeL, int rangeH, int streamSize) {
+				for (int i = rangeL; i <= rangeH; i++) {
+					action.accept(i);
+				}
+			}
+		};
+		ss.invoke(numElements, sp);
 	}
 
 	public void shutdown() {

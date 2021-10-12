@@ -13,10 +13,8 @@ import structures.MapOfSet;
  * 
  * @author jcfgonc@gmail.com
  *
- * @param <V>
- *            Vertex Class
- * @param <E>
- *            Edge Class
+ * @param <V> Vertex Class
+ * @param <E> Edge Class
  */
 public class DirectedMultiGraph<V, E> {
 	private HashSet<GraphEdge<V, E>> edgeSet;
@@ -282,22 +280,22 @@ public class DirectedMultiGraph<V, E> {
 	}
 
 	public void removeEdge(GraphEdge<V, E> edge) {
-		if(!containsEdge(edge))
+		if (!containsEdge(edge))
 			return;
-		
+
 		V target = getEdgeTarget(edge);
 		Set<GraphEdge<V, E>> si = incomingEdges.get(target);
 		if (si != null) {
 			si.remove(edge);
-			if(si.isEmpty())
+			if (si.isEmpty())
 				incomingEdges.removeKey(target);
 		}
-		
+
 		V source = getEdgeSource(edge);
 		Set<GraphEdge<V, E>> so = outgoingEdges.get(source);
 		if (so != null) {
 			so.remove(edge);
-			if(so.isEmpty())
+			if (so.isEmpty())
 				outgoingEdges.removeKey(source);
 		}
 
@@ -307,7 +305,7 @@ public class DirectedMultiGraph<V, E> {
 		if (degreeOf(target) == 0) {
 			vertexSet.remove(target);
 		}
-		
+
 		edgeSet.remove(edge);
 		edgeSource.remove(edge);
 		edgeTarget.remove(edge);
@@ -371,6 +369,32 @@ public class DirectedMultiGraph<V, E> {
 	 */
 	public Set<V> vertexSet() {
 		return vertexSet;
+	}
+
+	@Override
+	public int hashCode() {
+		return edgeSet.hashCode();
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		@SuppressWarnings("unchecked")
+		DirectedMultiGraph<V, E> other = (DirectedMultiGraph<V, E>) obj;
+		return edgeSet.equals(other.edgeSet);
+	}
+
+	public int getNumberOfVertices() {
+		return vertexSet.size();
+	}
+
+	public int getNumberOfEdges() {
+		return edgeSet.size();
 	}
 
 }
