@@ -18,6 +18,7 @@ import structures.ConceptPair;
 import structures.ListOfSet;
 import structures.MapOfSet;
 import structures.ObjectIndex;
+import structures.OrderedPair;
 import structures.UnorderedPair;
 import utils.VariousUtils;
 
@@ -947,6 +948,19 @@ public class GraphAlgorithms {
 		return counter;
 	}
 
+	public static Object2IntOpenHashMap<String> countRelations(DirectedMultiGraph<OrderedPair<String>, String> graph) {
+		return countRelations(graph.edgeSet());
+	}
+
+	private static Object2IntOpenHashMap<String> countRelations(HashSet<GraphEdge<OrderedPair<String>, String>> edges) {
+		Object2IntOpenHashMap<String> counter = new Object2IntOpenHashMap<>();
+		counter.defaultReturnValue(0);
+		for (GraphEdge<OrderedPair<String>, String> edge : edges) {
+			String relation = edge.getLabel();
+			counter.addTo(relation, 1);
+		}
+		return counter;	}
+
 	/**
 	 * returns the statistics of the graph edge's relations
 	 * 
@@ -1206,4 +1220,5 @@ public class GraphAlgorithms {
 		}
 		return null;
 	}
+
 }

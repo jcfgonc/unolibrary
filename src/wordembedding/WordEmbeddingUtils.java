@@ -35,7 +35,7 @@ public class WordEmbeddingUtils {
 		String synonyms_filename = "..\\PatternMiner\\results\\synonyms.txt";
 		String wordembedding_filename = "..\\ConceptNet5\\kb\\ConceptNet Numberbatch 19.08\\numberbatch-en.zip";
 //		String frameSimilarityFilename = "..\\PatternMiner\\results\\patterns_semantic_similarityV22.tsv";
-		String wordPairScores_filename = "C:\\Desktop\\github\\BlenderMO\\data\\relation_pair_scores.tsv";
+		String wordPairScores_filename = "relation_pair_scores.tsv";
 
 //		calculateAndSaveFrameSimilarity(frames_filename, wordembedding_filename, synonyms_filename, frameSimilarityFilename);
 

@@ -589,7 +589,7 @@ public class StringGraph implements Serializable {
 	}
 
 	public String toString() {
-		return toString(64, Integer.MAX_VALUE);
+		return toString(Integer.MAX_VALUE, Integer.MAX_VALUE);
 	}
 
 	public void removeEdges(Collection<StringEdge> toRemove) {

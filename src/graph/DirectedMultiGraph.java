@@ -397,4 +397,30 @@ public class DirectedMultiGraph<V, E> {
 		return edgeSet.size();
 	}
 
+	public String toString() {
+		return toString(Integer.MAX_VALUE, Integer.MAX_VALUE);
+
+	}
+
+	public String toString(final int limit, final int lineBreak) {
+		if (isEmpty())
+			return "[]";
+
+		int counter = 0;
+		String buffer = "";
+		for (GraphEdge<V, E> edge : edgeSet()) {
+			buffer += edge.toString() + ";";
+			if (counter % lineBreak == 0 && counter > 0)
+				buffer += System.lineSeparator();
+			if (counter > limit)
+				break;
+			counter++;
+		}
+		return buffer;
+	}
+
+	public boolean isEmpty() {
+		return getNumberOfEdges() == 0;
+	}
+
 }
