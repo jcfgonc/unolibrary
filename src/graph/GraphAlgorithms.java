@@ -60,8 +60,8 @@ public class GraphAlgorithms {
 	}
 
 	/**
-	 * Expands on the graph, from the openset, excluding nodes present in the closed set, returning the new expanded nodes. Whenever a new edge is
-	 * being expanded from the current set to a neighboring node, ExpandingEdge ee is invoked.
+	 * Expands on the graph, from the openset, excluding nodes present in the closed set, returning the new expanded nodes. Whenever a new edge is being
+	 * expanded from the current set to a neighboring node, ExpandingEdge ee is invoked.
 	 *
 	 * @param openSet
 	 * @param closedSet
@@ -99,8 +99,8 @@ public class GraphAlgorithms {
 	}
 
 	/**
-	 * Expands on the graph, from the openset, excluding nodes present in the closed set, returning the new expanded nodes. Whenever a new edge is
-	 * being expanded from the current set to a neighboring node, ExpandingEdge ee is invoked.
+	 * Expands on the graph, from the openset, excluding nodes present in the closed set, returning the new expanded nodes. Whenever a new edge is being
+	 * expanded from the current set to a neighboring node, ExpandingEdge ee is invoked.
 	 *
 	 * @param openSet
 	 * @param closedSet
@@ -278,8 +278,8 @@ public class GraphAlgorithms {
 		return distance;
 	}
 
-	public static HashMap<String, ArrayList<StringEdge>> lowestCommonAncestorIsa(StringGraph graph, String vertexL, String vertexR,
-			boolean useDerivedFrom, boolean useSynonym) {
+	public static HashMap<String, ArrayList<StringEdge>> lowestCommonAncestorIsa(StringGraph graph, String vertexL, String vertexR, boolean useDerivedFrom,
+			boolean useSynonym) {
 		HashMap<String, StringEdge> cameFromEdgeL = new HashMap<>();
 		HashMap<String, StringEdge> cameFromEdgeR = new HashMap<>();
 		HashMap<String, ArrayList<StringEdge>> ancestors = new HashMap<>();
@@ -298,15 +298,13 @@ public class GraphAlgorithms {
 			openSetR.addLast(vertexR);
 			while (openSetL.size() > 0 || openSetR.size() > 0) {
 				{
-					HashSet<String> expanded = lcaIsaRadialExpansion(graph, openSetL.removeFirst(), useDerivedFrom, useSynonym, cameFromEdgeL,
-							closedSetL);
+					HashSet<String> expanded = lcaIsaRadialExpansion(graph, openSetL.removeFirst(), useDerivedFrom, useSynonym, cameFromEdgeL, closedSetL);
 					openSetL.addAll(expanded);
 					touchedL.addAll(expanded);
 				}
 
 				{
-					HashSet<String> expanded = lcaIsaRadialExpansion(graph, openSetR.removeFirst(), useDerivedFrom, useSynonym, cameFromEdgeR,
-							closedSetR);
+					HashSet<String> expanded = lcaIsaRadialExpansion(graph, openSetR.removeFirst(), useDerivedFrom, useSynonym, cameFromEdgeR, closedSetR);
 					openSetR.addAll(expanded);
 					touchedR.addAll(expanded);
 				}
@@ -675,8 +673,7 @@ public class GraphAlgorithms {
 	 * @param random
 	 * @return
 	 */
-	public static HashSet<String> extractRandomPart(StringGraph graph, int minNewConceptsTrigger, int minTotalConceptsTrigger,
-			RandomGenerator random) {
+	public static HashSet<String> extractRandomPart(StringGraph graph, int minNewConceptsTrigger, int minTotalConceptsTrigger, RandomGenerator random) {
 		// just get a vertex
 		String firstVertex = VariousUtils.getRandomElementFromCollection(graph.getVertexSet(), random);
 		HashSet<String> closedSet = new HashSet<>(16, 0.333f);
@@ -794,7 +791,7 @@ public class GraphAlgorithms {
 		}
 		return highestDegreeConcept;
 	}
-	
+
 	public static String getHighestDegreeVertex(StringGraph graph) {
 		return getHighestDegreeVertex(graph.getVertexSet(), graph);
 	}
@@ -818,7 +815,7 @@ public class GraphAlgorithms {
 		}
 		return lowestDegreeConcept;
 	}
-	
+
 	public static String getLowestDegreeVertex(StringGraph graph) {
 		return getLowestDegreeVertex(graph.getVertexSet(), graph);
 	}
@@ -959,7 +956,8 @@ public class GraphAlgorithms {
 			String relation = edge.getLabel();
 			counter.addTo(relation, 1);
 		}
-		return counter;	}
+		return counter;
+	}
 
 	/**
 	 * returns the statistics of the graph edge's relations
@@ -1202,8 +1200,8 @@ public class GraphAlgorithms {
 	}
 
 	/**
-	 * Returns the concept (source or target) which exists in the given conceptPair. Assumes that the conceptPair does not contain both source and
-	 * target concepts (it will return the pair's left concept in that case) and that the edge does not self-connect only one of the pair's concepts.
+	 * Returns the concept (source or target) which exists in the given conceptPair. Assumes that the conceptPair does not contain both source and target
+	 * concepts (it will return the pair's left concept in that case) and that the edge does not self-connect only one of the pair's concepts.
 	 * 
 	 * @param conceptPair
 	 * @param stringEdge
@@ -1221,4 +1219,22 @@ public class GraphAlgorithms {
 		return null;
 	}
 
+	/**
+	 * creates mirrored (reversed direction) copies of existing edges with the given labels
+	 * 
+	 * @param graph
+	 * @param undirectedrelations
+	 */
+	public static void addMirroredCopyEdges(StringGraph graph, Set<String> labels) {
+		for (String label : labels) {
+			addMirroredCopyEdges(graph, label);
+		}
+	}
+
+	public static void addMirroredCopyEdges(StringGraph graph, String label) {
+		Set<StringEdge> existingEdges = graph.edgeSet(label);
+		for (StringEdge edge : existingEdges) {
+			graph.addEdge(edge.reverse());
+		}
+	}
 }

@@ -540,8 +540,8 @@ public class GraphReadWrite {
 		for (StringEdge se : edgeSet) {
 			String source = removeComma(se.getSource());
 			String target = removeComma(se.getTarget());
-			String edgeLabel = removeComma(se.getLabel());
-			bw.write(String.format("%s(%s,%s).", edgeLabel, source, target));
+			String relation = removeComma(se.getLabel());
+			bw.write(String.format("%s(%s,%s).", relation, source, target));
 			bw.newLine();
 		}
 		bw.flush();

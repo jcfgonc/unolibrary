@@ -13,9 +13,8 @@ import java.util.Set;
 import it.unimi.dsi.fastutil.bytes.ByteArrayList;
 
 /**
- * A directed multigraph where both vertices and edges are String. A directed multigraph is a non-simple directed graph in which loops are permitted,
- * as well as multiple edges between any two vertices. Always use the graph's functions to add/remove/etc. edges, never edit directly one of the
- * return functions/values.
+ * A directed multigraph where both vertices and edges are String. A directed multigraph is a non-simple directed graph in which loops are permitted, as well as
+ * multiple edges between any two vertices. Always use the graph's functions to add/remove/etc. edges, never edit directly one of the return functions/values.
  *
  * @author Joao Goncalves: jcfgonc@gmail.com
  *
@@ -635,9 +634,15 @@ public class StringGraph implements Serializable {
 	 * 
 	 * @param relationFilter
 	 */
-	public void removeEdges(String relationFilter) {
+	public void removeEdgesByLabel(String relationFilter) {
 		Set<StringEdge> edges = edgeSet(relationFilter);
 		removeEdges(edges);
+	}
+
+	public void removeEdgesByLabel(Collection<String> labels) {
+		for (String label : labels) {
+			removeEdgesByLabel(label);
+		}
 	}
 
 	/**
