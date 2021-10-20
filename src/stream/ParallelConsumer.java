@@ -102,7 +102,7 @@ public class ParallelConsumer<T> {
 		pc.parallelForEach(list, element -> {
 			try {
 				Thread.sleep(10);
-			} catch (InterruptedException e) {
+			} catch (Exception e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}

@@ -423,4 +423,13 @@ public class DirectedMultiGraph<V, E> {
 		return getNumberOfEdges() == 0;
 	}
 
+	public int getNumberOfEdges(String label) {
+		int count = 0;
+		for (GraphEdge<V, E> edge : edgeSet) {
+			if (edge.getLabel().equals(label))
+				count++;
+		}
+		return count;
+	}
+
 }

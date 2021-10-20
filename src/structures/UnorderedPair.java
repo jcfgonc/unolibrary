@@ -16,6 +16,10 @@ public class UnorderedPair<T> {
 		this.right = right;
 	}
 
+	public UnorderedPair(OrderedPair<T> pair) {
+		this(pair.getLeftElement(), pair.getRightElement());
+	}
+
 	public boolean containsAnyElement(Collection<T> elements) {
 		for (T element : elements) {
 			if (left.equals(element) || right.equals(element))
@@ -52,7 +56,7 @@ public class UnorderedPair<T> {
 		}
 		@SuppressWarnings("unchecked")
 		UnorderedPair<T> other = (UnorderedPair<T>) obj;
-		if (	(left.equals(other.left)  && right.equals(other.right)) || // ----
+		if ((left.equals(other.left) && right.equals(other.right)) || // ----
 				(left.equals(other.right) && right.equals(other.left))) {
 			return true;
 		}
