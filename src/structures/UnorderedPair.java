@@ -1,10 +1,12 @@
 package structures;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-public class UnorderedPair<T> {
+public class UnorderedPair<T> implements Serializable{
+	private static final long serialVersionUID = -3216878760236123238L;
 	private T left;
 	private T right;
 
@@ -12,8 +14,15 @@ public class UnorderedPair<T> {
 		super();
 		if (left == null || right == null)
 			throw new NullPointerException("both arguments can't be null");
-		this.left = left;
-		this.right = right;
+		
+		// good practice: put the "lesser" element first
+		if (left.toString().compareTo(right.toString()) <= 0) {
+			this.left = left;
+			this.right = right;
+		} else {
+			this.left = right;
+			this.right = left;
+		}
 	}
 
 	public UnorderedPair(OrderedPair<T> pair) {

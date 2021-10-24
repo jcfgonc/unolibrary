@@ -1,5 +1,6 @@
 package structures;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -11,7 +12,8 @@ import java.util.List;
  *
  * @param <T>
  */
-public class OrderedPair<T> {
+public class OrderedPair<T> implements Serializable {
+	private static final long serialVersionUID = -4793919736026599241L;
 	private T leftElement;
 	private T rightElement;
 
@@ -83,14 +85,14 @@ public class OrderedPair<T> {
 		al.add(rightElement);
 		return al;
 	}
-	
+
 	public T getElement(int i) {
 		switch (i) {
-		case 0: {			
+		case 0: {
 			return leftElement;
 		}
 		case 1: {
-			
+
 			return rightElement;
 		}
 		default:

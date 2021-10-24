@@ -66,7 +66,11 @@ public class StreamService {
 
 		@Override
 		public Object call() throws Exception {
-			sp.run(threadId, rangeL, rangeH, dataSize);
+			try {
+				sp.run(threadId, rangeL, rangeH, dataSize);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
 			return null;
 		}
 

@@ -258,20 +258,25 @@ public class GraphAlgorithms {
 		return currentvertex;
 	}
 
-	public static int getDistance(String startingVertex0, String startingVertex1, StringGraph graph) {
+	public static int getDistance(StringGraph graph, String origin, String destination, int maxDistance) {
 		// set of visited and to visit vertices for the expansion process
 		// expand from vertex0 until arriving at vertex1
-		Set<String> openSet = new HashSet<String>(16, 0.333f);
-		Set<String> closedSet = new HashSet<String>(16, 0.333f);
-		openSet.add(startingVertex0);
+		Set<String> openSet = new HashSet<String>(1024, 0.333f);
+		Set<String> closedSet = new HashSet<String>(1024, 0.333f);
+		openSet.add(origin);
 
 		int distance = 0;
 		do {
 			// only expand while there are vertices to expand
 			if (openSet.size() == 0)
 				break;
-			if (openSet.contains(startingVertex1))
+			// reached destination?
+			if (openSet.contains(destination))
 				break;
+			// only expand if allowed
+			if (distance >= maxDistance)
+				return Integer.MAX_VALUE;
+			// do one expansion
 			expandFromOpenSetOneLevel(openSet, closedSet, graph, null);
 			distance++;
 		} while (true);
@@ -796,6 +801,32 @@ public class GraphAlgorithms {
 		return getHighestDegreeVertex(graph.getVertexSet(), graph);
 	}
 
+	public static <V, E> V getHighestDegreeVertex(DirectedMultiGraph<V, E> graph) {
+		int highestDegree = -Integer.MAX_VALUE;
+		V highestDegreeVertex = null;
+		for (V vertex : graph.vertexSet()) {
+			int degree = graph.degreeOf(vertex);
+			if (degree > highestDegree) {
+				highestDegree = degree;
+				highestDegreeVertex = vertex;
+			}
+		}
+		return highestDegreeVertex;
+	}
+
+	public static <V, E> V getLowestDegreeVertex(DirectedMultiGraph<V, E> graph) {
+		int lowestDegree = Integer.MAX_VALUE;
+		V lowestDegreeVertex = null;
+		for (V vertex : graph.vertexSet()) {
+			int degree = graph.degreeOf(vertex);
+			if (degree < lowestDegree) {
+				lowestDegree = degree;
+				lowestDegreeVertex = vertex;
+			}
+		}
+		return lowestDegreeVertex;
+	}
+
 	/**
 	 * self-explanatory
 	 * 
@@ -1237,4 +1268,57 @@ public class GraphAlgorithms {
 			graph.addEdge(edge.reverse());
 		}
 	}
+
+	// TODO: this code is calculating wrong (higher than expected) distances.
+	// start from v0 and try to reach v1
+	@Deprecated
+	public static int distanceBetweenVertices(StringGraph graph, String v0, String v1, int maximumDistance) {
+
+		HashSet<String> closedSet = new HashSet<>();
+		ArrayDeque<String> openSet = new ArrayDeque<>();
+		openSet.addLast(v0);
+
+		Object2IntOpenHashMap<String> hops = new Object2IntOpenHashMap<>();
+		hops.defaultReturnValue(Integer.MAX_VALUE);
+		hops.put(v0, 0);
+
+		while (!openSet.isEmpty()) {
+			// get next vertex
+			String currentVertex = openSet.removeFirst();
+
+			int curHop = hops.getInt(currentVertex);
+
+			// if we arrived at v1, abort expansion
+			if (currentVertex.equals(v1)) {
+				return curHop;
+			}
+
+			if (curHop == maximumDistance)
+				continue;
+
+			// expand a vertex not in the closed set
+			if (!closedSet.contains(currentVertex)) {
+
+				int nextHop = curHop + 1;
+
+				Set<StringEdge> edges = graph.edgesOf(currentVertex);
+				for (StringEdge edge : edges) {
+					String oppositeConcept = edge.getOppositeOf(currentVertex);
+					if (closedSet.contains(oppositeConcept))
+						continue;
+					// put the neighbors in the open set
+					openSet.addLast(oppositeConcept);
+
+					hops.put(oppositeConcept, nextHop);
+				}
+
+				// vertex from the open set explored, remove it from further exploration
+				closedSet.add(currentVertex);
+			}
+		}
+
+		// did not reach v1
+		return Integer.MAX_VALUE;
+	}
+
 }
