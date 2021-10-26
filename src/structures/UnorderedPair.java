@@ -24,6 +24,13 @@ public class UnorderedPair<T> implements Serializable{
 			this.right = left;
 		}
 	}
+	
+	// used by some serializers
+	@SuppressWarnings("unused")
+	private UnorderedPair() {
+		this.left = null;
+		this.right = null;
+	}
 
 	public UnorderedPair(OrderedPair<T> pair) {
 		this(pair.getLeftElement(), pair.getRightElement());

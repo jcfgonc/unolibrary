@@ -22,6 +22,13 @@ public class OrderedPair<T> implements Serializable {
 		this.leftElement = other.leftElement;
 		this.rightElement = other.rightElement;
 	}
+	
+	// used by some serializers
+	@SuppressWarnings("unused")
+	private OrderedPair() {
+		this.leftElement = null;
+		this.rightElement = null;
+	}
 
 	public OrderedPair(T leftElement, T rightElement) {
 		super();

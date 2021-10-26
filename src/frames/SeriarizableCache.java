@@ -4,11 +4,12 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+
+import com.esotericsoftware.kryo.kryo5.Kryo;
+import com.esotericsoftware.kryo.kryo5.io.Input;
+import com.esotericsoftware.kryo.kryo5.io.Output;
 
 import structures.Ticker;
 
@@ -19,32 +20,43 @@ public class SeriarizableCache<K, V> {
 	private Ticker ticker;
 	private int timeout;
 	private ReentrantReadWriteLock rrw;
-	private ReentrantLock filesaveLock;
+	private static Kryo kryo; // must be shared
 
 	public SeriarizableCache(String filename, int timeout) {
 		this.filename = filename;
 		this.ticker = new Ticker();
 		this.timeout = timeout;
 		this.rrw = new ReentrantReadWriteLock();
-		this.filesaveLock = new ReentrantLock();
-		System.err.printf("saving SeriarizableCache() to %s with an interval of %ds\n", filename, timeout);
-		reload();
+		initializeKryo();
+		System.err.printf("%s: saving to %s with an interval of %ds\n", this.getClass().toString(), filename, timeout);
+		load();
 	}
 
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public void reload() {
+	private synchronized void initializeKryo() {
+		kryo = new Kryo();
+		kryo.setRegistrationRequired(false);
+		kryo.register(ConcurrentHashMap.class);
+	}
+
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	public synchronized void load() {
 		File fin = new File(filename);
 		if (fin.exists()) {
 			try {
-				FileInputStream file = new FileInputStream(filename);
-				ObjectInputStream in = new ObjectInputStream(file);
+				ticker.getTimeDeltaLastCall();
 
-				cache = (ConcurrentHashMap) in.readObject();
+				Input input = new Input(new FileInputStream(filename));
+				cache = (ConcurrentHashMap) kryo.readObject(input, ConcurrentHashMap.class);
+				input.close();
 
-				in.close();
-				file.close();
+//				FileInputStream file = new FileInputStream(filename);
+//				ObjectInputStream in = new ObjectInputStream(file);
+//				cache = (ConcurrentHashMap) in.readObject();
+//				in.close();
+//				file.close();
 
-				System.err.println("loaded cache from " + filename + " with " + size() + " entries");
+				double dt = ticker.getTimeDeltaLastCall();
+				System.err.println(this.getClass().toString() + ": loaded cache from " + filename + " with " + size() + " entries in " + dt + "s");
 			} catch (Exception e) {
 				e.printStackTrace();
 				System.exit(-3);
@@ -53,15 +65,24 @@ public class SeriarizableCache<K, V> {
 	}
 
 	public synchronized void save() throws IOException {
+
+		try {
+			Output output = new Output(new FileOutputStream(filename));
+			kryo.writeObject(output, cache);
+			output.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
 //		System.out.println("saving SeriarizableCache");
-		FileOutputStream file = new FileOutputStream(filename);
-		ObjectOutputStream out = new ObjectOutputStream(file);
-
-		// Method for serialization of object
-		out.writeObject(cache);
-
-		out.close();
-		file.close();
+//		FileOutputStream file = new FileOutputStream(filename);
+//		ObjectOutputStream out = new ObjectOutputStream(file);
+//
+//		// Method for serialization of object
+//		out.writeObject(cache);
+//
+//		out.close();
+//		file.close();
 
 	}
 
@@ -90,25 +111,23 @@ public class SeriarizableCache<K, V> {
 		return p;
 	}
 
-	private void checkTimeout() {
-		// only one file save at a time
-		filesaveLock.lock();
-
+	private synchronized void checkTimeout() {
 		if (ticker.getElapsedTime() > timeout) {
 			try {
+
+				ticker.getTimeDeltaLastCall();
 
 				// cache can not be updated while saving it (block writes)
 				rrw.readLock().lock();
 				save();
 				rrw.readLock().unlock();
 
-				System.err.println("saved cache to " + filename + " with " + size() + " entries");
+				double dt = ticker.getTimeDeltaLastCall();
+				System.err.println(this.getClass().toString() + ": saved cache to " + filename + " with " + size() + " entries in " + dt + "s");
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
 			ticker.resetTicker();
 		}
-
-		filesaveLock.unlock();
 	}
 }
