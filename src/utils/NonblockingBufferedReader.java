@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class NonblockingBufferedReader {
 	private static final int BUFSIZE = 1 << 24;
-	final BlockingQueue<String> lines = new ArrayBlockingQueue<String>(1 << 20);
+	final BlockingQueue<String> lines = new ArrayBlockingQueue<String>(1 << 24);
 	volatile boolean closed = false;
 	Thread backgroundReaderThread = null;
 	BufferedReader br;

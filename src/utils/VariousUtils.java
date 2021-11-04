@@ -64,6 +64,24 @@ public class VariousUtils {
 		return new String(encoded, StandardCharsets.UTF_8);
 	}
 
+	/**
+	 * reads each row of the given text file as an element of the returned ArrayList
+	 * 
+	 * @param path
+	 * @return
+	 * @throws IOException
+	 */
+	public static ArrayList<String> readFileRows(String filename) throws IOException {
+		ArrayList<String> rows = new ArrayList<String>(1 << 8);
+		NonblockingBufferedReader br = new NonblockingBufferedReader(filename);
+		String line;
+		while ((line = br.readLine()) != null) {
+			rows.add(line);
+		}
+		br.close();
+		return rows;
+	}
+
 	public static String integerToString(int n) {
 		char[] buf = new char[(int) Math.floor(Math.log(25 * (n + 1)) / Math.log(26))];
 		for (int i = buf.length - 1; i >= 0; i--) {
@@ -551,8 +569,8 @@ public class VariousUtils {
 	}
 
 	/**
-	 * Returns the (approx) logarithm to the base 2 of the given BigInteger. This function calculates base 2 log because finding the number of
-	 * occupied bits is trivial.
+	 * Returns the (approx) logarithm to the base 2 of the given BigInteger. This function calculates base 2 log because finding the number of occupied bits is
+	 * trivial.
 	 * 
 	 * @param val
 	 * @return
