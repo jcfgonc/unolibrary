@@ -66,7 +66,12 @@ public class SynchronizedMapOfSet<K, V> {
 	}
 
 	public synchronized boolean add(K key, V value) {
-		Set<V> set = get(key);
+		if (key == null || value == null)
+			throw new RuntimeException("SynchronizedMapOfSet: trying to add " + key + "," + value);
+
+		System.out.printf("SynchronizedMapOfSet.add(%s,%s)\n", key, value);
+
+		Set<V> set = map.get(key);
 		if (set == null) {
 			set = new HashSet<V>(initialCapacity, loadFactor);
 			map.put(key, set);
@@ -88,7 +93,7 @@ public class SynchronizedMapOfSet<K, V> {
 
 	public synchronized void removeFromValues(V value) {
 		// iterate through every mapped set (target)
-		for (Set<V> values : this.values()) {
+		for (Set<V> values : map.values()) {
 			values.remove(value);
 		}
 	}

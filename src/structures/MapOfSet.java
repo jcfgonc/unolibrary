@@ -1,6 +1,7 @@
 package structures;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
@@ -8,7 +9,7 @@ import java.util.Set;
 /**
  * A Map where each mapping is a Set of the given type, mapped to by a key. Created for convenience.
  * 
- * @author Jo�o Gon�alves: jcfgonc@gmail.com
+ * @author Joao Goncalves: jcfgonc@gmail.com
  * @param <K>
  * @param <V>
  */
@@ -24,11 +25,11 @@ public class MapOfSet<K, V> {
 	}
 
 	public MapOfSet(int initialCapacity) {
-		this(initialCapacity, 0.75f);
+		this(initialCapacity, 0.5f);
 	}
 
 	public MapOfSet() {
-		this(16, 0.75f);
+		this(16, 0.5f);
 	}
 
 	public void clear() {
@@ -41,16 +42,18 @@ public class MapOfSet<K, V> {
 	}
 
 	public Set<V> get(K key) {
-		return map.get(key);
-//		return Collections.unmodifiableSet(map.get(key));
+		Set<V> s = map.get(key);
+		if (s == null || s.isEmpty())
+			return null;
+		return Collections.unmodifiableSet(s);
 	}
-	
+
 	public boolean isEmpty() {
 		return map.isEmpty();
 	}
 
 	public Set<K> keySet() {
-		return map.keySet();
+		return Collections.unmodifiableSet(map.keySet());
 	}
 
 	public Set<V> mergeSets() {
@@ -63,7 +66,12 @@ public class MapOfSet<K, V> {
 	}
 
 	public boolean add(K key, V value) {
-		Set<V> set = get(key);
+		if (key == null || value == null)
+			throw new RuntimeException("MapOfSet: trying to add " + key + "," + value);
+
+		System.out.printf("MapOfSet.add(%s,%s)\n", key, value);
+
+		Set<V> set = map.get(key);
 		if (set == null) {
 			set = new HashSet<V>(initialCapacity, loadFactor);
 			map.put(key, set);
@@ -85,7 +93,7 @@ public class MapOfSet<K, V> {
 
 	public void removeFromValues(V value) {
 		// iterate through every mapped set (target)
-		for (Set<V> values : this.values()) {
+		for (Set<V> values : map.values()) {
 			values.remove(value);
 		}
 	}
@@ -103,7 +111,7 @@ public class MapOfSet<K, V> {
 	}
 
 	public Collection<Set<V>> values() {
-		return map.values();
+		return Collections.unmodifiableCollection(map.values());
 	}
 
 }
