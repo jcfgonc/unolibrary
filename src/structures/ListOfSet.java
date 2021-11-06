@@ -105,6 +105,10 @@ public class ListOfSet<E> implements Iterable<HashSet<E>> {
 		return array.get(index);
 	}
 
+	public HashSet<E> get(int index) {
+		return getSetAt(index);
+	}
+
 	public boolean isEmpty() {
 		return array.isEmpty();
 	}
@@ -118,8 +122,48 @@ public class ListOfSet<E> implements Iterable<HashSet<E>> {
 		return array.iterator();
 	}
 
+	/**
+	 * returns the number of sets
+	 * 
+	 * @return
+	 */
 	public int size() {
 		return array.size();
+	}
+
+	/**
+	 * returns the number of elements in all sets
+	 */
+	public int numberOfElements() {
+		int sum = 0;
+		for (HashSet<E> set : array) {
+			sum += set.size();
+		}
+		return sum;
+	}
+
+	public int numberOfSets() {
+		return size();
+	}
+
+	public int numberOfEmptySets() {
+		int count = 0;
+		for (HashSet<E> set : array) {
+			if (set.isEmpty()) {
+				count++;
+			}
+		}
+		return count;
+	}
+
+	public int numberOfNonEmptySets() {
+		int count = 0;
+		for (HashSet<E> set : array) {
+			if (!set.isEmpty()) {
+				count++;
+			}
+		}
+		return count;
 	}
 
 	public String toString() {
