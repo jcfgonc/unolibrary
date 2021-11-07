@@ -18,18 +18,38 @@ public class MapOfSet<K, V> {
 	private final float loadFactor;
 	private HashMap<K, Set<V>> map;
 
-	public MapOfSet(int initialCapacity, float loadFactor) {
-		this.initialCapacity = initialCapacity;
-		this.loadFactor = loadFactor;
-		map = new HashMap<K, Set<V>>(initialCapacity, loadFactor);
+	public MapOfSet() {
+		this(16, 0.5f);
 	}
 
 	public MapOfSet(int initialCapacity) {
 		this(initialCapacity, 0.5f);
 	}
 
-	public MapOfSet() {
-		this(16, 0.5f);
+	public MapOfSet(int initialCapacity, float loadFactor) {
+		this.initialCapacity = initialCapacity;
+		this.loadFactor = loadFactor;
+		map = new HashMap<K, Set<V>>(initialCapacity, loadFactor);
+	}
+
+	public void add(K key, Collection<V> values) {
+		for (V value : values) {
+			add(key, value);
+		}
+	}
+
+	public boolean add(K key, V value) {
+		if (key == null || value == null)
+			throw new RuntimeException("MapOfSet: trying to add " + key + "," + value);
+
+//		System.out.printf("MapOfSet.add(%s,%s)\n", key, value);
+
+		Set<V> set = map.get(key);
+		if (set == null) {
+			set = new HashSet<V>(initialCapacity, loadFactor);
+			map.put(key, set);
+		}
+		return set.add(value);
 	}
 
 	public void clear() {
@@ -41,6 +61,12 @@ public class MapOfSet<K, V> {
 		return set != null && !set.isEmpty();
 	}
 
+	/**
+	 * Returns a *view* of the set mapped to from the given key.
+	 * 
+	 * @param key
+	 * @return
+	 */
 	public Set<V> get(K key) {
 		Set<V> s = map.get(key);
 		if (s == null || s.isEmpty())
@@ -65,23 +91,29 @@ public class MapOfSet<K, V> {
 		return merged;
 	}
 
-	public boolean add(K key, V value) {
-		if (key == null || value == null)
-			throw new RuntimeException("MapOfSet: trying to add " + key + "," + value);
-
-		System.out.printf("MapOfSet.add(%s,%s)\n", key, value);
-
+	/**
+	 * Removes from the set mapped to the given key the given value
+	 * 
+	 * @param target
+	 * @param edge
+	 * @return
+	 */
+	public boolean remove(K key, V value) {
 		Set<V> set = map.get(key);
-		if (set == null) {
-			set = new HashSet<V>(initialCapacity, loadFactor);
-			map.put(key, set);
-		}
-		return set.add(value);
+		return set.remove(value);
 	}
 
-	public void add(K key, Collection<V> values) {
+	/**
+	 * Removes from the set mapped to the given key the given values
+	 * 
+	 * @param target
+	 * @param edge
+	 * @return
+	 */
+	public void remove(K key, Collection<V> values) {
+		Set<V> set = map.get(key);
 		for (V value : values) {
-			add(key, value);
+			set.remove(value);
 		}
 	}
 

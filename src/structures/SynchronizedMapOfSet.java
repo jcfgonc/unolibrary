@@ -18,18 +18,38 @@ public class SynchronizedMapOfSet<K, V> {
 	private final float loadFactor;
 	private HashMap<K, Set<V>> map;
 
-	public SynchronizedMapOfSet(int initialCapacity, float loadFactor) {
-		this.initialCapacity = initialCapacity;
-		this.loadFactor = loadFactor;
-		map = new HashMap<K, Set<V>>(initialCapacity, loadFactor);
+	public SynchronizedMapOfSet() {
+		this(16, 0.5f);
 	}
 
 	public SynchronizedMapOfSet(int initialCapacity) {
 		this(initialCapacity, 0.5f);
 	}
 
-	public SynchronizedMapOfSet() {
-		this(16, 0.5f);
+	public SynchronizedMapOfSet(int initialCapacity, float loadFactor) {
+		this.initialCapacity = initialCapacity;
+		this.loadFactor = loadFactor;
+		map = new HashMap<K, Set<V>>(initialCapacity, loadFactor);
+	}
+
+	public synchronized void add(K key, Collection<V> values) {
+		for (V value : values) {
+			add(key, value);
+		}
+	}
+
+	public synchronized boolean add(K key, V value) {
+		if (key == null || value == null)
+			throw new RuntimeException("SynchronizedMapOfSet: trying to add " + key + "," + value);
+
+//		System.out.printf("SynchronizedMapOfSet.add(%s,%s)\n", key, value);
+
+		Set<V> set = map.get(key);
+		if (set == null) {
+			set = new HashSet<V>(initialCapacity, loadFactor);
+			map.put(key, set);
+		}
+		return set.add(value);
 	}
 
 	public synchronized void clear() {
@@ -65,23 +85,28 @@ public class SynchronizedMapOfSet<K, V> {
 		return merged;
 	}
 
-	public synchronized boolean add(K key, V value) {
-		if (key == null || value == null)
-			throw new RuntimeException("SynchronizedMapOfSet: trying to add " + key + "," + value);
-
-		System.out.printf("SynchronizedMapOfSet.add(%s,%s)\n", key, value);
-
-		Set<V> set = map.get(key);
-		if (set == null) {
-			set = new HashSet<V>(initialCapacity, loadFactor);
-			map.put(key, set);
-		}
-		return set.add(value);
+	/**
+	 * Removes from the set mapped to the given key the given value
+	 * 
+	 * @param target
+	 * @param edge
+	 * @return
+	 */
+	public synchronized boolean remove(K key, V value) {
+		return map.get(key).remove(value);
 	}
 
-	public synchronized void add(K key, Collection<V> values) {
+	/**
+	 * Removes from the set mapped to the given key the given values
+	 * 
+	 * @param target
+	 * @param edge
+	 * @return
+	 */
+	public synchronized void remove(K key, Collection<V> values) {
+		Set<V> set = map.get(key);
 		for (V value : values) {
-			add(key, value);
+			set.remove(value);
 		}
 	}
 
@@ -113,5 +138,4 @@ public class SynchronizedMapOfSet<K, V> {
 	public synchronized Collection<Set<V>> values() {
 		return Collections.unmodifiableCollection(map.values());
 	}
-
 }

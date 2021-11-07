@@ -10,8 +10,8 @@ import structures.MapOfSet;
 import utils.VariousUtils;
 
 /**
- * High Performance Directed MultiGraph. This graph class does not prevent conflicts of edges. However, used inside the StringGraph (because it uses
- * the StringEdge class) that is not an issue.
+ * High Performance Directed MultiGraph. This graph class does not prevent conflicts of edges. However, used inside the StringGraph (because it uses the
+ * StringEdge class) that is not an issue.
  * 
  * @author jcfgonc@gmail.com
  *
@@ -199,7 +199,7 @@ public class DirectedMultiGraphOld<V, E> {
 		V target = getEdgeTarget(edge);
 		Set<E> si = incomingEdges.get(target);
 		if (si != null) {
-			si.remove(edge);
+			incomingEdges.remove(target, edge);
 			if (si.isEmpty())
 				incomingEdges.removeKey(target);
 		}
@@ -207,7 +207,7 @@ public class DirectedMultiGraphOld<V, E> {
 		V source = getEdgeSource(edge);
 		Set<E> so = outgoingEdges.get(source);
 		if (so != null) {
-			so.remove(edge);
+			outgoingEdges.remove(source, edge);
 			if (so.isEmpty())
 				outgoingEdges.removeKey(source);
 		}
