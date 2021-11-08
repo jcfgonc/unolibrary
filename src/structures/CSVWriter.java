@@ -11,6 +11,8 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.Iterator;
 
+import utils.VariousUtils;
+
 /**
  * A simple Custom (tab, csv or any other character) Separated Values writer.
  * 
@@ -98,10 +100,10 @@ public class CSVWriter {
 	}
 
 	public void writeHeader(String... header) throws IOException {
-		writeHeader(Arrays.asList(header));
+		writeHeader(VariousUtils.arrayToArrayList(header));
 	}
 
 	public void writeLine(String... columns) throws IOException {
-		writeLine(Arrays.asList(columns));
+		writeLine(VariousUtils.arrayToArrayList(columns));
 	}
 }

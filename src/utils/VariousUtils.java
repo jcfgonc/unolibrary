@@ -303,27 +303,17 @@ public class VariousUtils {
 	}
 
 	/**
-	 * from https://stackoverflow.com/a/13421319
+	 * Better ArrayList alternative to Java's Arrays.asList(array).
 	 * 
 	 * @param array
-	 * @return
+	 * @return the array as an ArrayList
 	 */
 	public static <T> ArrayList<T> arrayToArrayList(final T[] array) {
-		int non_nullz = 0;
+		ArrayList<T> list = new ArrayList<T>(array.length);
 		for (final T s : array) {
-			if (s != null) {
-				non_nullz++;
-			}
+			list.add(s);
 		}
-
-		final ArrayList<T> l = new ArrayList<T>(non_nullz);
-
-		for (final T s : array) {
-			if (s != null) {
-				l.add(s);
-			}
-		}
-		return l;
+		return list;
 	}
 
 	/**

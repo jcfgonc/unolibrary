@@ -93,7 +93,10 @@ public class SynchronizedMapOfSet<K, V> {
 	 * @return
 	 */
 	public synchronized boolean remove(K key, V value) {
-		return map.get(key).remove(value);
+		Set<V> set = map.get(key);
+		if (set == null)
+			throw new RuntimeException("key " + key + " does not exist in this map.");
+		return set.remove(value);
 	}
 
 	/**
