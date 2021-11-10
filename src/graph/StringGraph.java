@@ -66,11 +66,12 @@ public class StringGraph implements Serializable {
 	}
 
 	public StringGraph(StringGraph otherGraph) {
+//		this.graph = new DirectedMultiGraphOld<String, StringEdge>();
 		this.graph = DirectedMultiGraphOld.allocateSameSize(otherGraph.graph);
 		addEdges(otherGraph);
 	}
 
-	public StringGraph(StringGraph otherGraph, boolean allocateOnly) {
+	protected StringGraph(StringGraph otherGraph, boolean allocateOnly) {
 		this.graph = DirectedMultiGraphOld.allocateSameSize(otherGraph.graph);
 		if (!allocateOnly) {
 			addEdges(otherGraph);
@@ -128,7 +129,8 @@ public class StringGraph implements Serializable {
 	}
 
 	public void addEdges(StringGraph otherGraph) {
-		addEdges(otherGraph.edgeSet());
+		Set<StringEdge> edges = otherGraph.edgeSet();
+		addEdges(edges);
 	}
 
 	public void addEdges(Collection<StringEdge> edges, Set<String> mask) {
@@ -175,10 +177,10 @@ public class StringGraph implements Serializable {
 //			System.lineSeparator();
 //		}
 
-		if (containsEdge(edge)) {
+//		if (containsEdge(edge)) {
 //			System.err.printf("edge being added already exists: %s\n", edge);
-			return false;
-		}
+//			return false;
+//		}
 
 		if (!allowSelfLoops && source.equals(target)) {
 //			System.err.printf("LOOP: %s,%s,%s\n", source, label, target);
@@ -221,7 +223,7 @@ public class StringGraph implements Serializable {
 	public Set<StringEdge> edgeSet() {
 		return graph.edgeSet();
 	}
-
+	
 	/**
 	 * SAFE
 	 * 
@@ -232,13 +234,14 @@ public class StringGraph implements Serializable {
 		if (isEmpty())
 			return unmodifiableEmptySet;
 
-		HashSet<StringEdge> edges = new HashSet<>(edgeSet().size() * 2);
-		for (StringEdge edge : edgeSet()) {
+		Set<StringEdge> edgeSet = graph.edgeSet_unsafe();
+		HashSet<StringEdge> newEdges = new HashSet<>(edgeSet.size() * 2, 0.5f);
+		for (StringEdge edge : edgeSet) {
 			if (edge.getLabel().equals(edgeLabel)) {
-				edges.add(edge);
+				newEdges.add(edge);
 			}
 		}
-		return edges;
+		return newEdges;
 	}
 
 	/**
@@ -465,7 +468,7 @@ public class StringGraph implements Serializable {
 	}
 
 	public int numberOfVertices() {
-		return graph.vertexSet().size();
+		return graph.vertexSet_unsafe().size();
 	}
 
 	/**
@@ -777,7 +780,7 @@ public class StringGraph implements Serializable {
 
 	public void removeVerticesStartingWith(String prefix) {
 		ArrayList<String> toRemove = new ArrayList<String>();
-		for (String vertex : getVertexSet()) {
+		for (String vertex : graph.vertexSet_unsafe()) {
 			if (vertex.startsWith(prefix))
 				toRemove.add(vertex);
 		}

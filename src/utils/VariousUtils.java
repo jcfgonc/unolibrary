@@ -467,17 +467,81 @@ public class VariousUtils {
 		return arr;
 	}
 
-	public static String[] fastSplitWhiteSpace(final String text) {
-		CharOpenHashSet separators = new CharOpenHashSet();
-		separators.add(' ');
-		separators.add('\t');
-		return VariousUtils.fastSplit(text, separators);
+	/**
+	 * adapted from https://codereview.stackexchange.com/a/111257 to support multiple separators
+	 * 
+	 * @param text
+	 * @return
+	 */
+	public static String[] fastSplit(final String text, final char separator) {
+		if (text == null) {
+			throw new IllegalArgumentException("the text to split should not be null");
+		}
+
+		final List<String> result = new ArrayList<String>(256); // 4(reference size)*256<=4k (page size)
+
+		final int len = text.length();
+		int tokenStart = 0;
+		boolean prevCharIsSeparator = true; // "preceding char is separator" flag
+
+		for (int pos = 0; pos < len; ++pos) {
+			char c = text.charAt(pos);
+
+			// if (c == separator0 || c == separator1) {
+			if (c == separator) {
+				if (!prevCharIsSeparator) {
+					result.add(text.substring(tokenStart, pos));
+					prevCharIsSeparator = true;
+				}
+				tokenStart = pos + 1;
+			} else {
+				prevCharIsSeparator = false;
+			}
+		}
+
+		if (tokenStart < len) {
+			result.add(text.substring(tokenStart));
+		}
+
+		String[] arr = new String[result.size()];
+		result.toArray(arr);
+
+		return arr;
 	}
 
-	public static String[] fastSplit(final String text, final char separator) {
-		CharOpenHashSet separators = new CharOpenHashSet();
-		separators.add(separator);
-		return VariousUtils.fastSplit(text, separators);
+	public static String[] fastSplitWhiteSpace(final String text) {
+		if (text == null) {
+			throw new IllegalArgumentException("the text to split should not be null");
+		}
+
+		final List<String> result = new ArrayList<String>(256); // 4(reference size)*256<=4k (page size)
+
+		final int len = text.length();
+		int tokenStart = 0;
+		boolean prevCharIsSeparator = true; // "preceding char is separator" flag
+
+		for (int pos = 0; pos < len; ++pos) {
+			char c = text.charAt(pos);
+
+			if (c == ' ' || c == '\t') {
+				if (!prevCharIsSeparator) {
+					result.add(text.substring(tokenStart, pos));
+					prevCharIsSeparator = true;
+				}
+				tokenStart = pos + 1;
+			} else {
+				prevCharIsSeparator = false;
+			}
+		}
+
+		if (tokenStart < len) {
+			result.add(text.substring(tokenStart));
+		}
+
+		String[] arr = new String[result.size()];
+		result.toArray(arr);
+
+		return arr;
 	}
 
 	public static String[] fastSplit(final String text, final String separators_str) {

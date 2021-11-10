@@ -26,17 +26,17 @@ public class DirectedMultiGraphOld<V, E> {
 	private MapOfSet<V, E> incomingEdges;
 	private MapOfSet<V, E> outgoingEdges;
 	private HashSet<V> vertexSet;
-	private static final int DEFAULT_DATA_SIZE = 4;
-	private static final float DEFAULT_LOAD_FACTOR = 0.333333f;
+	private static final int DEFAULT_DATA_SIZE = 16;
+	private static final float DEFAULT_LOAD_FACTOR = 0.5f;
 	private final Set<E> unmodifiableEmptyEdgeSet = Collections.unmodifiableSet(new HashSet<E>(0));
 
 	public DirectedMultiGraphOld(int numEdges, int inEdges, int outEdges, int numVertices) {
-		edgeSet = new HashSet<>(numEdges);
-		edgeSource = new HashMap<>(numEdges);
-		edgeTarget = new HashMap<>(numEdges);
-		incomingEdges = new MapOfSet<>(inEdges);
-		outgoingEdges = new MapOfSet<>(outEdges);
-		vertexSet = new HashSet<>(numVertices);
+		edgeSet = new HashSet<>(numEdges * 2, DEFAULT_LOAD_FACTOR);
+		edgeSource = new HashMap<>(numEdges * 2, DEFAULT_LOAD_FACTOR);
+		edgeTarget = new HashMap<>(numEdges * 2, DEFAULT_LOAD_FACTOR);
+		incomingEdges = new MapOfSet<>(inEdges * 2, DEFAULT_LOAD_FACTOR);
+		outgoingEdges = new MapOfSet<>(outEdges * 2, DEFAULT_LOAD_FACTOR);
+		vertexSet = new HashSet<>(numVertices * 2, DEFAULT_LOAD_FACTOR);
 	}
 
 	public DirectedMultiGraphOld() {
@@ -57,7 +57,11 @@ public class DirectedMultiGraphOld<V, E> {
 	 * @return
 	 */
 	public static <V, E> DirectedMultiGraphOld<V, E> allocateSameSize(DirectedMultiGraphOld<V, E> other) {
-		return new DirectedMultiGraphOld<V, E>(other.edgeSet.size(), other.incomingEdges.size(), other.outgoingEdges.size(), other.vertexSet.size());
+		int numEdges = other.edgeSet.size();
+		int inEdges = other.incomingEdges.size();
+		int outEdges = other.outgoingEdges.size();
+		int numVertices = other.vertexSet.size();
+		return new DirectedMultiGraphOld<V, E>(numEdges, inEdges, outEdges, numVertices);
 	}
 
 	public void showStructureSizes() {
@@ -69,9 +73,9 @@ public class DirectedMultiGraphOld<V, E> {
 
 	public void addEdge(V source, V target, E edge) {
 		// this must be prevented outside this function call
-		if (containsEdge(edge)) {
-			throw new RuntimeException("adding an existing edge");
-		}
+//		if (containsEdge(edge)) {
+//			throw new RuntimeException("adding an existing edge");
+//		}
 
 		incomingEdges.add(target, edge);
 		outgoingEdges.add(source, edge);
@@ -105,6 +109,12 @@ public class DirectedMultiGraphOld<V, E> {
 		if (edgeSet.isEmpty())
 			return unmodifiableEmptyEdgeSet;
 		return Collections.unmodifiableSet(edgeSet);
+	}
+
+	protected Set<E> edgeSet_unsafe() {
+		if (edgeSet.isEmpty())
+			return unmodifiableEmptyEdgeSet;
+		return edgeSet;
 	}
 
 	/**
@@ -250,6 +260,10 @@ public class DirectedMultiGraphOld<V, E> {
 	 */
 	public Set<V> vertexSet() {
 		return Collections.unmodifiableSet(vertexSet);
+	}
+
+	protected Set<V> vertexSet_unsafe() {
+		return vertexSet;
 	}
 
 	public void clear() {

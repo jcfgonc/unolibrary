@@ -14,7 +14,6 @@ import java.util.Set;
  * @param <V>
  */
 public class MapOfSet<K, V> {
-	private final int initialCapacity;
 	private final float loadFactor;
 	private HashMap<K, Set<V>> map;
 
@@ -27,7 +26,6 @@ public class MapOfSet<K, V> {
 	}
 
 	public MapOfSet(int initialCapacity, float loadFactor) {
-		this.initialCapacity = initialCapacity;
 		this.loadFactor = loadFactor;
 		map = new HashMap<K, Set<V>>(initialCapacity, loadFactor);
 	}
@@ -46,7 +44,7 @@ public class MapOfSet<K, V> {
 
 		Set<V> set = map.get(key);
 		if (set == null) {
-			set = new HashSet<V>(initialCapacity, loadFactor);
+			set = new HashSet<V>(16, loadFactor);
 			map.put(key, set);
 		}
 		return set.add(value);
@@ -83,8 +81,8 @@ public class MapOfSet<K, V> {
 	}
 
 	public Set<V> mergeSets() {
-		HashSet<V> merged = new HashSet<>(initialCapacity, loadFactor);
 		Collection<Set<V>> vSet = map.values();
+		HashSet<V> merged = new HashSet<>(16, loadFactor);
 		for (Set<V> set : vSet) {
 			merged.addAll(set);
 		}

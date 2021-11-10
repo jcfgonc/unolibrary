@@ -1264,9 +1264,13 @@ public class GraphAlgorithms {
 
 	public static void addMirroredCopyEdges(StringGraph graph, String label) {
 		Set<StringEdge> existingEdges = graph.edgeSet(label);
+		ArrayList<StringEdge> edgesToAdd = new ArrayList<StringEdge>(existingEdges.size());
 		for (StringEdge edge : existingEdges) {
-			graph.addEdge(edge.reverse());
+			StringEdge reverse = edge.reverse();
+			edgesToAdd.add(reverse);
 		}
+//		graph.addEdge();
+		graph.addEdges(edgesToAdd);
 	}
 
 	// TODO: this code is calculating wrong (higher than expected) distances.
