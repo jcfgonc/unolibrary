@@ -1,5 +1,6 @@
 package graph;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -234,13 +235,11 @@ public class DirectedMultiGraphOld<V, E> {
 		if (!containsVertex(vertex))
 			return;
 
-		for (E edge : incomingEdgesOf(vertex)) {
-			removeEdge(edge);
-		}
+		ArrayList<E> touchingEdges = new ArrayList<E>();
+		touchingEdges.addAll(incomingEdgesOf(vertex));
+		touchingEdges.addAll(outgoingEdgesOf(vertex));
 
-		for (E edge : outgoingEdgesOf(vertex)) {
-			removeEdge(edge);
-		}
+		removeEdges(touchingEdges);
 
 	}
 

@@ -775,4 +775,13 @@ public class StringGraph implements Serializable {
 		return anyEdgeConnectsDirected(e.getSource(), e.getTarget());
 	}
 
+	public void removeVerticesStartingWith(String prefix) {
+		ArrayList<String> toRemove = new ArrayList<String>();
+		for (String vertex : getVertexSet()) {
+			if (vertex.startsWith(prefix))
+				toRemove.add(vertex);
+		}
+		removeVertices(toRemove);
+	}
+
 }

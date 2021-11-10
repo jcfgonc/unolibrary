@@ -72,7 +72,7 @@ public class VariousUtils {
 	 * @throws IOException
 	 */
 	public static ArrayList<String> readFileRows(String filename) throws IOException {
-		ArrayList<String> rows = new ArrayList<String>(1 << 8);
+		ArrayList<String> rows = new ArrayList<String>(1 << 10);
 		NonblockingBufferedReader br = new NonblockingBufferedReader(filename);
 		String line;
 		while ((line = br.readLine()) != null) {

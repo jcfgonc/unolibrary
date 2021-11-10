@@ -1,4 +1,4 @@
-package frames;
+package structures;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -11,9 +11,7 @@ import com.esotericsoftware.kryo.kryo5.Kryo;
 import com.esotericsoftware.kryo.kryo5.io.Input;
 import com.esotericsoftware.kryo.kryo5.io.Output;
 
-import structures.Ticker;
-
-public class SeriarizableCache<K, V> {
+public class SynchronizedSeriarizableCache<K, V> {
 
 	private ConcurrentHashMap<K, V> cache = new ConcurrentHashMap<K, V>();
 	private String filename;
@@ -22,7 +20,7 @@ public class SeriarizableCache<K, V> {
 	private ReentrantReadWriteLock rrw;
 	private static Kryo kryo; // must be shared
 
-	public SeriarizableCache(String filename, int timeout) {
+	public SynchronizedSeriarizableCache(String filename, int timeout) {
 		this.filename = filename;
 		this.ticker = new Ticker();
 		this.timeout = timeout;

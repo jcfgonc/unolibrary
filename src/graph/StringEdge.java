@@ -179,8 +179,8 @@ public class StringEdge implements Comparable<StringEdge>, Serializable, Cloneab
 	}
 
 	/**
-	 * Creates a new StringEdge with the given oldReference (vertex) replaced with the newReference (vertex). Both source and target may be replaced.
-	 * VALIDATED. Remember that this changes the edge, not the graph containing the edge.
+	 * Creates a new StringEdge with the given oldReference (vertex) replaced with the newReference (vertex). Both source and target may be replaced. VALIDATED.
+	 * Remember that this changes the edge, not the graph containing the edge.
 	 *
 	 * @param oldReference
 	 * @param newReference
@@ -213,6 +213,19 @@ public class StringEdge implements Comparable<StringEdge>, Serializable, Cloneab
 		if (newEdge.label.equals(oldLabel)) {
 			newEdge.label = newLabel;
 		}
+		return newEdge;
+	}
+
+	/**
+	 * Remember that this changes the edge, not the graph containing the edge.
+	 * 
+	 * @param oldLabel
+	 * @param newLabel
+	 * @return
+	 */
+	public StringEdge replaceLabel(String newLabel) {
+		StringEdge newEdge = new StringEdge(this);
+		newEdge.label = newLabel;
 		return newEdge;
 	}
 
