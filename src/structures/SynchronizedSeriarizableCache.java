@@ -19,15 +19,23 @@ public class SynchronizedSeriarizableCache<K, V> {
 	private int timeout;
 	private ReentrantReadWriteLock rrw;
 	private static Kryo kryo; // must be shared
+	private boolean fileSynch;
 
 	public SynchronizedSeriarizableCache(String filename, int timeout) {
 		this.filename = filename;
 		this.ticker = new Ticker();
 		this.timeout = timeout;
 		this.rrw = new ReentrantReadWriteLock();
+		fileSynch = true;
 		initializeKryo();
 		System.err.printf("%s: saving to %s with an interval of %ds\n", this.getClass().toString(), filename, timeout);
 		load();
+	}
+
+	public SynchronizedSeriarizableCache() {
+		this.ticker = new Ticker();
+		this.rrw = new ReentrantReadWriteLock();
+		fileSynch = false;
 	}
 
 	private synchronized void initializeKryo() {
@@ -38,6 +46,9 @@ public class SynchronizedSeriarizableCache<K, V> {
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public synchronized void load() {
+		if (!fileSynch)
+			return;
+
 		File fin = new File(filename);
 		if (fin.exists()) {
 			try {
@@ -46,12 +57,6 @@ public class SynchronizedSeriarizableCache<K, V> {
 				Input input = new Input(new FileInputStream(filename));
 				cache = (ConcurrentHashMap) kryo.readObject(input, ConcurrentHashMap.class);
 				input.close();
-
-//				FileInputStream file = new FileInputStream(filename);
-//				ObjectInputStream in = new ObjectInputStream(file);
-//				cache = (ConcurrentHashMap) in.readObject();
-//				in.close();
-//				file.close();
 
 				double dt = ticker.getTimeDeltaLastCall();
 				System.err.println(this.getClass().toString() + ": loaded cache from " + filename + " with " + size() + " entries in " + dt + "s");
@@ -63,6 +68,8 @@ public class SynchronizedSeriarizableCache<K, V> {
 	}
 
 	public synchronized void save() throws IOException {
+		if (!fileSynch)
+			return;
 
 		try {
 			Output output = new Output(new FileOutputStream(filename));
@@ -71,17 +78,6 @@ public class SynchronizedSeriarizableCache<K, V> {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-
-//		System.out.println("saving SeriarizableCache");
-//		FileOutputStream file = new FileOutputStream(filename);
-//		ObjectOutputStream out = new ObjectOutputStream(file);
-//
-//		// Method for serialization of object
-//		out.writeObject(cache);
-//
-//		out.close();
-//		file.close();
-
 	}
 
 	public long size() {
@@ -105,7 +101,9 @@ public class SynchronizedSeriarizableCache<K, V> {
 		V p = (V) cache.put(key, value);
 		rrw.writeLock().unlock();
 
-		checkTimeout();
+		if (fileSynch) {
+			checkTimeout();
+		}
 		return p;
 	}
 

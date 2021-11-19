@@ -1,5 +1,6 @@
 package structures;
 
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -13,7 +14,8 @@ import java.util.Set;
  * @param <K>
  * @param <V>
  */
-public class MapOfSet<K, V> {
+public class MapOfSet<K, V> implements Serializable {
+	private static final long serialVersionUID = -671719667013812287L;
 	private final float loadFactor;
 	private HashMap<K, Set<V>> map;
 
@@ -31,6 +33,16 @@ public class MapOfSet<K, V> {
 	}
 
 	public void add(K key, Collection<V> values) {
+		// if values is empty and key hasn't been mapped create an empty set
+		if (values.isEmpty()) {
+			Set<V> set = map.get(key);
+			if (set == null) {
+				set = new HashSet<V>(16, loadFactor);
+				map.put(key, set);
+			}
+			return;
+		}
+
 		for (V value : values) {
 			add(key, value);
 		}
@@ -67,7 +79,7 @@ public class MapOfSet<K, V> {
 	 */
 	public Set<V> get(K key) {
 		Set<V> s = map.get(key);
-		if (s == null || s.isEmpty())
+		if (s == null)
 			return null;
 		return Collections.unmodifiableSet(s);
 	}
@@ -81,8 +93,8 @@ public class MapOfSet<K, V> {
 	}
 
 	public Set<V> mergeSets() {
-		Collection<Set<V>> vSet = map.values();
 		HashSet<V> merged = new HashSet<>(16, loadFactor);
+		Collection<Set<V>> vSet = map.values();
 		for (Set<V> set : vSet) {
 			merged.addAll(set);
 		}
@@ -98,6 +110,8 @@ public class MapOfSet<K, V> {
 	 */
 	public boolean remove(K key, V value) {
 		Set<V> set = map.get(key);
+		if (set == null)
+			throw new RuntimeException("key " + key + " does not exist in this map.");
 		return set.remove(value);
 	}
 
