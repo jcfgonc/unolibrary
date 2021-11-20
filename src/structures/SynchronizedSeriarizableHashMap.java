@@ -11,7 +11,7 @@ import com.esotericsoftware.kryo.kryo5.Kryo;
 import com.esotericsoftware.kryo.kryo5.io.Input;
 import com.esotericsoftware.kryo.kryo5.io.Output;
 
-public class SynchronizedSeriarizableCache<K, V> {
+public class SynchronizedSeriarizableHashMap<K, V> {
 
 	private ConcurrentHashMap<K, V> cache = new ConcurrentHashMap<K, V>();
 	private String filename;
@@ -21,7 +21,7 @@ public class SynchronizedSeriarizableCache<K, V> {
 	private static Kryo kryo; // must be shared
 	private boolean fileSynch;
 
-	public SynchronizedSeriarizableCache(String filename, int timeout) {
+	public SynchronizedSeriarizableHashMap(String filename, int timeout) {
 		this.filename = filename;
 		this.ticker = new Ticker();
 		this.timeout = timeout;
@@ -32,7 +32,7 @@ public class SynchronizedSeriarizableCache<K, V> {
 		load();
 	}
 
-	public SynchronizedSeriarizableCache() {
+	public SynchronizedSeriarizableHashMap() {
 		this.ticker = new Ticker();
 		this.rrw = new ReentrantReadWriteLock();
 		fileSynch = false;
@@ -111,15 +111,15 @@ public class SynchronizedSeriarizableCache<K, V> {
 		if (ticker.getElapsedTime() > timeout) {
 			try {
 
-				ticker.getTimeDeltaLastCall();
+			//	ticker.getTimeDeltaLastCall();
 
 				// cache can not be updated while saving it (block writes)
-				rrw.readLock().lock();
+			//	rrw.readLock().lock();
 				save();
-				rrw.readLock().unlock();
+			//	rrw.readLock().unlock();
 
-				double dt = ticker.getTimeDeltaLastCall();
-				System.err.println(this.getClass().toString() + ": saved cache to " + filename + " with " + size() + " entries in " + dt + "s");
+		//		double dt = ticker.getTimeDeltaLastCall();
+			//	System.err.println(this.getClass().toString() + ": saved cache to " + filename + " with " + size() + " entries in " + dt + "s");
 			} catch (IOException e) {
 				e.printStackTrace();
 			}

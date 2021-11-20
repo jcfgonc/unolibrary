@@ -15,9 +15,9 @@ import java.util.Set;
  * @param <V>
  */
 public class MapOfSet<K, V> implements Serializable {
-	private static final long serialVersionUID = -671719667013812287L;
-	private final float loadFactor;
-	private HashMap<K, Set<V>> map;
+	static final long serialVersionUID = -671719667013812287L;
+	final float loadFactor;
+	HashMap<K, Set<V>> map;
 
 	public MapOfSet() {
 		this(16, 0.5f);
