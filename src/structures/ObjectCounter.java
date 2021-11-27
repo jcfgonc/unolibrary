@@ -88,4 +88,12 @@ public class ObjectCounter<T> {
 		}
 	}
 
+	public boolean containsObject(T obj) {
+		return counter.containsKey(obj);
+	}
+
+	public int setCount(T obj, int n) {
+		return counter.put(obj, n);
+	}
+
 }
