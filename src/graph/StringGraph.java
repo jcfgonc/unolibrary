@@ -342,7 +342,7 @@ public class StringGraph implements Serializable {
 	}
 
 	/**
-	 * Returns the set of vertices connected to the given vertex
+	 * Returns the set of vertices connected to the given vertex. SAFE (local copy).
 	 *
 	 * @param vertex
 	 * @return
@@ -367,6 +367,9 @@ public class StringGraph implements Serializable {
 		return neighbors;
 	}
 
+	/**
+	 *  SAFE, local copy.
+	 */
 	public Set<String> getIncomingVertices(String vertex) {
 		Set<StringEdge> edges = incomingEdgesOf(vertex);
 		HashSet<String> sources = edgesSources(edges);
@@ -374,6 +377,9 @@ public class StringGraph implements Serializable {
 		return sources;
 	}
 
+	/**
+	 *  SAFE, local copy.
+	 */
 	public Set<String> getOutgoingVertices(String vertex) {
 		Set<StringEdge> edges = outgoingEdgesOf(vertex);
 		HashSet<String> targets = edgesTargets(edges);
@@ -382,7 +388,7 @@ public class StringGraph implements Serializable {
 	}
 
 	/**
-	 * SAFE
+	 * SAFE, local copy.
 	 * 
 	 * @param edges
 	 * @return
@@ -397,7 +403,7 @@ public class StringGraph implements Serializable {
 	}
 
 	/**
-	 * SAFE
+	 * SAFE, local copy.
 	 * 
 	 * @param edges
 	 * @return

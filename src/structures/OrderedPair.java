@@ -76,8 +76,9 @@ public class OrderedPair<T> implements Serializable {
 		}
 
 		// reversed analogy is the same
-		if (leftElement.equals(other.rightElement) && rightElement.equals(other.leftElement))
-			return true;
+		// commented out: NO, IT IS NOT
+//		if (leftElement.equals(other.rightElement) && rightElement.equals(other.leftElement))
+//			return true;
 
 		if (!leftElement.equals(other.leftElement))
 			return false;

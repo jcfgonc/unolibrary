@@ -132,15 +132,16 @@ public class GraphReadWrite {
 		return graph;
 	}
 
-	public static void readCSV(String filename, StringGraph graph) throws IOException, NoSuchFileException {
+	public static StringGraph readCSV(String filename, StringGraph graph) throws IOException, NoSuchFileException {
 		System.out.print("reading " + filename + " ...");
 		BufferedReader br = Files.newBufferedReader(Paths.get(filename));
 		readCSV(br, graph);
 		br.close();
 		System.out.println("done.");
+		return graph;
 	}
 
-	public static void readCSV(NonblockingBufferedReader br, StringGraph graph) throws IOException, NoSuchFileException {
+	public static StringGraph readCSV(NonblockingBufferedReader br, StringGraph graph) throws IOException, NoSuchFileException {
 		String line;
 		while ((line = br.readLine()) != null) {
 //			// ignore empty lines
@@ -161,9 +162,10 @@ public class GraphReadWrite {
 
 			graph.addEdge(sourceLabel, targetLabel, edgeLabel);
 		}
+		return graph;
 	}
 
-	public static void readCSV(BufferedReader br, StringGraph graph) throws IOException, NoSuchFileException {
+	public static StringGraph readCSV(BufferedReader br, StringGraph graph) throws IOException, NoSuchFileException {
 		while (br.ready()) {
 			String line = br.readLine().trim();
 //			if (line == null)
@@ -186,6 +188,7 @@ public class GraphReadWrite {
 
 			graph.addEdge(sourceLabel, targetLabel, edgeLabel);
 		}
+		return graph;
 	}
 
 	/**
@@ -404,7 +407,7 @@ public class GraphReadWrite {
 		return readProlog(new File(filename), graph);
 	}
 
-	public static void readTGF(BufferedReader br, StringGraph graph) throws IOException {
+	public static StringGraph readTGF(BufferedReader br, StringGraph graph) throws IOException {
 		// because TGF uses indices to reference vertice labels in the edges
 		HashMap<String, String> nodeLabels = new HashMap<>();
 		boolean gettingnodes = true;
@@ -445,16 +448,18 @@ public class GraphReadWrite {
 			}
 		}
 		br.close();
+		return graph;
 	}
 
-	public static void readTGF(File file, StringGraph graph) throws IOException {
+	public static StringGraph readTGF(File file, StringGraph graph) throws IOException {
 		BufferedReader br = new BufferedReader(new FileReader(file, StandardCharsets.UTF_8));
 		readTGF(br, graph);
 		br.close();
+		return graph;
 	}
 
-	public static void readTGF(String filename, StringGraph graph) throws IOException {
-		readTGF(new File(filename), graph);
+	public static StringGraph readTGF(String filename, StringGraph graph) throws IOException {
+		return readTGF(new File(filename), graph);
 	}
 
 	private static String removeComma(String label) {

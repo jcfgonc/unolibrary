@@ -112,6 +112,12 @@ public class DirectedMultiGraph<V, E> {
 		return edgeSet;
 	}
 
+	/**
+	 * SAFE, local copy.
+	 * 
+	 * @param vertex
+	 * @return
+	 */
 	public HashSet<GraphEdge<V, E>> edgesOf(V vertex) {
 		// union of
 		Set<GraphEdge<V, E>> in = incomingEdgesOf(vertex);
@@ -126,6 +132,13 @@ public class DirectedMultiGraph<V, E> {
 		return set;
 	}
 
+	/**
+	 * SAFE, local copy.
+	 * 
+	 * @param vertex
+	 * @param relation
+	 * @return
+	 */
 	public HashSet<GraphEdge<V, E>> edgesOf(V vertex, E relation) {
 		HashSet<GraphEdge<V, E>> filtered = new HashSet<>();
 		Set<GraphEdge<V, E>> edgesOf = edgesOf(vertex);
@@ -137,6 +150,12 @@ public class DirectedMultiGraph<V, E> {
 		return filtered;
 	}
 
+	/**
+	 * SAFE, local copy.
+	 * 
+	 * @param edges
+	 * @return
+	 */
 	private HashSet<V> edgesSources(Set<GraphEdge<V, E>> edges) {
 		HashSet<V> sources = new HashSet<>();
 		for (GraphEdge<V, E> edge : edges) {
@@ -146,6 +165,12 @@ public class DirectedMultiGraph<V, E> {
 		return sources;
 	}
 
+	/**
+	 * SAFE, local copy.
+	 * 
+	 * @param edges
+	 * @return
+	 */
 	private HashSet<V> edgesTargets(Set<GraphEdge<V, E>> edges) {
 		HashSet<V> targets = new HashSet<>();
 		for (GraphEdge<V, E> edge : edges) {
@@ -210,6 +235,12 @@ public class DirectedMultiGraph<V, E> {
 		return edgeTarget.get(edge);
 	}
 
+	/**
+	 * SAFE, local copy.
+	 * 
+	 * @param vertex
+	 * @return
+	 */
 	public Set<V> getIncomingVertices(V vertex) {
 		Set<GraphEdge<V, E>> edges = incomingEdgesOf(vertex);
 		HashSet<V> sources = edgesSources(edges);
@@ -218,6 +249,12 @@ public class DirectedMultiGraph<V, E> {
 		return sources;
 	}
 
+	/**
+	 * SAFE, local copy.
+	 * 
+	 * @param vertex
+	 * @return
+	 */
 	public Set<V> getOutgoingVertices(V vertex) {
 		Set<GraphEdge<V, E>> edges = outgoingEdgesOf(vertex);
 		HashSet<V> targets = edgesTargets(edges);
@@ -260,6 +297,12 @@ public class DirectedMultiGraph<V, E> {
 		return o.size();
 	}
 
+	/**
+	 * SAFE, view only copy.
+	 * 
+	 * @param vertex
+	 * @return
+	 */
 	public Set<GraphEdge<V, E>> outgoingEdgesOf(V vertex) {
 		Set<GraphEdge<V, E>> set = outgoingEdges.get(vertex);
 		if (set == null) {
@@ -423,13 +466,19 @@ public class DirectedMultiGraph<V, E> {
 		return getNumberOfEdges() == 0;
 	}
 
-	public int getNumberOfEdges(String label) {
+	public int getNumberOfEdges(E label) {
 		int count = 0;
 		for (GraphEdge<V, E> edge : edgeSet) {
 			if (edge.getLabel().equals(label))
 				count++;
 		}
 		return count;
+	}
+
+	public Set<V> getNeighborVertices(V vertex) {
+		Set<V> vertices = getIncomingVertices(vertex);
+		vertices.addAll(getOutgoingVertices(vertex));
+		return vertices;
 	}
 
 }

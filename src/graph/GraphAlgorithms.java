@@ -1325,4 +1325,68 @@ public class GraphAlgorithms {
 		return Integer.MAX_VALUE;
 	}
 
+	/**
+	 * Iterative post order traversal of the given graph starting at the given root. Skeleton code.
+	 * 
+	 * @param graph
+	 * @param root
+	 */
+	public static void postOrder(StringGraph graph, String root) {
+		HashSet<String> closedSet = new HashSet<String>();
+		ArrayDeque<String> stack = new ArrayDeque<String>();
+		ArrayDeque<String> output = new ArrayDeque<String>();
+		stack.push(root);
+		while (!stack.isEmpty()) {
+			String node = stack.pop();
+			closedSet.add(node);
+			output.push(node);
+			Set<String> neighborhood = graph.getNeighborVertices(node);
+			for (String neighbor : neighborhood) {
+				if (!closedSet.contains(neighbor)) {
+					stack.push(neighbor);
+				}
+			}
+		}
+		while (!output.isEmpty()) {
+			String node = output.pop();
+			System.out.println(node);
+		}
+
+	}
+
+	public static Object2IntOpenHashMap<String> countNumberOfChildrenPerSubTree(StringGraph graph, String root) {
+		HashMap<String, String> cameFrom = new HashMap<>();
+		HashSet<String> closedSet = new HashSet<>();
+		ArrayDeque<String> stack = new ArrayDeque<>();
+		ArrayDeque<String> output = new ArrayDeque<>();
+		stack.push(root);
+		while (!stack.isEmpty()) {
+			String node = stack.pop();
+			closedSet.add(node);
+			output.push(node);
+			Set<String> neighborhood = graph.getNeighborVertices(node);
+			for (String neighbor : neighborhood) {
+				if (!closedSet.contains(neighbor)) {
+					stack.push(neighbor);
+					cameFrom.put(neighbor, node);
+				}
+			}
+		}
+		Object2IntOpenHashMap<String> numChildren = new Object2IntOpenHashMap<>(output.size() * 2);
+		while (!output.isEmpty()) {
+			String node = output.pop();
+			// children of this node is its neighborhood except ancestor
+			Set<String> children = graph.getNeighborVertices(node);
+			String ancestor = cameFrom.get(node);
+			children.remove(ancestor);
+			int childCount = 0;
+			for (String child : children) {
+				// add number of children for each "child" including self
+				childCount += numChildren.getInt(child) + 1;
+			}
+			numChildren.put(node, childCount);
+		}
+		return numChildren;
+	}
+
 }
