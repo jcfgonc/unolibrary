@@ -22,7 +22,7 @@ public class OrderedPair<T> implements Serializable {
 		this.leftElement = other.leftElement;
 		this.rightElement = other.rightElement;
 	}
-	
+
 	// used by some serializers
 	@SuppressWarnings("unused")
 	private OrderedPair() {
@@ -77,8 +77,10 @@ public class OrderedPair<T> implements Serializable {
 
 		// reversed analogy is the same
 		// commented out: NO, IT IS NOT
-//		if (leftElement.equals(other.rightElement) && rightElement.equals(other.leftElement))
-//			return true;
+		if (leftElement.equals(other.rightElement) && rightElement.equals(other.leftElement)) {
+			System.err.println("OrderedPair compared against its mirror!");
+		//	return true;
+		}
 
 		if (!leftElement.equals(other.leftElement))
 			return false;
@@ -126,7 +128,7 @@ public class OrderedPair<T> implements Serializable {
 
 	@Override
 	public int hashCode() {
-		return leftElement.hashCode() ^ rightElement.hashCode();
+		return leftElement.hashCode() + (rightElement.hashCode() * 31);
 	}
 
 	public boolean isSelfMapping() {
