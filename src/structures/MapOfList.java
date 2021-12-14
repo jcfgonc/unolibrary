@@ -22,7 +22,7 @@ public class MapOfList<K, V> {
 		map = new HashMap<K, List<V>>(16, 0.333333f);
 	}
 
-	public void put(K key, Collection<V> values) {
+	public void add(K key, Collection<V> values) {
 		for (V value : values) {
 			add(key, value);
 		}
