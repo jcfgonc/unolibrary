@@ -660,4 +660,12 @@ public class VariousUtils {
 		String s = prefix.substring(0, lastDotIndex) + suffix + prefix.substring(lastDotIndex);
 		return s;
 	}
+
+	public static int doubleCompareTo(double d1, double d2, double epsilon) {
+		if (d1 < d2 - epsilon)
+			return -1;
+		if (d1 > d2 + epsilon)
+			return 1;
+		return 0;
+	}
 }

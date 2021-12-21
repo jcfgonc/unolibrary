@@ -105,6 +105,16 @@ public class StringGraph implements Serializable {
 		}
 	}
 
+	public <V, E> StringGraph(DirectedMultiGraph<V, E> otherGraph) {
+		this();
+		for (GraphEdge<V, E> edge : otherGraph.edgeSet()) {
+			String edgeSource = edge.getSource().toString();
+			String edgeTarget = edge.getTarget().toString();
+			String edgeLabel = edge.getLabel().toString();
+			addEdge(edgeSource, edgeTarget, edgeLabel);
+		}
+	}
+
 	/**
 	 * only copies the edges contained in the given mask
 	 * 
@@ -223,7 +233,7 @@ public class StringGraph implements Serializable {
 	public Set<StringEdge> edgeSet() {
 		return graph.edgeSet();
 	}
-	
+
 	/**
 	 * SAFE
 	 * 
@@ -368,7 +378,7 @@ public class StringGraph implements Serializable {
 	}
 
 	/**
-	 *  SAFE, local copy.
+	 * SAFE, local copy.
 	 */
 	public Set<String> getIncomingVertices(String vertex) {
 		Set<StringEdge> edges = incomingEdgesOf(vertex);
@@ -378,7 +388,7 @@ public class StringGraph implements Serializable {
 	}
 
 	/**
-	 *  SAFE, local copy.
+	 * SAFE, local copy.
 	 */
 	public Set<String> getOutgoingVertices(String vertex) {
 		Set<StringEdge> edges = outgoingEdgesOf(vertex);

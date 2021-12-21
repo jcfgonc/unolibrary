@@ -64,6 +64,14 @@ public class DirectedMultiGraphOld<V, E> {
 		return new DirectedMultiGraphOld<V, E>(numEdges, inEdges, outEdges, numVertices);
 	}
 
+	public static <V, E> DirectedMultiGraphOld<V, E> allocateSameSize(DirectedMultiGraph<V, E> other) {
+		int numEdges = other.getNumberOfEdges();
+		int inEdges = other.getNumberOfEdges();
+		int outEdges = other.getNumberOfEdges();
+		int numVertices = other.getNumberOfVertices();
+		return new DirectedMultiGraphOld<V, E>(numEdges, inEdges, outEdges, numVertices);
+	}
+
 	public void showStructureSizes() {
 		System.out.println("edgeSet (number of edges): " + edgeSet.size());
 		System.out.println("incomingEdges (number of vertices with incoming edges): " + incomingEdges.size());

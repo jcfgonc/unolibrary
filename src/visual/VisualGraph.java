@@ -6,6 +6,8 @@ import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
+import java.awt.event.MouseWheelEvent;
+import java.awt.event.MouseWheelListener;
 
 import javax.swing.SwingUtilities;
 import javax.swing.border.LineBorder;
@@ -25,8 +27,7 @@ import org.graphstream.ui.view.camera.DefaultCamera2D;
 import graph.StringGraph;
 
 /**
- * Class containing stuff needed to render a graph using graphstream's API. Abstracts graphstream's specifics from the user who just wants to draw
- * some graphs.
+ * Class containing stuff needed to render a graph using graphstream's API. Abstracts graphstream's specifics from the user who just wants to draw some graphs.
  * 
  * @author jcgonc@gmail.com
  *
@@ -50,10 +51,13 @@ public class VisualGraph {
 	private Point dragStartingPoint;
 	private Point dragEndingPoint;
 	private double rotationDegrees;
+	double magnification;
+	private final double magnificationDelta = 1.03333333;
 
 	public VisualGraph(int uniqueID) {
 		id = uniqueID;
 		rotationDegrees = 0;
+		magnification = 1;
 		String id_str = Integer.toString(uniqueID);
 		multiGraph = GraphStreamUtils.initializeGraphStream(id_str);
 
@@ -108,10 +112,12 @@ public class VisualGraph {
 		clear();
 		resetView();
 		GraphStreamUtils.addEdgesToGraph(multiGraph, stringGraph.edgeSet()); // copy edges from the data-graph to the visual-graph
+		defaultView.repaint();
 	}
 
 	/**
 	 * returns what is rendered/visualised in a gui container
+	 * 
 	 * @return
 	 */
 	public DefaultView getDefaultView() {
@@ -135,9 +141,14 @@ public class VisualGraph {
 	 * 
 	 * @param factor 1 is the default scale
 	 */
-	public void changeMagnification(double factor) {
+	public void changeMagnification() {
 		DefaultCamera2D camera = (DefaultCamera2D) defaultView.getCamera();
-		camera.setViewPercent(factor); // dumb graphstream documentation... it's not in percent but as a factor (1=no scaling)
+		camera.setViewPercent(magnification); // dumb graphstream documentation... it's not in percent but as a factor (1=no scaling)
+	}
+
+	public void changeMagnification(double mag) {
+		magnification = mag;
+		changeMagnification();
 	}
 
 	/**
@@ -165,8 +176,10 @@ public class VisualGraph {
 	public void resetView() {
 		DefaultCamera2D camera = (DefaultCamera2D) defaultView.getCamera();
 		rotationDegrees = 0;
+		magnification = 1;
 		camera.setViewRotation(rotationDegrees);
 		camera.resetView();
+		// changeMagnification();
 	}
 
 	private void mouseDraggedEvent(MouseEvent e) {
@@ -196,7 +209,7 @@ public class VisualGraph {
 		if (delta.x != 0 || delta.y != 0) {
 			DefaultCamera2D camera = (DefaultCamera2D) defaultView.getCamera();
 			Point3 viewCenter = camera.getViewCenter();
-			double scale = 0.005;
+			double scale = 0.0022*magnification;
 			double newX = (double) (viewCenter.x - delta.x * scale);
 			double newY = (double) (viewCenter.y + delta.y * scale);
 			double newZ = (double) (viewCenter.z);
@@ -244,6 +257,23 @@ public class VisualGraph {
 				// unneeded
 			}
 		});
+		defaultView.addMouseWheelListener(new MouseWheelListener() {
+
+			@Override
+			public void mouseWheelMoved(MouseWheelEvent e) {
+				// if (e.isControlDown()) {
+				// System.out.println(e);
+				if (e.getWheelRotation() < 0) {
+					magnification = magnification / magnificationDelta;
+					changeMagnification();
+					// System.out.println("mouse wheel Up");
+				} else {
+					magnification = magnification * magnificationDelta;
+					changeMagnification();
+					// System.out.println("mouse wheel Down");
+				}
+			}
+		});
 	}
 
 	/**
@@ -266,4 +296,5 @@ public class VisualGraph {
 	public void setToolTip(String toolTipText) {
 		defaultView.setToolTipText(toolTipText);
 	}
+
 }
