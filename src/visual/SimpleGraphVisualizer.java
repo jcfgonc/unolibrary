@@ -12,6 +12,11 @@ import javax.swing.UnsupportedLookAndFeelException;
 
 import graph.StringGraph;
 
+/**
+ * Simple Graph Visualizer JFrame used by the InteractiveExecutor (MOEA part)
+ * @author jcfgonc
+ *
+ */
 public class SimpleGraphVisualizer extends JFrame {
 
 	private static final long serialVersionUID = -1479275251183910803L;

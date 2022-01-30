@@ -152,11 +152,11 @@ public class VisualGraph {
 	}
 
 	/**
-	 * rotates the camera with the given angle
+	 * rotates the camera with the given angle (it is added to the current angle)
 	 * 
 	 * @param angleDegrees 0 does nothing
 	 */
-	public void changeRotation(double angleDegrees) {
+	public void changeRotationBy(double angleDegrees) {
 		rotationDegrees += angleDegrees;
 		DefaultCamera2D camera = (DefaultCamera2D) defaultView.getCamera();
 		camera.setViewRotation(rotationDegrees);
@@ -174,9 +174,9 @@ public class VisualGraph {
 	}
 
 	public void resetView() {
-		DefaultCamera2D camera = (DefaultCamera2D) defaultView.getCamera();
 		rotationDegrees = 0;
 		magnification = 1;
+		DefaultCamera2D camera = (DefaultCamera2D) defaultView.getCamera();
 		camera.setViewRotation(rotationDegrees);
 		camera.resetView();
 		// changeMagnification();
@@ -185,7 +185,7 @@ public class VisualGraph {
 	private void mouseDraggedEvent(MouseEvent e) {
 		dragEndingPoint = e.getPoint();
 		if (SwingUtilities.isLeftMouseButton(e)) {
-			translateGraph();
+			processDraggedTranslation();
 		} else if (SwingUtilities.isRightMouseButton(e)) {
 			rotateGraph();
 		}
@@ -198,23 +198,29 @@ public class VisualGraph {
 				dragEndingPoint.y - dragStartingPoint.y);
 		if (delta.x != 0 || delta.y != 0) {
 			double angle = delta.x + delta.y;
-			changeRotation(angle);
+			changeRotationBy(angle);
 		}
 	}
 
-	private void translateGraph() {
+	private void processDraggedTranslation() {
 		Point delta = new Point(//
 				dragEndingPoint.x - dragStartingPoint.x, //
 				dragEndingPoint.y - dragStartingPoint.y);
-		if (delta.x != 0 || delta.y != 0) {
-			DefaultCamera2D camera = (DefaultCamera2D) defaultView.getCamera();
-			Point3 viewCenter = camera.getViewCenter();
-			double scale = 0.0022*magnification;
-			double newX = (double) (viewCenter.x - delta.x * scale);
-			double newY = (double) (viewCenter.y + delta.y * scale);
-			double newZ = (double) (viewCenter.z);
-			camera.setViewCenter(newX, newY, newZ);
-		}
+		double scale = 0.0022 * magnification;
+		translateGraph(delta.x * scale, delta.y * scale);
+	}
+
+	private void translateGraph(double dx, double dy) {
+		// reverse rotation to restore the world view matrix
+		// so that the translation works properly
+		Vector2D d = new Vector2D(dx, dy);
+		d.rotateBy(-Math.toRadians(rotationDegrees));
+
+		DefaultCamera2D camera = (DefaultCamera2D) defaultView.getCamera();
+		Point3 viewCenter = camera.getViewCenter();
+		double newX = (double) (viewCenter.x - d.x);
+		double newY = (double) (viewCenter.y + d.y);
+		camera.setViewCenter(newX, newY, viewCenter.z);
 	}
 
 	private void addMotionListener() {

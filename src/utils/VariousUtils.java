@@ -2,6 +2,8 @@ package utils;
 
 import java.io.BufferedReader;
 import java.io.Console;
+import java.io.File;
+import java.io.FileFilter;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,8 +15,10 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -24,6 +28,8 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.apache.commons.math3.random.RandomGenerator;
@@ -667,5 +673,77 @@ public class VariousUtils {
 		if (d1 > d2 + epsilon)
 			return 1;
 		return 0;
+	}
+
+	public static int getNextAvailableFileId(String folder, String fileTemplate, String extension) {
+		final String ext;
+		if (!extension.startsWith(".")) { // because of the below regex
+			ext = "." + extension;
+		} else {
+			ext = extension;
+		}
+
+		String regex = fileTemplate + "[\\d]+" + ext;
+		Pattern pattern = Pattern.compile(regex, Pattern.CASE_INSENSITIVE);
+
+		// make sure folder is accessible
+		File f = new File(folder);
+		if (f.exists() && !f.isDirectory()) {
+			throw new RuntimeException("Can not use " + folder + " as a folder because it exists as a file");
+		}
+		if (!f.exists()) {
+			f.mkdir();
+		}
+		// get file list
+		File[] list = f.listFiles(new FileFilter() {
+			@Override
+			public boolean accept(File file) {
+				if (file.isDirectory())
+					return false;
+				String name = file.getName();
+				Matcher matcher = pattern.matcher(name);
+				if (matcher.matches()) {
+					return true;
+				}
+				return false;
+			}
+		});
+
+		Arrays.sort(list, new Comparator<File>() {
+
+			@Override
+			public int compare(File o1, File o2) {
+				String[] name1 = fastSplit(o1.getName(), '_');
+				String[] name2 = fastSplit(o2.getName(), '_');
+				String t1 = name1[1];
+				String t2 = name2[1];
+				String sub1 = t1.substring(0, t1.indexOf(ext));
+				String sub2 = t2.substring(0, t2.indexOf(ext));
+				int num1 = Integer.parseInt(sub1);
+				int num2 = Integer.parseInt(sub2);
+				return Integer.compare(num1, num2);
+			}
+		});
+
+		if (list.length == 0) {
+			return 0;
+		} else {
+			// get next available integer
+			String last = list[list.length - 1].getName();
+			String[] name1 = fastSplit(last, '_');
+			String t1 = name1[1];
+			String sub1 = t1.substring(0, t1.indexOf(ext));
+			int num1 = Integer.parseInt(sub1);
+			return num1 + 1;
+		}
+	}
+
+	public static double getUsedMemoryMB() {
+		double MB = 1024 * 1024;
+		// get Runtime instance
+		Runtime instance = Runtime.getRuntime();
+		// used memory
+		double used = (double) (instance.totalMemory() - instance.freeMemory()) / MB;
+		return used;
 	}
 }
