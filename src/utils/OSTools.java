@@ -12,7 +12,16 @@ public class OSTools {
 	private static int numberOfSockets;
 	private static int numberOfLogicalProcessors;
 	private static boolean initialized = false;
-
+	
+	public static void setLowPriorityProcess() {
+		try {
+			// 16384 is Below Normal priority
+			Runtime.getRuntime().exec(String.format("wmic process where processid=%d CALL setpriority \"16384\"", ProcessHandle.current().pid()));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
 	/**
 	 * jcfgonc - This only works for Windowz... adapted from some post in stackoverflow, don't remember which
 	 * 
