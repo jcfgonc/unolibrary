@@ -746,4 +746,28 @@ public class VariousUtils {
 		double used = (double) (instance.totalMemory() - instance.freeMemory()) / MB;
 		return used;
 	}
+
+	/**
+	 * decodes number of threads from the given text as a number
+	 * 
+	 * @param text
+	 * @return
+	 */
+	public static int parseNumberThreads(String text) {
+		// ]0...1[ = percentage of total Executing Units in the system
+		// <=0 = all EUs
+		// [1...+oo[ = specific whole number of EUs
+
+		int maxThreadNum = OSTools.getNumberOfCores();
+
+		double asDouble = Double.valueOf(text).doubleValue();
+		if (asDouble <= 1e-20) {
+			return maxThreadNum;
+		}
+		if (asDouble >= 1) {
+			return (int) asDouble;
+		}
+		double x = asDouble * (double) maxThreadNum;
+		return (int) x;
+	}
 }

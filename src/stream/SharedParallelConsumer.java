@@ -11,10 +11,17 @@ public class SharedParallelConsumer<T> {
 	private static ConcurrentTaskExecutor parallelConsumer;
 	private static boolean initialized = false;
 
-	private static <T> void initialize() {
+	public static <T> void initialize() {
 		if (initialized)
 			return;
 		parallelConsumer = new ConcurrentTaskExecutor<T>();
+		initialized = true;
+	}
+	
+	public static <T> void initialize(int numThreads) {
+		if (initialized)
+			return;
+		parallelConsumer = new ConcurrentTaskExecutor<T>(numThreads);
 		initialized = true;
 	}
 
