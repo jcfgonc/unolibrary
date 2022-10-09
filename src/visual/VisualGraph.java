@@ -8,10 +8,13 @@ import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
+import java.io.IOException;
 
 import javax.swing.SwingUtilities;
 import javax.swing.border.LineBorder;
 
+import org.graphstream.graph.Edge;
+import org.graphstream.graph.Node;
 import org.graphstream.graph.implementations.MultiGraph;
 import org.graphstream.ui.geom.Point3;
 import org.graphstream.ui.layout.Layout;
@@ -24,6 +27,7 @@ import org.graphstream.ui.view.Viewer.CloseFramePolicy;
 import org.graphstream.ui.view.Viewer.ThreadingModel;
 import org.graphstream.ui.view.camera.DefaultCamera2D;
 
+import graph.GraphReadWrite;
 import graph.StringGraph;
 
 /**
@@ -301,6 +305,23 @@ public class VisualGraph {
 
 	public void setToolTip(String toolTipText) {
 		defaultView.setToolTipText(toolTipText);
+	}
+
+	public void saveCurrentGraphToFile(String filename) throws IOException {
+		StringGraph graph = new StringGraph();
+		for (int i = 0; i < multiGraph.getEdgeCount(); i++) {
+			Edge edge = multiGraph.getEdge(i);
+			Node node0 = edge.getNode0();
+			Node node1 = edge.getNode1();
+
+			String relation = (String) edge.getAttribute("ui.label");
+			String source = (String) node0.getAttribute("ui.label");
+			String target = (String) node1.getAttribute("ui.label");
+
+			graph.addEdge(source, target, relation);
+		}
+		GraphReadWrite.writeTGF(filename, graph);
+
 	}
 
 }

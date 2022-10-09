@@ -4,16 +4,20 @@ import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.io.IOException;
 import java.util.List;
 
 import javax.swing.JFrame;
+import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 
 import graph.StringGraph;
+import utils.VariousUtils;
 
 /**
  * Simple Graph Visualizer JFrame used by the InteractiveExecutor (MOEA part)
+ * 
  * @author jcfgonc
  *
  */
@@ -59,9 +63,32 @@ public class SimpleGraphVisualizer extends JFrame {
 				int key = e.getKeyCode();
 
 				if (key == KeyEvent.VK_R) {
-					panel.resetView();
+					SwingUtilities.invokeLater(new Runnable() {
+						@Override
+						public void run() {
+							panel.resetView();
+						}
+					});
+				} else if (key == KeyEvent.VK_K) {
+					SwingUtilities.invokeLater(new Runnable() {
+						@Override
+						public void run() {
+							panel.shakeLayout();
+						}
+					});
 				} else if (key == KeyEvent.VK_S) {
-					panel.shakeLayout();
+					SwingUtilities.invokeLater(new Runnable() {
+						@Override
+						public void run() {
+							String filename = VariousUtils.generateCurrentDateAndTimeStamp() + ".tgf";
+							try {
+								panel.saveCurrentGraphToFile(filename);
+							} catch (IOException e) {
+								e.printStackTrace();
+							}
+						}
+					});
+				} else if (key == KeyEvent.VK_ESCAPE) {
 				}
 			}
 

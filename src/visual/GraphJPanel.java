@@ -1,9 +1,7 @@
 package visual;
 
 import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
+import java.io.IOException;
 import java.util.List;
 
 import javax.swing.JPanel;
@@ -101,5 +99,9 @@ public class GraphJPanel extends JPanel {
 
 	public void shakeLayout() {
 		visualGraph.shakeLayout();
+	}
+
+	public void saveCurrentGraphToFile(String filename) throws IOException {
+		visualGraph.saveCurrentGraphToFile(filename);
 	}
 }

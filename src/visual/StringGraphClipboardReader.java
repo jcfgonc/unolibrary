@@ -3,6 +3,8 @@ package visual;
 import java.awt.Dimension;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.io.IOException;
 
 import javax.swing.JFrame;
@@ -12,6 +14,7 @@ import javax.swing.UnsupportedLookAndFeelException;
 
 import graph.GraphReadWrite;
 import graph.StringGraph;
+import utils.VariousUtils;
 
 public class StringGraphClipboardReader {
 
@@ -39,12 +42,20 @@ public class StringGraphClipboardReader {
 		VisualGraph vg = new VisualGraph(0);
 
 		JFrame mainFrame = new JFrame("StringGraph Clipboard Reader");
-		mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		mainFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 		mainFrame.setPreferredSize(new Dimension(320, 240));
 		mainFrame.pack();
 		mainFrame.setVisible(true);
 
 		mainFrame.add(vg.getDefaultView());
+
+		mainFrame.addWindowListener(new WindowAdapter() {
+			@Override
+			public void windowClosing(WindowEvent e) {
+				close(mainFrame);
+			}
+		});
+
 		mainFrame.addKeyListener(new KeyListener() {
 
 			@Override
@@ -56,8 +67,35 @@ public class StringGraphClipboardReader {
 				int key = e.getKeyCode();
 
 				if (key == KeyEvent.VK_R) {
-					vg.resetView();
+					SwingUtilities.invokeLater(new Runnable() {
+						@Override
+						public void run() {
+							vg.resetView();
+						}
+					});
+				} else if (key == KeyEvent.VK_K) {
+					SwingUtilities.invokeLater(new Runnable() {
+						@Override
+						public void run() {
+							vg.shakeLayout();
+						}
+					});
+				} else if (key == KeyEvent.VK_S) {
+					SwingUtilities.invokeLater(new Runnable() {
+						@Override
+						public void run() {
+							String filename = VariousUtils.generateCurrentDateAndTimeStamp() + ".tgf";
+							try {
+								vg.saveCurrentGraphToFile(filename);
+							} catch (IOException e) {
+								e.printStackTrace();
+							}
+						}
+					});
+				} else if (key == KeyEvent.VK_ESCAPE) {
+					close(mainFrame);
 				}
+
 			}
 
 			@Override
@@ -79,6 +117,16 @@ public class StringGraphClipboardReader {
 			}
 		});
 		cl.start();
+	}
+
+	private static void close(JFrame mainFrame) {
+		SwingUtilities.invokeLater(new Runnable() {
+			@Override
+			public void run() {
+				mainFrame.dispose();
+				System.exit(0);
+			}
+		});
 	}
 
 }
