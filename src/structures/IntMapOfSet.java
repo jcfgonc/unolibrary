@@ -10,7 +10,7 @@ import it.unimi.dsi.fastutil.ints.IntSet;
 /**
  * A Map where each mapping value is a Set of the given type, mapped to by an integer key. Created for convenience.
  * 
- * @author João Gonçalves: jcfgonc@gmail.com
+ * @author Joao Goncalves: jcfgonc@gmail.com
  * @param <K>
  * @param <V>
  */

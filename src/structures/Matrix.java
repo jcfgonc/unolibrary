@@ -9,7 +9,7 @@ import java.lang.reflect.Array;
  *
  *
  * 
- * Copyright © 2000–2011, Robert Sedgewick and Kevin Wayne. Last updated: Sun Aug 2 18:43:37 EDT 2015.
+ * Copyright 2000-2011, Robert Sedgewick and Kevin Wayne. Last updated: Sun Aug 2 18:43:37 EDT 2015.
  ******************************************************************************/
 
 final public class Matrix<E> {

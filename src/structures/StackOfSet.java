@@ -6,7 +6,7 @@ import java.util.HashSet;
 /**
  * A stack where each element is a set of the given type. Created for convenience.
  * 
- * @author João Gonçalves: jcfgonc@gmail.com
+ * @author Joao Goncalves: jcfgonc@gmail.com
  *
  * @param <E>
  */
