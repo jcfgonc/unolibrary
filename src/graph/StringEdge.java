@@ -3,8 +3,6 @@ package graph;
 import java.io.Serializable;
 import java.math.BigInteger;
 import java.nio.charset.Charset;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 
 import utils.VariousUtils;
@@ -119,23 +117,6 @@ public class StringEdge implements Comparable<StringEdge>, Serializable, Cloneab
 		hashcode = prime * hashcode + label.hashCode();
 		hashcode = prime * hashcode + source.hashCode();
 		hashcode = prime * hashcode + target.hashCode();
-	}
-
-	/**
-	 * Returns a more accurate hash code of this StringEdge.
-	 * 
-	 * @return
-	 */
-	public byte[] getHashedBytes() {
-		byte[] byteArray = getBytes();
-		MessageDigest md;
-		try {
-			md = MessageDigest.getInstance("SHA-256");
-		} catch (NoSuchAlgorithmException nsae) {
-			throw new InternalError("SHA-256 not supported", nsae);
-		}
-		byte[] d = md.digest(byteArray);
-		return d;
 	}
 
 	public byte[] getBytes() {

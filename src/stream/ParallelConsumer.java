@@ -91,7 +91,7 @@ public class ParallelConsumer<T> {
 	 * @param args
 	 * @throws InterruptedException
 	 */
-	public static void test(String[] args) throws InterruptedException {
+	public static void main(String[] args) throws InterruptedException {
 		ArrayList<Integer> list = new ArrayList<>();
 		for (int i = 0; i < 2000; i++) {
 			list.add(i);

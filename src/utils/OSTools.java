@@ -13,6 +13,7 @@ public class OSTools {
 	private static int numberOfLogicalProcessors;
 	private static boolean initialized = false;
 	
+	@SuppressWarnings("deprecation")
 	public static void setLowPriorityProcess() {
 		try {
 			// 16384 is Below Normal priority
@@ -27,6 +28,7 @@ public class OSTools {
 	 * 
 	 * @return
 	 */
+	@SuppressWarnings("deprecation")
 	private static void getCPU_Info() {
 		if (initialized)
 			return;

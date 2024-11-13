@@ -8,6 +8,7 @@ import java.util.function.IntConsumer;
  * Statically allocated Parallel Consumer - easily shared by multiple classes.
  */
 public class SharedParallelConsumer<T> {
+	@SuppressWarnings("rawtypes")
 	private static ConcurrentTaskExecutor parallelConsumer;
 	private static boolean initialized = false;
 
@@ -17,7 +18,7 @@ public class SharedParallelConsumer<T> {
 		parallelConsumer = new ConcurrentTaskExecutor<T>();
 		initialized = true;
 	}
-	
+
 	public static <T> void initialize(int numThreads) {
 		if (initialized)
 			return;
@@ -26,12 +27,14 @@ public class SharedParallelConsumer<T> {
 	}
 
 	// called by MOEA's evaluateAll()
+	@SuppressWarnings("unchecked")
 	public static <T> void parallelForEach(Collection<T> col, Consumer<? super T> action) throws InterruptedException {
 		initialize();
 		parallelConsumer.parallelForEach(col, action);
 	}
 
 	// currently not used
+	@SuppressWarnings("unchecked")
 	public static <T> void parallelForEach(T[] array, Consumer<? super T> action) throws InterruptedException {
 		initialize();
 		parallelConsumer.parallelForEach(array, action);
@@ -44,6 +47,7 @@ public class SharedParallelConsumer<T> {
 	}
 
 	// called by MOEA's NSGAII.iterate()
+	@SuppressWarnings("unchecked")
 	public static <T> void parallelForEach(int numElements, Consumer<Integer> action) throws InterruptedException {
 		initialize();
 		parallelConsumer.parallelForEach(numElements, action);
