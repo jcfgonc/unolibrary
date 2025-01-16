@@ -211,6 +211,11 @@ public class StringGraph implements Serializable {
 		}
 
 		this.graph.addEdge(source, target, edge);
+
+		if (label.equals("synonym") || label.equals("antonym")) {
+			this.graph.addEdge(target, source, edge.reverse());
+		}
+
 		return true;
 	}
 
@@ -589,25 +594,25 @@ public class StringGraph implements Serializable {
 		addEdges(toAdd);
 	}
 
-	public String toString(final int limit, final int lineBreak) {
+	public String toString(final int edgeLimit, final int edgesPerLine) {
 		if (isEmpty())
 			return "[]";
 
-		int counter = 0;
+		int edgeCounter = 0;
 		String buffer = "";
 		for (StringEdge edge : edgeSet()) {
 			buffer += edge.toString() + ";";
-			if (counter % lineBreak == 0 && counter > 0)
+			if (edgeCounter % edgesPerLine == 0 && edgeCounter > 0)
 				buffer += System.lineSeparator();
-			if (counter > limit)
+			if (edgeCounter > edgeLimit)
 				break;
-			counter++;
+			edgeCounter++;
 		}
 		return buffer;
 	}
 
 	public String toString() {
-		return toString(Integer.MAX_VALUE, Integer.MAX_VALUE);
+		return toString(64, 2);
 	}
 
 	public void removeEdges(Collection<StringEdge> toRemove) {

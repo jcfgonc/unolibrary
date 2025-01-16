@@ -68,20 +68,24 @@ public class VariousUtils {
 	 * @return
 	 * @throws IOException
 	 */
-	public static ArrayList<String> readFileRows(String filename) throws IOException {
+	public static ArrayList<String> readFileRows(String filename) {
 		ArrayList<String> rows = new ArrayList<String>(1 << 10);
-		if (filename != null) {
+		try {
+			if (filename != null) {
 
-			File f = new File(filename);
-			if (f.exists() && !f.isDirectory()) {
+				File f = new File(filename);
+				if (f.exists() && !f.isDirectory()) {
 
-				NonblockingBufferedReader br = new NonblockingBufferedReader(filename);
-				String line;
-				while ((line = br.readLine()) != null) {
-					rows.add(line);
+					NonblockingBufferedReader br = new NonblockingBufferedReader(filename);
+					String line;
+					while ((line = br.readLine()) != null) {
+						rows.add(line);
+					}
+					br.close();
 				}
-				br.close();
 			}
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 		return rows;
 	}
