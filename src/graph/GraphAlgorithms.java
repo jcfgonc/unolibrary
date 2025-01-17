@@ -9,19 +9,19 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
-import java.util.Timer;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.commons.math3.random.RandomGenerator;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import stream.ParallelConsumer;
 import structures.ConceptPair;
 import structures.ListOfSet;
 import structures.MapOfSet;
 import structures.ObjectIndex;
 import structures.OrderedPair;
-import structures.Ticker;
 import structures.UnorderedPair;
 import utils.VariousUtils;
 
@@ -63,17 +63,15 @@ public class GraphAlgorithms {
 	}
 
 	/**
-	 * Expands on the graph, from the openset, excluding nodes present in the closed
-	 * set, returning the new expanded nodes. Whenever a new edge is being expanded
-	 * from the current set to a neighboring node, ExpandingEdge ee is invoked.
+	 * Expands on the graph, from the openset, excluding nodes present in the closed set, returning the new expanded nodes. Whenever a new edge is being
+	 * expanded from the current set to a neighboring node, ExpandingEdge ee is invoked.
 	 *
 	 * @param openSet
 	 * @param closedSet
 	 * @param graph
 	 * @return
 	 */
-	public static Set<String> expandFromOpenSetOneLevel(Set<String> openSet, Set<String> closedSet, StringGraph graph,
-			ExpandingEdge ee) {
+	public static Set<String> expandFromOpenSetOneLevel(Set<String> openSet, Set<String> closedSet, StringGraph graph, ExpandingEdge ee) {
 		// changes to be done to open and closed sets (to prevent concurrent
 		// modification exception)
 		Set<String> openSetAddition = new HashSet<String>(16, 0.333f);
@@ -104,17 +102,15 @@ public class GraphAlgorithms {
 	}
 
 	/**
-	 * Expands on the graph, from the openset, excluding nodes present in the closed
-	 * set, returning the new expanded nodes. Whenever a new edge is being expanded
-	 * from the current set to a neighboring node, ExpandingEdge ee is invoked.
+	 * Expands on the graph, from the openset, excluding nodes present in the closed set, returning the new expanded nodes. Whenever a new edge is being
+	 * expanded from the current set to a neighboring node, ExpandingEdge ee is invoked.
 	 *
 	 * @param openSet
 	 * @param closedSet
 	 * @param graph
 	 * @return
 	 */
-	public static Set<String> expandFromVertexOneLevel(String vertexId, Set<String> closedSet, StringGraph graph,
-			ExpandingEdge ee) {
+	public static Set<String> expandFromVertexOneLevel(String vertexId, Set<String> closedSet, StringGraph graph, ExpandingEdge ee) {
 		// changes to be done to open and closed sets (to prevent concurrent
 		// modification exception)
 		Set<String> openSetAddition = new HashSet<String>(16, 0.333f);
@@ -240,8 +236,7 @@ public class GraphAlgorithms {
 	 * @param limit
 	 * @return
 	 */
-	public static String getDeepRandomVertex(RandomGenerator random, String startingVertex, StringGraph graph,
-			int limit) {
+	public static String getDeepRandomVertex(RandomGenerator random, String startingVertex, StringGraph graph, int limit) {
 		String currentvertex = startingVertex;
 		for (int i = 0; i < limit; i++) {
 			Set<String> neighborhood = graph.getNeighborVertices(currentvertex);
@@ -253,8 +248,7 @@ public class GraphAlgorithms {
 		return currentvertex;
 	}
 
-	public static String getVertexFromRandomWalk(RandomGenerator random, String startingVertex, StringGraph graph,
-			int limit) {
+	public static String getVertexFromRandomWalk(RandomGenerator random, String startingVertex, StringGraph graph, int limit) {
 		String currentvertex = startingVertex;
 		for (int i = 0; i < limit; i++) {
 			Set<StringEdge> edgesOf = graph.edgesOf(currentvertex);
@@ -292,8 +286,8 @@ public class GraphAlgorithms {
 		return distance;
 	}
 
-	public static HashMap<String, ArrayList<StringEdge>> lowestCommonAncestorIsa(StringGraph graph, String vertexL,
-			String vertexR, boolean useDerivedFrom, boolean useSynonym) {
+	public static HashMap<String, ArrayList<StringEdge>> lowestCommonAncestorIsa(StringGraph graph, String vertexL, String vertexR, boolean useDerivedFrom,
+			boolean useSynonym) {
 		HashMap<String, StringEdge> cameFromEdgeL = new HashMap<>();
 		HashMap<String, StringEdge> cameFromEdgeR = new HashMap<>();
 		HashMap<String, ArrayList<StringEdge>> ancestors = new HashMap<>();
@@ -312,15 +306,13 @@ public class GraphAlgorithms {
 			openSetR.addLast(vertexR);
 			while (openSetL.size() > 0 || openSetR.size() > 0) {
 				{
-					HashSet<String> expanded = lcaIsaRadialExpansion(graph, openSetL.removeFirst(), useDerivedFrom,
-							useSynonym, cameFromEdgeL, closedSetL);
+					HashSet<String> expanded = lcaIsaRadialExpansion(graph, openSetL.removeFirst(), useDerivedFrom, useSynonym, cameFromEdgeL, closedSetL);
 					openSetL.addAll(expanded);
 					touchedL.addAll(expanded);
 				}
 
 				{
-					HashSet<String> expanded = lcaIsaRadialExpansion(graph, openSetR.removeFirst(), useDerivedFrom,
-							useSynonym, cameFromEdgeR, closedSetR);
+					HashSet<String> expanded = lcaIsaRadialExpansion(graph, openSetR.removeFirst(), useDerivedFrom, useSynonym, cameFromEdgeR, closedSetR);
 					openSetR.addAll(expanded);
 					touchedR.addAll(expanded);
 				}
@@ -366,14 +358,12 @@ public class GraphAlgorithms {
 	}
 
 	/**
-	 * @param fullPath [horse,isa,equinae, equinae,isa,animal, aves,isa,animal,
-	 *                 bird,isa,aves]
+	 * @param fullPath [horse,isa,equinae, equinae,isa,animal, aves,isa,animal, bird,isa,aves]
 	 * @param vertexL  horse
 	 * @param vertexR  bird
 	 * @return animal
 	 */
-	private static String validateAndGetAncestorFromSequence(ArrayList<StringEdge> fullPath, String vertexL,
-			String vertexR) {
+	private static String validateAndGetAncestorFromSequence(ArrayList<StringEdge> fullPath, String vertexL, String vertexR) {
 		HashSet<String> lastConcepts = new HashSet<>();
 		lastConcepts.add(vertexL);
 
@@ -444,8 +434,7 @@ public class GraphAlgorithms {
 	 * @param conceptCameFromEdge
 	 * @return
 	 */
-	public static ArrayList<StringEdge> getEdgePath(String endingConcept,
-			HashMap<String, StringEdge> conceptCameFromEdge) {
+	public static ArrayList<StringEdge> getEdgePath(String endingConcept, HashMap<String, StringEdge> conceptCameFromEdge) {
 		HashSet<StringEdge> closedSet = new HashSet<>();
 		ArrayList<StringEdge> path = new ArrayList<>();
 		StringEdge source;
@@ -475,9 +464,8 @@ public class GraphAlgorithms {
 	 * @param closedSetConcepts
 	 * @return
 	 */
-	private static HashSet<String> lcaIsaRadialExpansion(StringGraph graph, String currentVertex,
-			boolean useDerivedFrom, boolean useSynonym, HashMap<String, StringEdge> cameFromEdge,
-			HashSet<String> closedSetConcepts) {
+	private static HashSet<String> lcaIsaRadialExpansion(StringGraph graph, String currentVertex, boolean useDerivedFrom, boolean useSynonym,
+			HashMap<String, StringEdge> cameFromEdge, HashSet<String> closedSetConcepts) {
 		HashSet<String> newOpenSet = new HashSet<>();
 		// stop when left and right expansions collide
 		// expand edges with vertices not in the closed set
@@ -504,8 +492,7 @@ public class GraphAlgorithms {
 		return newOpenSet;
 	}
 
-	public static ArrayList<StringEdge> shortestIsaPath(StringGraph graph, String start, String toReach,
-			boolean useDerivedFrom, boolean useSynonym) {
+	public static ArrayList<StringEdge> shortestIsaPath(StringGraph graph, String start, String toReach, boolean useDerivedFrom, boolean useSynonym) {
 		HashMap<String, StringEdge> cameFromEdge = new HashMap<>();
 
 		// TODO: closed and open sets should be for edges, not concepts (to allow
@@ -605,9 +592,25 @@ public class GraphAlgorithms {
 					if (closedSet.contains(next))
 						continue;
 					// put the neighbors in the open set
-					System.out.println(edge);
 					openSet.add(next);
+					if (!cameFrom.containsKey(next)) {
+						cameFrom.put(next, currentVertex);
+					}
 				}
+			}
+		}
+
+		if (reachable) {
+			// get path
+			String source;
+			String current = toReach;
+			while (true) {
+				source = cameFrom.get(current);
+				System.out.println(current);
+				// System.out.println(graph.getUndirectedEdgesConnecting(source, current));
+				if (source == null)
+					break;
+				current = source;
 			}
 		}
 		return reachable;
@@ -727,8 +730,7 @@ public class GraphAlgorithms {
 	 * @param random
 	 * @return
 	 */
-	public static HashSet<String> extractRandomPart(StringGraph graph, int minNewConceptsTrigger,
-			int minTotalConceptsTrigger, RandomGenerator random) {
+	public static HashSet<String> extractRandomPart(StringGraph graph, int minNewConceptsTrigger, int minTotalConceptsTrigger, RandomGenerator random) {
 		// just get a vertex
 		String firstVertex = VariousUtils.getRandomElementFromCollection(graph.getVertexSet(), random);
 		HashSet<String> closedSet = new HashSet<>(16, 0.333f);
@@ -901,8 +903,7 @@ public class GraphAlgorithms {
 		return getLowestDegreeVertex(graph.getVertexSet(), graph);
 	}
 
-	public static ArrayList<StringEdge> getEdgesWithSources(Collection<StringEdge> edges,
-			Collection<String> collection) {
+	public static ArrayList<StringEdge> getEdgesWithSources(Collection<StringEdge> edges, Collection<String> collection) {
 		ArrayList<StringEdge> inCommon = new ArrayList<>(edges.size());
 		for (StringEdge edge : edges) {
 			if (collection.contains(edge.getSource()))
@@ -968,8 +969,7 @@ public class GraphAlgorithms {
 	}
 
 	/**
-	 * Converts a string graph using textual concepts/relations to a graph of
-	 * integers.
+	 * Converts a string graph using textual concepts/relations to a graph of integers.
 	 * 
 	 * @param graph
 	 * @param vertexLabels
@@ -1066,8 +1066,7 @@ public class GraphAlgorithms {
 		return ds;
 	}
 
-	public static DescriptiveStatistics getRelationStatisticsNormalized(Object2IntOpenHashMap<String> count,
-			double divider) {
+	public static DescriptiveStatistics getRelationStatisticsNormalized(Object2IntOpenHashMap<String> count, double divider) {
 		int numRelations = count.size();
 		double[] count_d = new double[numRelations];
 		int i = 0;
@@ -1080,8 +1079,7 @@ public class GraphAlgorithms {
 	}
 
 	/**
-	 * reads something of the sort
-	 * "slave=X1,no_choice_or_freedom=X0,own=X2,master=X3" into a hashmap
+	 * reads something of the sort "slave=X1,no_choice_or_freedom=X0,own=X2,master=X3" into a hashmap
 	 * 
 	 * @param string
 	 * @return
@@ -1097,8 +1095,7 @@ public class GraphAlgorithms {
 	}
 
 	/**
-	 * according to the replaceTo0 flag, either swaps vertice <b>from</b> with
-	 * vertice <b>to0</b> or vertice <b>from</b> with vertice <b>to1</b>
+	 * according to the replaceTo0 flag, either swaps vertice <b>from</b> with vertice <b>to0</b> or vertice <b>from</b> with vertice <b>to1</b>
 	 * 
 	 * @param replaceTo0
 	 * @param graph
@@ -1115,8 +1112,7 @@ public class GraphAlgorithms {
 	}
 
 	/**
-	 * removes from the edge set a the edges which vertices are also connected in
-	 * the edge set b
+	 * removes from the edge set a the edges which vertices are also connected in the edge set b
 	 * 
 	 * @param a
 	 * @param b
@@ -1144,8 +1140,7 @@ public class GraphAlgorithms {
 	}
 
 	/**
-	 * returns true if the given edge set contains an edge connected between the
-	 * vertices v0 and v1 (or v1 and v0)
+	 * returns true if the given edge set contains an edge connected between the vertices v0 and v1 (or v1 and v0)
 	 * 
 	 * @param set
 	 * @param v0
@@ -1199,8 +1194,7 @@ public class GraphAlgorithms {
 			// do not add coincident edges, i.e., guarantee unique vertex pairs
 			HashSet<StringEdge> edgesTouching = pattern.edgesOf(edge);
 			for (StringEdge newEdge : edgesTouching) {
-				UnorderedPair<String> newEdgeConcepts = new UnorderedPair<String>(newEdge.getSource(),
-						newEdge.getTarget());
+				UnorderedPair<String> newEdgeConcepts = new UnorderedPair<String>(newEdge.getSource(), newEdge.getTarget());
 				if (!edgesVisited.contains(newEdgeConcepts))
 					edgesToVisit.add(newEdge);
 			}
@@ -1209,8 +1203,7 @@ public class GraphAlgorithms {
 	}
 
 	/**
-	 * returns the blended concept (if existing) containing the given text. The
-	 * concept will be a blend of the form *|text OR text|*
+	 * returns the blended concept (if existing) containing the given text. The concept will be a blend of the form *|text OR text|*
 	 * 
 	 * @param blendSpace
 	 * @param text
@@ -1241,8 +1234,7 @@ public class GraphAlgorithms {
 	}
 
 	/**
-	 * Returns a new graph with the all the edges converted to facts (i.e., vertices
-	 * are represented as integer constants).
+	 * Returns a new graph with the all the edges converted to facts (i.e., vertices are represented as integer constants).
 	 * 
 	 * @param graph
 	 * @return
@@ -1268,8 +1260,7 @@ public class GraphAlgorithms {
 	}
 
 	/**
-	 * Returns a new graph with the all the edges converted to rules (i.e., vertices
-	 * are represented as variables/capitalized words).
+	 * Returns a new graph with the all the edges converted to rules (i.e., vertices are represented as variables/capitalized words).
 	 * 
 	 * @param graph
 	 * @return
@@ -1295,10 +1286,8 @@ public class GraphAlgorithms {
 	}
 
 	/**
-	 * Returns the concept (source or target) which exists in the given conceptPair.
-	 * Assumes that the conceptPair does not contain both source and target concepts
-	 * (it will return the pair's left concept in that case) and that the edge does
-	 * not self-connect only one of the pair's concepts.
+	 * Returns the concept (source or target) which exists in the given conceptPair. Assumes that the conceptPair does not contain both source and target
+	 * concepts (it will return the pair's left concept in that case) and that the edge does not self-connect only one of the pair's concepts.
 	 * 
 	 * @param conceptPair
 	 * @param stringEdge
@@ -1317,8 +1306,7 @@ public class GraphAlgorithms {
 	}
 
 	/**
-	 * creates mirrored (reversed direction) copies of existing edges with the given
-	 * labels
+	 * creates mirrored (reversed direction) copies of existing edges with the given labels
 	 * 
 	 * @param graph
 	 * @param undirectedrelations
@@ -1393,84 +1381,104 @@ public class GraphAlgorithms {
 	}
 
 	public static void propagateRelationsThroughInheritance(StringGraph graph) {
+
+		propagateRelationsThroughInheritance(graph, "building", 5);
+		System.exit(0);
+
 		HashSet<String> root_isa = GraphAlgorithms.findRootIsaConcepts(graph);
 
-		for (String rootConcept : root_isa) {
-			propagateRelationsThroughInheritance(graph, rootConcept);
+		ParallelConsumer<String> pc = new ParallelConsumer<>(4);
+		try {
+			pc.parallelForEach(root_isa, rootConcept -> {
+				try {
+					final int maxDeepness = 8;
+					propagateRelationsThroughInheritance(graph, rootConcept, maxDeepness);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			});
+		} catch (InterruptedException e) {
+			e.printStackTrace();
 		}
+		System.out.println("waiting");
+		pc.shutdown();
+		System.out.println("shutdown");
 	}
 
 	/**
-	 * used to share the function propagateRelationsThroughInheritance() by multiple
-	 * threads
+	 * used to share the function propagateRelationsThroughInheritance() by multiple threads
 	 */
-	private static ReentrantLock smpLock = new ReentrantLock();
+	private static ReentrantReadWriteLock smpLock = new ReentrantReadWriteLock();
 
-	public static void propagateRelationsThroughInheritance(StringGraph graph, String rootConcept) {
+	public static void propagateRelationsThroughInheritance(StringGraph graph, String rootConcept, int maximumDeepness) {
 
-		MapOfSet<String, String> ancestors = new MapOfSet<String, String>();
-		ArrayDeque<String> stack = new ArrayDeque<String>();
+		ArrayDeque<String> openSet = new ArrayDeque<String>();
+		HashSet<String> openSet_Hash = new HashSet<String>();
+		HashSet<String> closedSet = new HashSet<String>();
+		Object2IntOpenHashMap<String> deepness = new Object2IntOpenHashMap<String>();
+		deepness.put(rootConcept, 0);
 
-		stack.push(rootConcept);
+		openSet.addLast(rootConcept);
+		openSet_Hash.add(rootConcept);
 
-		while (!stack.isEmpty()) {
+		while (!openSet.isEmpty()) {
 
-			String parent = stack.pop();
-//				if (closedRootSet.contains(node))
-//					continue;
-//				closedRootSet.add(node);
+			String parent = openSet.remove();
+			openSet_Hash.remove(parent);
+			closedSet.add(parent);
 
-			smpLock.lock();
+			smpLock.readLock().lock();
+			// what concepts "ISA" parent?
 			Set<StringEdge> isaEdges = graph.incomingEdgesOf(parent, "isa");
-			smpLock.unlock();
+			smpLock.readLock().unlock();
 
-			if (!isaEdges.isEmpty()) {
+			int childDeepness = deepness.getInt(parent) + 1;
+
+			if (!isaEdges.isEmpty() && childDeepness < maximumDeepness) {
 				// debug
 				// Set<StringEdge> edgesOf = graph.edgesOf(parent);
 
-				ArrayList<StringEdge> edgesToAdapt = new ArrayList<StringEdge>();
-				smpLock.lock();
-				edgesToAdapt.addAll(graph.outgoingEdgesOf(parent, "capableof"));
-				edgesToAdapt.addAll(graph.outgoingEdgesOf(parent, "isa"));
-				edgesToAdapt.addAll(graph.outgoingEdgesOf(parent, "causes"));
-				edgesToAdapt.addAll(graph.outgoingEdgesOf(parent, "atlocation"));
-				edgesToAdapt.addAll(graph.outgoingEdgesOf(parent, "desires"));
-				edgesToAdapt.addAll(graph.outgoingEdgesOf(parent, "usedfor"));
-				edgesToAdapt.addAll(graph.outgoingEdgesOf(parent, "partof"));
-				edgesToAdapt.addAll(graph.outgoingEdgesOf(parent, "madeof"));
-				edgesToAdapt.addAll(graph.outgoingEdgesOf(parent, "requires"));
-				edgesToAdapt.addAll(graph.outgoingEdgesOf(parent, "symbolof"));
-				edgesToAdapt.addAll(graph.outgoingEdgesOf(parent, "createdby"));
-				smpLock.unlock();
+				ArrayList<StringEdge> parentEdges = new ArrayList<StringEdge>();
+				smpLock.readLock().lock();
+				parentEdges.addAll(graph.outgoingEdgesOf(parent, "capableof"));
+				parentEdges.addAll(graph.outgoingEdgesOf(parent, "isa"));
+				parentEdges.addAll(graph.outgoingEdgesOf(parent, "causes"));
+				parentEdges.addAll(graph.outgoingEdgesOf(parent, "atlocation"));
+				parentEdges.addAll(graph.outgoingEdgesOf(parent, "desires"));
+				parentEdges.addAll(graph.outgoingEdgesOf(parent, "usedfor"));
+				parentEdges.addAll(graph.outgoingEdgesOf(parent, "partof"));
+				parentEdges.addAll(graph.outgoingEdgesOf(parent, "madeof"));
+				parentEdges.addAll(graph.outgoingEdgesOf(parent, "requires"));
+				parentEdges.addAll(graph.outgoingEdgesOf(parent, "symbolof"));
+				parentEdges.addAll(graph.outgoingEdgesOf(parent, "createdby"));
+				smpLock.readLock().unlock();
 
-				// System.lineSeparator();
-
-				System.out.printf("propagating %s\n", parent);
+				// System.out.printf("propagating %s\n", parent);
 				for (StringEdge isaEdge : isaEdges) {
 					String child = isaEdge.getSource();
-
-					ancestors.add(child, parent);
-
-					if (!root_isa.contains(child)) {
-						stack.push(child);
-						if (!edgesToAdapt.isEmpty()) {
-							System.out.printf("propagating from %s to %s\n", parent, child);
+					if (!closedSet.contains(child) && !openSet_Hash.contains(child)) {
+						openSet.push(child);
+						openSet_Hash.add(child);
+						deepness.put(child, childDeepness);
+						// when expanding children, propagate stuff from the current parent
+						if (!parentEdges.isEmpty()) {
+							// DEBUG
+						//	if (!parent.equals(rootConcept))
+							System.out.printf("%s\t->\t%s\tat\tdeepness %d\n", parent, child, childDeepness);
 							// for each child add the adapted edgesToAdapt
-							ArrayList<StringEdge> adaptedEdges = replaceSourceOrTarget(edgesToAdapt, parent, child);
-							smpLock.lock();
-							graph.addEdges(adaptedEdges);
-							smpLock.unlock();
+							ArrayList<StringEdge> parentEdgesAdapted = replaceSourceOrTarget(parentEdges, parent, child);
+							// update graph with new edges
+							smpLock.writeLock().lock();
+							graph.addEdges(parentEdgesAdapted);
+							smpLock.writeLock().unlock();
 						}
 					}
 				}
-			} else {
-				// TODO e vertice terminal, usar essa informacao para prevenir loops
 			}
 		}
 	}
 
-	private static ArrayList<StringEdge> replaceSourceOrTarget(ArrayList<StringEdge> edges, String parent,
-			String child) {
+	private static ArrayList<StringEdge> replaceSourceOrTarget(ArrayList<StringEdge> edges, String parent, String child) {
 		ArrayList<StringEdge> resultingEdges = new ArrayList<StringEdge>();
 		for (StringEdge oldEdge : edges) {
 			StringEdge newEdge = oldEdge.replaceSourceOrTarget(parent, child);
@@ -1480,8 +1488,7 @@ public class GraphAlgorithms {
 	}
 
 	/**
-	 * Iterative post order traversal of the given graph starting at the given root.
-	 * Skeleton code.
+	 * Iterative post order traversal of the given graph starting at the given root. Skeleton code.
 	 * 
 	 * @param graph
 	 * @param root
