@@ -160,8 +160,8 @@ public class StringEdge implements Comparable<StringEdge>, Serializable, Cloneab
 	}
 
 	/**
-	 * Creates a new StringEdge with the given oldReference (vertex) replaced with the newReference (vertex). Both source and target may be replaced.
-	 * Remember that this does not the graph containing the edge.
+	 * Creates a new StringEdge with the given oldReference (vertex) replaced with the newReference (vertex). Both source and target may be replaced. Remember
+	 * that this does not the graph containing the edge.
 	 *
 	 * @param oldReference
 	 * @param newReference
@@ -383,5 +383,17 @@ public class StringEdge implements Comparable<StringEdge>, Serializable, Cloneab
 
 	public boolean containsOnlyBlends() {
 		return sourceIsBlend() && targetIsBlend();
+	}
+
+	public StringEdge replaceTarget(String newTarget) {
+		StringEdge newEdge = new StringEdge(this);
+		newEdge.target = newTarget;
+		return newEdge;
+	}
+	
+	public StringEdge replaceSource(String newSource) {
+		StringEdge newEdge = new StringEdge(this);
+		newEdge.source = newSource;
+		return newEdge;
 	}
 }

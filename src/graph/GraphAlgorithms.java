@@ -1,5 +1,7 @@
 package graph;
 
+import java.io.IOException;
+import java.net.URISyntaxException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -1380,7 +1382,7 @@ public class GraphAlgorithms {
 		return Integer.MAX_VALUE;
 	}
 
-	public static void propagateRelationsThroughInheritance(StringGraph graph) {
+	public static void propagateRelationsThroughInheritance(StringGraph graph) throws IOException, URISyntaxException {
 
 		propagateRelationsThroughInheritance(graph, "building", 5);
 		System.exit(0);
@@ -1410,7 +1412,7 @@ public class GraphAlgorithms {
 	 */
 	private static ReentrantReadWriteLock smpLock = new ReentrantReadWriteLock();
 
-	public static void propagateRelationsThroughInheritance(StringGraph graph, String rootConcept, int maximumDeepness) {
+	public static void propagateRelationsThroughInheritance(StringGraph graph, String rootConcept, int maximumDeepness) throws IOException, URISyntaxException {
 
 		ArrayDeque<String> openSet = new ArrayDeque<String>();
 		HashSet<String> openSet_Hash = new HashSet<String>();
@@ -1435,8 +1437,6 @@ public class GraphAlgorithms {
 			int childDeepness = deepness.getInt(parent) + 1;
 
 			if (!isaEdges.isEmpty() && childDeepness < maximumDeepness) {
-				// debug
-				// Set<StringEdge> edgesOf = graph.edgesOf(parent);
 
 				ArrayList<StringEdge> parentEdges = new ArrayList<StringEdge>();
 				smpLock.readLock().lock();
@@ -1453,9 +1453,11 @@ public class GraphAlgorithms {
 				parentEdges.addAll(graph.outgoingEdgesOf(parent, "createdby"));
 				smpLock.readLock().unlock();
 
-				// System.out.printf("propagating %s\n", parent);
 				for (StringEdge isaEdge : isaEdges) {
 					String child = isaEdge.getSource();
+
+					// test if child ISA parent
+					// allow for expansion level limit
 					if (!closedSet.contains(child) && !openSet_Hash.contains(child)) {
 						openSet.push(child);
 						openSet_Hash.add(child);
@@ -1463,7 +1465,7 @@ public class GraphAlgorithms {
 						// when expanding children, propagate stuff from the current parent
 						if (!parentEdges.isEmpty()) {
 							// DEBUG
-						//	if (!parent.equals(rootConcept))
+							// if (!parent.equals(rootConcept))
 							System.out.printf("%s\t->\t%s\tat\tdeepness %d\n", parent, child, childDeepness);
 							// for each child add the adapted edgesToAdapt
 							ArrayList<StringEdge> parentEdgesAdapted = replaceSourceOrTarget(parentEdges, parent, child);
