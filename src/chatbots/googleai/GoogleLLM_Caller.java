@@ -20,11 +20,7 @@ import utils.VariousUtils;
 
 public class GoogleLLM_Caller {
 	private static final Gson GSON = new Gson();
-	/**
-	 * models as of 19/11/2024 gemini-1.5-pro gemini-1.5-flash gemini-1.5-flash-8b
-	 * 
-	 */
-	public static String model = "gemini-1.5-pro";
+	public static String model = "gemini-1.5-flash";
 	private static String api_call_template;
 	private static String api_key;
 	private static String api_url;
@@ -77,8 +73,6 @@ public class GoogleLLM_Caller {
 			stream.flush();
 		}
 
-	//	Ticker t = new Ticker();
-
 		int responseCode = connection.getResponseCode();
 //		System.out.println(responseCode + " " + connection.getResponseMessage()); // THis is optional
 		if (responseCode == 200) {
@@ -88,7 +82,6 @@ public class GoogleLLM_Caller {
 			// System.out.println(raw_reply);
 			inputStream.close();
 			connection.disconnect();
-		//	t.showTimeDeltaLastCall();
 
 			// process chatbot reply in json format
 			ChatBotReply chatbotReply = GSON.fromJson(raw_reply, ChatBotReply.class);
@@ -105,7 +98,7 @@ public class GoogleLLM_Caller {
 		}
 	}
 
-	public static String toString(InputStream input) throws IOException {
+	private static String toString(InputStream input) throws IOException {
 		return new String(input.readAllBytes(), StandardCharsets.UTF_8);
 	}
 

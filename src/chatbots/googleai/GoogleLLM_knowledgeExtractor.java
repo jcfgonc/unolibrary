@@ -80,11 +80,16 @@ public class GoogleLLM_knowledgeExtractor {
 
 	public static String[] askLLM_for_type_of(String concept) throws IOException, URISyntaxException {
 		// tambem pode ser "ontology speaking, %concept% is a type of? do not explain the answers"
-		String prompt = "Use american english. Do not explain your answer nor your reasoning. Give all possible answers. Ontology speaking, what are the superclasses for %concept%?";
+		//String prompt = "Use american english. Do not explain your answer nor your reasoning. Give all possible answers. Ontology speaking, what are the superclasses for %concept%?";
+		String prompt = """
+				You are a knowledge base that answers to questions made by an expert system. 
+				All your knowledge is in american english. 
+				You have a comprehensive ontology and knowledge base that spans the basic concepts and rules about how the world works.
+				You do not explain your answer nor your reasoning. You give all possible answers. Try to be as specific as possible and do not generalize. 
+				Ontology speaking, what are the superclasses for %concept%?""";
 		String text = prompt.replace("%concept%", concept);
 		System.out.println(text);
 		String reply = GoogleLLM_Caller.doRequest(text);
-//		System.out.println(reply);
 		// destroy google ai text format
 		reply = reply.replace("* ", "");
 		reply = reply.replace(", ", ",");
@@ -100,13 +105,18 @@ public class GoogleLLM_knowledgeExtractor {
 	}
 
 	public static void askLLM_for_parts_and_function_of(String concept) throws IOException, URISyntaxException {
-		String prompt_template = """
-				one fact per line,
-				what are the components of %concept% and their function?
-				give their function with a single action verb. Do not explain their function.
-				""";
-		String prompt = prompt_template.replace("%concept%", concept);
-		String reply = GoogleLLM_Caller.doRequest(prompt);
+		String prompt="""
+				one answer per line, regarding a %concept% what are its parts and their specific purpose?
+				give as many parts and purposes as possible.
+				give each purpose with a single word in the form of an action verb""";
+//		String prompt = "one answer per line, what are the parts and their purpose of a church? answer the purpose with a single action verb";
+//				"""
+//				one fact per line,
+//				what are the components of %concept% and their function?
+//				give their function with a single action verb. Do not explain their function.
+//				""";
+		String text = prompt.replace("%concept%", concept);
+		String reply = GoogleLLM_Caller.doRequest(text);
 		System.out.println(reply);
 		// TODO
 	}
