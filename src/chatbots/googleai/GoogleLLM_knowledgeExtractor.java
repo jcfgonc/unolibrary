@@ -105,16 +105,27 @@ public class GoogleLLM_knowledgeExtractor {
 	}
 
 	public static void askLLM_for_parts_and_function_of(String concept) throws IOException, URISyntaxException {
-		String prompt="""
-				one answer per line, regarding a %concept% what are its parts and their specific purpose?
-				give as many parts and purposes as possible.
-				give each purpose with a single word in the form of an action verb""";
+//		String prompt="""
+//				one answer per line, regarding a %concept% what are its parts and their specific purpose?
+//				give as many parts and purposes as possible.
+//				give each purpose with a single word in the form of an action verb""";
 //		String prompt = "one answer per line, what are the parts and their purpose of a church? answer the purpose with a single action verb";
 //				"""
 //				one fact per line,
 //				what are the components of %concept% and their function?
 //				give their function with a single action verb. Do not explain their function.
 //				""";
+		String prompt="""
+		You are a knowledge base that answers questions made by an expert system. 
+		All your knowledge is in American English. 
+		You have a comprehensive ontology and knowledge base that spans the basic concepts and rules about how the world works.
+		You do not explain your answer nor your reasoning. You answer all possibilities. Try to be as specific as possible and do not generalize.
+		The questions made to you are about a generic entity and their constituent parts. You answer with as many parts of the entity as possible. You answer each part as a noun in the singular form.
+		For each part, you answer as many purposes for that part as possible. You answer each purpose with a single action verb.
+		You answer each part in one line followed by the various purposes of that part.
+
+		What are the parts and their purpose of a %concept%?""";
+
 		String text = prompt.replace("%concept%", concept);
 		String reply = GoogleLLM_Caller.doRequest(text);
 		System.out.println(reply);

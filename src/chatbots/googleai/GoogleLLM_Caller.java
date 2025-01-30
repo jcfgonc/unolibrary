@@ -32,7 +32,7 @@ public class GoogleLLM_Caller {
 			return;
 
 		api_call_template = VariousUtils.readFile("data/google_gemini_api_query.json");
-		api_key = VariousUtils.readFile("data/apikey.txt");
+		api_key = VariousUtils.readFile("data/google_api_key.txt");
 		api_url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + api_key;
 		url = new URI(api_url).toURL();
 

@@ -20,9 +20,11 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -780,5 +782,38 @@ public class VariousUtils {
 		}
 		double x = asDouble * (double) maxThreadNum;
 		return (int) x;
+	}
+
+	public static <E> ArrayList<E> sublistOf(Collection<E> set, int size) {
+		ArrayList<E> list = new ArrayList<E>(size);
+		Iterator<E> iterator = set.iterator();
+		int counter = 0;
+		while (iterator.hasNext()) {
+			if (counter >= size)
+				break;
+			E next = iterator.next();
+			list.add(next);
+			counter++;
+		}
+		return list;
+	}
+
+	/**
+	 * removes a bunch of elements from the given deque, up to a maximum of n or the size of the deque, whatever is smaller
+	 * 
+	 * @param <E>
+	 * @param deque
+	 * @param n
+	 * @return
+	 */
+	public static <E> ArrayList<E> removeMultipleElementsFromDeque(Deque<E> deque, int n) {
+		ArrayList<E> list = new ArrayList<E>(n);
+		if (deque.isEmpty())
+			throw new NoSuchElementException();
+		n = Math.min(n, deque.size());
+		for (int i = 0; i < n; i++) {
+			list.add(deque.remove());
+		}
+		return list;
 	}
 }
