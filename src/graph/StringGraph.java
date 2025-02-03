@@ -132,6 +132,11 @@ public class StringGraph implements Serializable {
 		}
 	}
 
+	public StringGraph(Collection<StringEdge> edges) {
+		this();
+		addEdges(edges);
+	}
+
 	public void addEdges(Collection<StringEdge> edges) {
 		for (StringEdge edge : edges) {
 			addEdge(edge);

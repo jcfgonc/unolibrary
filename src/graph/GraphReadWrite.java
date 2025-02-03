@@ -17,6 +17,7 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Scanner;
 import java.util.Set;
@@ -492,9 +493,15 @@ public class GraphReadWrite {
 		writeCSV(out, graph);
 		out.close();
 	}
+	
+	public static <V, E> void writeCSV(String filename, Collection<StringEdge> edges) throws IOException {
+		BufferedWriter out = Files.newBufferedWriter(Paths.get(filename));
+		writeCSV(out, edges);
+		out.close();
+	}
 
-	public static void writeCSV(BufferedWriter bw, StringGraph graph) throws IOException {
-		for (StringEdge se : graph.edgeSet()) {
+	public static void writeCSV(BufferedWriter bw, Collection<StringEdge> edges) throws IOException {
+		for (StringEdge se : edges) {
 			String source = se.getSource();
 			String target = se.getTarget();
 			String edgeLabel = se.getLabel();
@@ -507,6 +514,10 @@ public class GraphReadWrite {
 			bw.newLine();
 		}
 		bw.flush();
+	}
+
+	public static void writeCSV(BufferedWriter bw, StringGraph graph) throws IOException {
+		writeCSV(bw, graph.edgeSet());
 	}
 
 	public static void writeCSV(String filename, StringGraph graph) throws IOException {

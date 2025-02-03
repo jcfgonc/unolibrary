@@ -12,6 +12,7 @@ import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -45,7 +46,8 @@ public class VariousUtils {
 
 	public static int countCharOccurences(String str, char c) {
 		int count = 0;
-		for (int i = 0; i < str.length(); i++) {
+		int len = str.length();
+		for (int i = 0; i < len; i++) {
 			if (str.charAt(i) == c) {
 				count++;
 			}
@@ -815,5 +817,10 @@ public class VariousUtils {
 			list.add(deque.remove());
 		}
 		return list;
+	}
+
+	public static String getCurrentWorkingDirectory() {
+		String cwd = Path.of("").toAbsolutePath().toString();
+		return cwd;
 	}
 }
