@@ -6,10 +6,14 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 
 import graph.StringEdge;
 import graph.StringGraph;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import stream.ParallelConsumer;
+import structures.ConceptPair;
 
 public class GoogleLLM_knowledgeExtractor {
 
@@ -78,14 +82,69 @@ public class GoogleLLM_knowledgeExtractor {
 		System.out.println(reply);
 	}
 
+	public static String askLLM_for_correctedText(String concept) throws IOException, URISyntaxException {
+		String prompt = """
+				You correct text, correcting typos, spelling errors, grammatical errors and verb conjugation. You do not explain your reasoning.
+				You only give the corrected text. If the text is a valid name, title or address, you return the original text.
+				If you do not recognize the text or you are unable to correct it, you return the original text. You always conjugate the verbs correctly.
+				You correct the text as best as possible. This is the text to correct:
+
+				%concept%
+				""";
+		String text = prompt.replace("%concept%", concept);
+		String reply = GoogleLLM_Caller.doRequest(text);
+		reply = reply.trim();
+		reply = reply.replace(".", "");
+		reply = reply.toLowerCase();
+		System.out.printf("%s\t%s\n", concept, reply);
+		return reply;
+	}
+
+	public static void correctConcepts(StringGraph inputSpace) throws IOException, URISyntaxException, InterruptedException {
+		final int numThreads = 8;
+		ArrayList<ConceptPair<String>> replacements = new ArrayList<ConceptPair<String>>();
+		ReentrantLock lock = new ReentrantLock();
+		AtomicInteger globalQueryCounter = new AtomicInteger(0);
+
+		ArrayList<String> concepts = new ArrayList<String>(inputSpace.getVertexSet());
+		System.err.printf("%d concepts to correct\n", concepts.size());
+
+		ParallelConsumer<String> pc = new ParallelConsumer<>(numThreads);
+		pc.parallelForEach(concepts, concept -> {
+			try {
+				String output = askLLM_for_correctedText(concept);
+				ConceptPair<String> cp = new ConceptPair<String>(concept, output);
+				lock.lock();
+				replacements.add(cp);
+				lock.unlock();
+				int counter = globalQueryCounter.incrementAndGet();
+				if (counter % 10 == 0) {
+					System.err.println(counter);
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			// System.out.println(concept);
+		});
+		System.out.println("waiting");
+		pc.shutdown();
+		System.out.println("shutdown");
+		for (ConceptPair<String> replacement : replacements) {
+			String original = replacement.getLeftConcept();
+			String replace = replacement.getRightConcept();
+			inputSpace.renameVertex(original, replace);
+		}
+	}
+
 	public static String[] askLLM_for_type_of(String concept) throws IOException, URISyntaxException {
 		// tambem pode ser "ontology speaking, %concept% is a type of? do not explain the answers"
-		//String prompt = "Use american english. Do not explain your answer nor your reasoning. Give all possible answers. Ontology speaking, what are the superclasses for %concept%?";
+		// String prompt = "Use american english. Do not explain your answer nor your reasoning. Give all possible answers. Ontology speaking, what are the
+		// superclasses for %concept%?";
 		String prompt = """
-				You are a knowledge base that answers to questions made by an expert system. 
-				All your knowledge is in american english. 
+				You are a knowledge base that answers to questions made by an expert system.
+				All your knowledge is in american english.
 				You have a comprehensive ontology and knowledge base that spans the basic concepts and rules about how the world works.
-				You do not explain your answer nor your reasoning. You give all possible answers. Try to be as specific as possible and do not generalize. 
+				You do not explain your answer nor your reasoning. You give all possible answers. Try to be as specific as possible and do not generalize.
 				Ontology speaking, what are the superclasses for %concept%?""";
 		String text = prompt.replace("%concept%", concept);
 		System.out.println(text);
@@ -115,16 +174,16 @@ public class GoogleLLM_knowledgeExtractor {
 //				what are the components of %concept% and their function?
 //				give their function with a single action verb. Do not explain their function.
 //				""";
-		String prompt="""
-		You are a knowledge base that answers questions made by an expert system. 
-		All your knowledge is in American English. 
-		You have a comprehensive ontology and knowledge base that spans the basic concepts and rules about how the world works.
-		You do not explain your answer nor your reasoning. You answer all possibilities. Try to be as specific as possible and do not generalize.
-		The questions made to you are about a generic entity and their constituent parts. You answer with as many parts of the entity as possible. You answer each part as a noun in the singular form.
-		For each part, you answer as many purposes for that part as possible. You answer each purpose with a single action verb.
-		You answer each part in one line followed by the various purposes of that part.
+		String prompt = """
+				You are a knowledge base that answers questions made by an expert system.
+				All your knowledge is in American English.
+				You have a comprehensive ontology and knowledge base that spans the basic concepts and rules about how the world works.
+				You do not explain your answer nor your reasoning. You answer all possibilities. Try to be as specific as possible and do not generalize.
+				The questions made to you are about a generic entity and their constituent parts. You answer with as many parts of the entity as possible. You answer each part as a noun in the singular form.
+				For each part, you answer as many purposes for that part as possible. You answer each purpose with a single action verb.
+				You answer each part in one line followed by the various purposes of that part.
 
-		What are the parts and their purpose of a %concept%?""";
+				What are the parts and their purpose of a %concept%?""";
 
 		String text = prompt.replace("%concept%", concept);
 		String reply = GoogleLLM_Caller.doRequest(text);
