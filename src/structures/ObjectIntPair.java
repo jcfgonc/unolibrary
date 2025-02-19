@@ -1,24 +1,25 @@
 package structures;
 
 /**
- * Class associating an object to a number, i.e., an object and its count. To be used as a pair "<T>, int" representing the number of elements T present in some structure.
+ * Class associating an object to an integer, i.e., an object and its count. To be used as a pair "<T>, int" representing the number of elements T present in
+ * some structure.
  * 
  * @author CK
  *
  * @param <T>
  */
-public class ObjectCount<T> implements Comparable<ObjectCount<T>> {
+public class ObjectIntPair<T> implements Comparable<ObjectIntPair<T>> {
 	private int count;
 	private T id;
 
-	public ObjectCount(T id, int count) {
+	public ObjectIntPair(T id, int count) {
 		super();
 		this.id = id;
 		this.count = count;
 	}
 
 	@Override
-	public int compareTo(ObjectCount<T> o) {
+	public int compareTo(ObjectIntPair<T> o) {
 		return Integer.compare(o.count, count); // decreasing
 	}
 

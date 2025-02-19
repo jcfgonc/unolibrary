@@ -63,20 +63,20 @@ public class ObjectCounter<T> {
 
 	public void toSystemOut(int lowLimit) {
 
-		ArrayList<ObjectCount<T>> counts = getSortedCount();
+		ArrayList<ObjectIntPair<T>> counts = getSortedCount();
 
-		for (ObjectCount<T> count : counts) {
+		for (ObjectIntPair<T> count : counts) {
 			if (count.getCount() < lowLimit)
 				break;
 			System.out.println(count);
 		}
 	}
 
-	public ArrayList<ObjectCount<T>> getSortedCount() {
-		ArrayList<ObjectCount<T>> counts = new ArrayList<>();
+	public ArrayList<ObjectIntPair<T>> getSortedCount() {
+		ArrayList<ObjectIntPair<T>> counts = new ArrayList<>();
 		for (T key : keySet()) {
 			int count = getCount(key);
-			counts.add(new ObjectCount<>(key, count));
+			counts.add(new ObjectIntPair<>(key, count));
 		}
 		counts.sort(null);
 		return counts;

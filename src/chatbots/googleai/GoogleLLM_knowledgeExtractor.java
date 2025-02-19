@@ -5,6 +5,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
@@ -13,7 +14,8 @@ import graph.StringEdge;
 import graph.StringGraph;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import stream.ParallelConsumer;
-import structures.ConceptPair;
+import structures.CSVWriter;
+import structures.DirectionalMapping;
 
 public class GoogleLLM_knowledgeExtractor {
 
@@ -94,15 +96,17 @@ public class GoogleLLM_knowledgeExtractor {
 		String text = prompt.replace("%concept%", concept);
 		String reply = GoogleLLM_Caller.doRequest(text);
 		reply = reply.trim();
-		reply = reply.replace(".", "");
+		if (reply.endsWith(".")) {
+			reply = reply.substring(0, reply.length() - 1);
+		}
 		reply = reply.toLowerCase();
-		System.out.printf("%s\t%s\n", concept, reply);
+//		System.out.printf("%s\t%s\n", concept, reply);
 		return reply;
 	}
 
 	public static void correctConcepts(StringGraph inputSpace) throws IOException, URISyntaxException, InterruptedException {
 		final int numThreads = 8;
-		ArrayList<ConceptPair<String>> replacements = new ArrayList<ConceptPair<String>>();
+		ArrayList<DirectionalMapping<String>> replacements = new ArrayList<DirectionalMapping<String>>();
 		ReentrantLock lock = new ReentrantLock();
 		AtomicInteger globalQueryCounter = new AtomicInteger(0);
 
@@ -113,7 +117,7 @@ public class GoogleLLM_knowledgeExtractor {
 		pc.parallelForEach(concepts, concept -> {
 			try {
 				String output = askLLM_for_correctedText(concept);
-				ConceptPair<String> cp = new ConceptPair<String>(concept, output);
+				DirectionalMapping<String> cp = new DirectionalMapping<String>(concept, output);
 				lock.lock();
 				replacements.add(cp);
 				lock.unlock();
@@ -121,6 +125,7 @@ public class GoogleLLM_knowledgeExtractor {
 				if (counter % 10 == 0) {
 					System.err.println(counter);
 				}
+
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
@@ -129,11 +134,15 @@ public class GoogleLLM_knowledgeExtractor {
 		System.out.println("waiting");
 		pc.shutdown();
 		System.out.println("shutdown");
-		for (ConceptPair<String> replacement : replacements) {
-			String original = replacement.getLeftConcept();
-			String replace = replacement.getRightConcept();
-			inputSpace.renameVertex(original, replace);
+
+		CSVWriter csv = new CSVWriter("translation.tsv", "\t");
+		for (DirectionalMapping<String> replacement : replacements) {
+			csv.writeCell(replacement.getSource());
+			csv.writeColumnSeparator();
+			csv.writeCell(replacement.getTarget());
+			csv.writeNewLine();
 		}
+		csv.close();
 	}
 
 	public static String[] askLLM_for_type_of(String concept) throws IOException, URISyntaxException {

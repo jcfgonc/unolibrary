@@ -813,4 +813,14 @@ public class StringGraph implements Serializable {
 		removeVertices(toRemove);
 	}
 
+	public void removeIncomingEdgesOf(String target, String relation) {
+		Set<StringEdge> toDelete = incomingEdgesOf(target, relation);
+		removeEdges(toDelete);
+	}
+
+	public void removeOutgoingEdgesOf(String target, String relation) {
+		Set<StringEdge> toDelete = outgoingEdgesOf(target, relation);
+		removeEdges(toDelete);
+	}
+
 }

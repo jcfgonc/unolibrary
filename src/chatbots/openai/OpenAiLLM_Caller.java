@@ -46,15 +46,211 @@ public class OpenAiLLM_Caller {
 		initialized = true;
 	}
 
+	public static String getSingularForm(String entity) {
+		String prompt = "do not format your output. write the following sentence in the form subject verb object, with the subject the first person singular present and the object in the singular: %s";
+		String text = String.format(prompt.trim(), entity);
+		String reply = "";
+		try {
+			reply = doRequest(text).toLowerCase().strip();
+			System.lineSeparator();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		} catch (CompletionException e) {
+			System.err.println(e.getMessage());
+			// HTTP interaction failed: server returned a 429 response status.
+			// 429 error means that query rate limit has been Exceeded
+			if (e.getMessage().contains("429")) {
+				rateLimitExceeded.set(true);
+			}
+		}
+		return reply;
+	}
+
 	public static String doRequest(String prompt) throws IOException, URISyntaxException {
 		init();
 
-		ChatRequest chatRequest = ChatRequest.builder().model(llm_model).message(UserMessage.of(prompt)).temperature(0.0).maxCompletionTokens(1024).build();
+		ChatRequest chatRequest = ChatRequest.builder().model(llm_model).message(UserMessage.of(prompt)).temperature(0.0).maxCompletionTokens(512).build();
 		CompletableFuture<Chat> futureChat = chatCompletions.create(chatRequest);
 		Chat chatResponse = futureChat.join();
 		String firstContent = chatResponse.firstContent();
 //		System.out.println(firstContent);
 		return firstContent;
+	}
+
+	public static boolean checkIfEntityHasRequirements(String entity) throws IOException, URISyntaxException {
+		String prompt = "does %s %s require anything? answer yes or no";
+		String article = IndefiniteArticle.get(entity);
+		String text = String.format(prompt.trim(), article, entity);
+		String reply = "";
+		try {
+			reply = doRequest(text).toLowerCase().strip();
+			System.lineSeparator();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		} catch (CompletionException e) {
+			System.err.println(e.getMessage());
+			// HTTP interaction failed: server returned a 429 response status.
+			// 429 error means that query rate limit has been Exceeded
+			if (e.getMessage().contains("429")) {
+				rateLimitExceeded.set(true);
+			}
+		}
+
+		if (reply.startsWith("yes")) {
+			return true;
+		} else if (reply.startsWith("no")) {
+			return false;
+		} else
+			System.err.println("unknown answer:" + reply + " for query\n" + text);
+		return false;
+	}
+
+	public static boolean checkIfEntityHasDesires(String entity) throws IOException, URISyntaxException {
+		String prompt = "does %s %s have desires? answer yes or no.";
+		String article = IndefiniteArticle.get(entity);
+		String text = String.format(prompt.trim(), article, entity);
+		String reply = "";
+		try {
+			reply = doRequest(text).toLowerCase().strip();
+			System.lineSeparator();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		} catch (CompletionException e) {
+			System.err.println(e.getMessage());
+			// HTTP interaction failed: server returned a 429 response status.
+			// 429 error means that query rate limit has been Exceeded
+			if (e.getMessage().contains("429")) {
+				rateLimitExceeded.set(true);
+			}
+		}
+
+		if (reply.startsWith("yes")) {
+			return true;
+		} else if (reply.startsWith("no")) {
+			return false;
+		} else
+			System.err.println("unknown answer:" + reply + " for query\n" + text);
+		return false;
+	}
+
+	public static boolean checkIfEntityHasMotivesOrGoals(String entity) throws IOException, URISyntaxException {
+		String prompt = "does %s %s have goals to achieve? answer yes or no.";
+		String article = IndefiniteArticle.get(entity);
+		String text = String.format(prompt.trim(), article, entity);
+		String reply = "";
+		try {
+			reply = doRequest(text).toLowerCase().strip();
+			System.lineSeparator();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		} catch (CompletionException e) {
+			System.err.println(e.getMessage());
+			// HTTP interaction failed: server returned a 429 response status.
+			// 429 error means that query rate limit has been Exceeded
+			if (e.getMessage().contains("429")) {
+				rateLimitExceeded.set(true);
+			}
+		}
+
+		if (reply.startsWith("yes")) {
+			return true;
+		} else if (reply.startsWith("no")) {
+			return false;
+		} else
+			System.err.println("unknown answer:" + reply + " for query\n" + text);
+		return false;
+	}
+
+	public static boolean checkIfEntityHasNotableIdeas(String entity) throws IOException, URISyntaxException {
+		String prompt = "is %s known to have notable ideas? answer yes or no.";
+		String article = IndefiniteArticle.get(entity);
+		String text = String.format(prompt.trim(), article, entity);
+		String reply = "";
+		try {
+			reply = doRequest(text).toLowerCase().strip();
+			System.lineSeparator();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		} catch (CompletionException e) {
+			System.err.println(e.getMessage());
+			// HTTP interaction failed: server returned a 429 response status.
+			// 429 error means that query rate limit has been Exceeded
+			if (e.getMessage().contains("429")) {
+				rateLimitExceeded.set(true);
+			}
+		}
+
+		if (reply.startsWith("yes")) {
+			return true;
+		} else if (reply.startsWith("no")) {
+			return false;
+		} else
+			System.err.println("unknown answer:" + reply + " for query\n" + text);
+		return false;
+	}
+
+	public static ArrayList<StringEdge> getPartsAndPurpose(String entity) {
+		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
+		String prompt = """
+				You are a knowledge base that answers questions made by an expert system. All your knowledge is in American English.
+				You have a comprehensive ontology and knowledge base that spans the basic concepts and rules about how the world works.
+				You do not explain your answer nor your reasoning. You answer all possibilities. Be as specific as possible. Do not generalize.
+				The questions made to you are about a generic entity and its constituent parts. You answer with as many parts of the entity as possible.
+				You answer each part as a noun in the singular form. For each part, you answer as many purposes for that part as possible.
+				Answer each purpose as verb object. You answer each part in one line followed by the various purposes of that part. Do not format your answer.
+				What are the parts and their purpose of %s %s?
+								""";
+		String article = IndefiniteArticle.get(entity);
+		String text = String.format(prompt.trim(), article, entity);
+		String reply = "";
+
+		try {
+			reply = doRequest(text).toLowerCase().strip();
+			reply = reply.replace(", ", ","); // you never know...
+			reply = reply.replace(".", "");
+			reply = reply.replace("\t", " "); // tabs -> spaces
+			reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
+			reply = reply.replace("\r\n", "\n"); // windows -> unix newline
+			reply = reply.replaceAll("[\n]+", "\n"); // empty lines
+			reply = reply.replace(" \n", "\n"); // empty lines
+
+			String[] lines = reply.split("\n");
+			for (String line : lines) {
+				String[] tokens = line.split(":");
+				String part = tokens[0];
+				StringEdge partof = new StringEdge(part, entity, "partof");
+				facts.add(partof);
+				String[] purposes = tokens[1].split(",");
+				for (String purpose : purposes) {
+					purpose = purpose.trim();
+					StringEdge purposeFact = new StringEdge(part, purpose, "usedfor");
+					facts.add(purposeFact);
+				}
+		//		System.lineSeparator();
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		} catch (CompletionException e) {
+			System.err.println(e.getMessage());
+			// HTTP interaction failed: server returned a 429 response status.
+			// 429 error means that query rate limit has been Exceeded
+			if (e.getMessage().contains("429")) {
+				rateLimitExceeded.set(true);
+			}
+		}
+		return facts;
 	}
 
 	public static BooleanArrayList verifyISA_facts(Collection<StringEdge> edges) throws IOException, URISyntaxException {
@@ -202,9 +398,14 @@ public class OpenAiLLM_Caller {
 		ReentrantLock exitLock = new ReentrantLock();
 		ArrayDeque<StringEdge> edges = new ArrayDeque<StringEdge>(graph.edgeSet("isa"));
 
+		if (edges.isEmpty()) {
+			System.err.println("empty edge list, aborting");
+			return;
+		}
+
 		ExecutorService executorService = Executors.newFixedThreadPool(numThreads);
 		File stopFile = new File("stop");
-		System.out.println(	VariousUtils.getCurrentWorkingDirectory());
+		System.out.println(VariousUtils.getCurrentWorkingDirectory());
 
 		for (int tn = 0; tn < numThreads; tn++) {
 			executorService.execute(new Runnable() {
@@ -217,10 +418,10 @@ public class OpenAiLLM_Caller {
 					boolean flag = true;
 
 					while (flag) {
-						
+
 						if (stopFile.exists())
 							flag = false;
-						
+
 						if (rateLimitExceeded.get()) {
 							try {
 								Thread.sleep(pauseDurationMillis);

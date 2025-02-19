@@ -44,7 +44,7 @@ public class CSVWriter {
 		this.headerWritten = false;
 		this.filename = filename;
 		this.columnSeparator = columnSeparator;
-		bw = new BufferedWriter(new FileWriter(filename, StandardCharsets.UTF_8));
+		bw = new BufferedWriter(new FileWriter(filename, StandardCharsets.UTF_8), 1 << 16);
 	}
 
 	public void close() throws IOException {
@@ -77,6 +77,19 @@ public class CSVWriter {
 				bw.write(columnSeparator);
 			}
 		}
+		bw.newLine();
+	}
+
+	public void writeCell(String cell) throws IOException {
+		bw.write(cell);
+	}
+
+	public void writeColumnSeparator() throws IOException {
+		bw.write(columnSeparator);
+	}
+
+	public void writeNewLine() throws IOException {
+		headerWritten = true;
 		bw.newLine();
 	}
 

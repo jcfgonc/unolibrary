@@ -39,7 +39,9 @@ import org.apache.commons.math3.random.RandomGenerator;
 import org.apache.commons.math3.util.FastMath;
 
 import graph.StringEdge;
+import graph.StringGraph;
 import it.unimi.dsi.fastutil.chars.CharOpenHashSet;
+import structures.ObjectCounter;
 
 public class VariousUtils {
 	public static final Set<StringEdge> unmodifiableEmptySet = Collections.unmodifiableSet(new HashSet<StringEdge>(0));
@@ -822,5 +824,13 @@ public class VariousUtils {
 	public static String getCurrentWorkingDirectory() {
 		String cwd = Path.of("").toAbsolutePath().toString();
 		return cwd;
+	}
+
+	public static ObjectCounter<String> countEdgeTargetsOf(StringGraph graph, String relation) {
+		ObjectCounter<String> targetCounter = new ObjectCounter<String>();
+		for (StringEdge edge : graph.edgeSet(relation)) {
+			targetCounter.addObject(edge.getTarget());
+		}
+		return targetCounter;
 	}
 }
