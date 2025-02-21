@@ -46,9 +46,39 @@ public class OpenAiLLM_Caller {
 		initialized = true;
 	}
 
-	public static String getSingularForm(String entity) {
-		String prompt = "do not format your output. write the following sentence in the form subject verb object, with the subject the first person singular present and the object in the singular: %s";
-		String text = String.format(prompt.trim(), entity);
+	public static String getSingularForm(String concept) {
+		String prompt = """
+				Not explaining your process and only giving your conversion,
+				convert all the plural nouns of the given sentence  to singular:
+				%s
+				""";
+		String text = String.format(prompt.trim(), concept);
+		String reply = "";
+		try {
+			reply = doRequest(text).toLowerCase().strip();
+			System.lineSeparator();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		} catch (CompletionException e) {
+			System.err.println(e.getMessage());
+			// HTTP interaction failed: server returned a 429 response status.
+			// 429 error means that query rate limit has been Exceeded
+			if (e.getMessage().contains("429")) {
+				rateLimitExceeded.set(true);
+			}
+		}
+		return reply;
+	}
+
+	public static String getSingularForm_old(String concept) {
+		String prompt = """
+				do not format your output.
+				write the following sentence in the form subject verb object,
+				with the subject the first person singular present and the object in the singular:
+				%s""";
+		String text = String.format(prompt.trim(), concept);
 		String reply = "";
 		try {
 			reply = doRequest(text).toLowerCase().strip();
@@ -79,10 +109,15 @@ public class OpenAiLLM_Caller {
 		return firstContent;
 	}
 
-	public static boolean checkIfEntityHasRequirements(String entity) throws IOException, URISyntaxException {
-		String prompt = "does %s %s require anything? answer yes or no";
-		String article = IndefiniteArticle.get(entity);
-		String text = String.format(prompt.trim(), article, entity);
+	public static boolean checkIfEntityHasRequirements(String entity) {
+		String prompt = """
+				You are a knowledge base that answers questions made by an expert system.
+				All your knowledge is in English. You have a comprehensive ontology and
+				knowledge base that spans the basic concepts and rules about how the world works.
+				Be as specific as possible and do not generalize. Answer the following question with yes or no.
+				does %s require anything or %s have pre-conditions?""";
+		// String article = IndefiniteArticle.get(entity);
+		String text = String.format(prompt.trim(), entity, entity);
 		String reply = "";
 		try {
 			reply = doRequest(text).toLowerCase().strip();
@@ -109,10 +144,15 @@ public class OpenAiLLM_Caller {
 		return false;
 	}
 
-	public static boolean checkIfEntityHasDesires(String entity) throws IOException, URISyntaxException {
-		String prompt = "does %s %s have desires? answer yes or no.";
-		String article = IndefiniteArticle.get(entity);
-		String text = String.format(prompt.trim(), article, entity);
+	public static boolean checkIfEntityHasDesires(String entity) {
+		String prompt = """
+				You are a knowledge base that answers questions made by an expert system.
+				All your knowledge is in English. You have a comprehensive ontology and
+				knowledge base that spans the basic concepts and rules about how the world works.
+				Be as specific as possible and do not generalize. Answer the following question with yes or no.
+				does %s have desires?""";
+		// String article = IndefiniteArticle.get(entity);
+		String text = String.format(prompt.trim(), entity);
 		String reply = "";
 		try {
 			reply = doRequest(text).toLowerCase().strip();
@@ -140,9 +180,14 @@ public class OpenAiLLM_Caller {
 	}
 
 	public static boolean checkIfEntityHasMotivesOrGoals(String entity) throws IOException, URISyntaxException {
-		String prompt = "does %s %s have goals to achieve? answer yes or no.";
-		String article = IndefiniteArticle.get(entity);
-		String text = String.format(prompt.trim(), article, entity);
+		String prompt = """
+				You are a knowledge base that answers questions made by an expert system.
+				All your knowledge is in English. You have a comprehensive ontology and
+				knowledge base that spans the basic concepts and rules about how the world works.
+				Be as specific as possible and do not generalize. Answer the following question with yes or no.
+				does %s have goals to achieve?""";
+		// String article = IndefiniteArticle.get(entity);
+		String text = String.format(prompt.trim(), entity);
 		String reply = "";
 		try {
 			reply = doRequest(text).toLowerCase().strip();
@@ -199,15 +244,390 @@ public class OpenAiLLM_Caller {
 		return false;
 	}
 
+	public static ArrayList<StringEdge> getDesiresCaused(String entity) {
+		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
+		String prompt = """
+				You are a knowledge base that answers questions made by an expert system. All your knowledge is in English.
+				You have a comprehensive ontology and knowledge base that spans the basic concepts and rules about how the world works.
+				You do not explain your answer nor your reasoning. You answer all possibilities. Try to be as specific as possible
+				and do not generalize.
+				The questions are about a generic entity and what desires it might elicit in someone. You answer the most important desires by that
+				entity. A desire may be conscious impulses towards something that promises enjoyment or satisfaction in its attainment, longing or
+				craving or a sudden spontaneous inclination or incitement to some usually unpremeditated action.
+				You answer each elicited desire as a noun or a noun phrase. You answer one elicited desire per line. Do not fancy format your answer.
+				Which desires does %s elicit in someone?""";
+		String text = String.format(prompt.trim(), entity);
+		String reply = "";
+
+		try {
+			reply = doRequest(text).toLowerCase().strip();
+			reply = reply.replace(", ", ","); // you never know...
+			reply = reply.replace(".", "");
+			reply = reply.replace("\t", " "); // tabs -> spaces
+			reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
+			reply = reply.replace("\r\n", "\n"); // windows -> unix newline
+			reply = reply.replaceAll("[\n]+", "\n"); // empty lines
+			reply = reply.replace(" \n", "\n"); // empty lines
+			reply = reply.replaceAll("\\([\\w ]+\\)", "");
+
+			String[] lines = reply.split("\n");
+			for (String line : lines) {
+				String target = line.strip();
+				StringEdge edge = new StringEdge(entity, target, "causesdesire");
+				facts.add(edge);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		} catch (CompletionException e) {
+			System.err.println(e.getMessage());
+			// HTTP interaction failed: server returned a 429 response status.
+			// 429 error means that query rate limit has been Exceeded
+			if (e.getMessage().contains("429")) {
+				rateLimitExceeded.set(true);
+			}
+		}
+		return facts;
+	}
+
+	public static ArrayList<StringEdge> getRequirements(String entity) {
+		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
+		if (!checkIfEntityHasRequirements(entity)) {
+			return facts;
+		}
+		String prompt = """
+				You are a knowledge base that answers questions made by an expert system. All your knowledge is in English.
+				You have a comprehensive ontology and knowledge base that spans the basic concepts and rules about how the
+				world works. You do not explain your answer nor your reasoning. You answer all possibilities. Answer as
+				specific as possible and do not generalize.
+				The questions are about a generic entity and its requirements. You answer the most important requirements
+				by that entity. A requirement may be something required for the entity’s functioning, something required
+				for its existence, or something required for its purpose. You answer each requirement as a noun or a
+				noun phrase. You give one answer per line.
+				What does %s require?""";
+		String text = String.format(prompt.trim(), entity);
+		String reply = "";
+
+		try {
+			reply = doRequest(text).toLowerCase().strip();
+			reply = reply.replace(", ", ","); // you never know...
+			reply = reply.replace(".", "");
+			reply = reply.replace("\t", " "); // tabs -> spaces
+			reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
+			reply = reply.replace("\r\n", "\n"); // windows -> unix newline
+			reply = reply.replaceAll("[\n]+", "\n"); // empty lines
+			reply = reply.replace(" \n", "\n"); // empty lines
+			reply = reply.replaceAll("\\([\\w ]+\\)", "");
+
+			String[] lines = reply.split("\n");
+			for (String line : lines) {
+				String target = line.strip();
+				StringEdge edge = new StringEdge(entity, target, "requires");
+				facts.add(edge);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		} catch (CompletionException e) {
+			System.err.println(e.getMessage());
+			// HTTP interaction failed: server returned a 429 response status.
+			// 429 error means that query rate limit has been Exceeded
+			if (e.getMessage().contains("429")) {
+				rateLimitExceeded.set(true);
+			}
+		}
+		return facts;
+	}
+
+	public static ArrayList<StringEdge> getCauses(String entity) {
+		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
+		String prompt = """
+				You are a knowledge base that answers questions made by an expert system. All your knowledge is in English. 
+				You have a comprehensive ontology and knowledge base that spans the basic concepts and rules about how the world works. 
+				You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. 
+				You do not generalize. Your answer are in simple text. Your answers are easily stored in a knowledge graph. 
+				The questions are about a generic entity and what it causes or consequences. 
+				You answer the most important causes by that entity. A cause may be something that the entity causes either 
+				by existing or by interacting with something or someone, such as occasions or events. You give one cause per line. 
+				Do not fancy format your output. You answer each cause as a noun phrase. 
+				What does %s cause?""";
+		String text = String.format(prompt.trim(), entity);
+		String reply = "";
+
+		try {
+			reply = doRequest(text).toLowerCase().strip();
+			reply = reply.replace(", ", ","); // you never know...
+			reply = reply.replace(".", "");
+			reply = reply.replace("\t", " "); // tabs -> spaces
+			reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
+			reply = reply.replace("\r\n", "\n"); // windows -> unix newline
+			reply = reply.replaceAll("[\n]+", "\n"); // empty lines
+			reply = reply.replace(" \n", "\n"); // empty lines
+			reply = reply.replaceAll("\\([\\w ]+\\)", "");
+
+			String[] lines = reply.split("\n");
+			for (String line : lines) {
+				String target = line.strip();
+				StringEdge edge = new StringEdge(entity, target, "causes");
+				facts.add(edge);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		} catch (CompletionException e) {
+			System.err.println(e.getMessage());
+			// HTTP interaction failed: server returned a 429 response status.
+			// 429 error means that query rate limit has been Exceeded
+			if (e.getMessage().contains("429")) {
+				rateLimitExceeded.set(true);
+			}
+		}
+		return facts;
+	}
+
+	public static ArrayList<StringEdge> getMadeOf(String entity) {
+		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
+		String prompt = """
+				You are a knowledge base that answers questions made by an expert system. All your knowledge is in American English.
+				You have a comprehensive ontology and knowledge base that spans the basic concepts and rules about how the world works.
+				You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible about
+				the question asked. You do not generalize.
+				The questions made to you are about an entity and what materials or substances it is made of.
+				You answer one material per line. Do not format your answer.
+				What is %s made of?""";
+		String text = String.format(prompt.trim(), entity);
+		String reply = "";
+
+		try {
+			reply = doRequest(text).toLowerCase().strip();
+			reply = reply.replace(", ", ","); // you never know...
+			reply = reply.replace(".", "");
+			reply = reply.replace("\t", " "); // tabs -> spaces
+			reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
+			reply = reply.replace("\r\n", "\n"); // windows -> unix newline
+			reply = reply.replaceAll("[\n]+", "\n"); // empty lines
+			reply = reply.replace(" \n", "\n"); // empty lines
+			reply = reply.replaceAll("\\([\\w ]+\\)", "");
+
+			String[] lines = reply.split("\n");
+			for (String line : lines) {
+				String target = line.strip();
+				StringEdge edge = new StringEdge(entity, target, "madeof");
+				facts.add(edge);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		} catch (CompletionException e) {
+			System.err.println(e.getMessage());
+			// HTTP interaction failed: server returned a 429 response status.
+			// 429 error means that query rate limit has been Exceeded
+			if (e.getMessage().contains("429")) {
+				rateLimitExceeded.set(true);
+			}
+		}
+		return facts;
+	}
+
+	public static ArrayList<StringEdge> getEntityDislikes(String entity) {
+		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
+		if (!checkIfEntityHasDesires(entity)) {
+			return facts;
+		}
+		String prompt = """
+				You are a knowledge base that answers questions made by an expert system. All your knowledge is in English.
+				You have a comprehensive ontology and knowledge base that spans the basic concepts and rules about how the world works.
+				You do not explain your answer nor your reasoning. You answer all possibilities.
+				Try to be as specific as possible. Do not generalize.
+				The questions are about an entity and what that entity might dislike, has repulsion of, loathes or averts.
+				You answer each dislike as a noun in the singular or an action verb. You list one dislike per line. Do not format your answer.
+				What does %s dislike?""";
+		String text = String.format(prompt.trim(), entity);
+		String reply = "";
+
+		try {
+			reply = doRequest(text).toLowerCase().strip();
+			reply = reply.replace(", ", ","); // you never know...
+			reply = reply.replace(".", "");
+			reply = reply.replace("\t", " "); // tabs -> spaces
+			reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
+			reply = reply.replace("\r\n", "\n"); // windows -> unix newline
+			reply = reply.replaceAll("[\n]+", "\n"); // empty lines
+			reply = reply.replace(" \n", "\n"); // empty lines
+
+			String[] lines = reply.split("\n");
+			for (String line : lines) {
+				String target = line.strip();
+				StringEdge edge = new StringEdge(entity, target, "notdesires");
+				facts.add(edge);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		} catch (CompletionException e) {
+			System.err.println(e.getMessage());
+			// HTTP interaction failed: server returned a 429 response status.
+			// 429 error means that query rate limit has been Exceeded
+			if (e.getMessage().contains("429")) {
+				rateLimitExceeded.set(true);
+			}
+		}
+		return facts;
+	}
+
+	public static ArrayList<StringEdge> getEntityDesires(String entity) {
+		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
+		if (!checkIfEntityHasDesires(entity)) {
+			return facts;
+		}
+		String prompt = """
+				You are a knowledge base that answers questions made by an expert system. All your knowledge is in English.
+				You have a comprehensive ontology and knowledge base that spans the basic concepts and rules about how the world works.
+				You do not explain your answer nor your reasoning. You answer all possibilities. Try to be as specific as possible.
+				Do not generalize.
+				The questions are about an entity and what that entity might desire.
+				You answer each desire as a noun in the singular or an action verb. You list one desire per line.
+				Do not format your answer.
+				What does %s desire?""";
+		String text = String.format(prompt.trim(), entity);
+		String reply = "";
+
+		try {
+			reply = doRequest(text).toLowerCase().strip();
+			reply = reply.replace(", ", ","); // you never know...
+			reply = reply.replace(".", "");
+			reply = reply.replace("\t", " "); // tabs -> spaces
+			reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
+			reply = reply.replace("\r\n", "\n"); // windows -> unix newline
+			reply = reply.replaceAll("[\n]+", "\n"); // empty lines
+			reply = reply.replace(" \n", "\n"); // empty lines
+
+			String[] lines = reply.split("\n");
+			for (String line : lines) {
+				String target = line.strip();
+				StringEdge edge = new StringEdge(entity, target, "desires");
+				facts.add(edge);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		} catch (CompletionException e) {
+			System.err.println(e.getMessage());
+			// HTTP interaction failed: server returned a 429 response status.
+			// 429 error means that query rate limit has been Exceeded
+			if (e.getMessage().contains("429")) {
+				rateLimitExceeded.set(true);
+			}
+		}
+		return facts;
+	}
+
+	public static ArrayList<StringEdge> getCapableOf(String entity) {
+		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
+		String prompt = """
+				You are a knowledge base that answers questions made by an expert system. All your knowledge is in English.
+				You have a comprehensive ontology and knowledge base that spans the basic concepts and rules about how the world works.
+				You do not explain your answer nor your reasoning. You answer all possibilities.
+				Try to be as specific as possible and do not generalize.
+				The questions are about an entity and what that entity is capable of or able to.
+				You answer the most important and specific capabilities. You answer each capability of that entity as an action verb.
+				Do not format your answer. You list one capability per line.
+				What is %s capable of?""";
+		String text = String.format(prompt.trim(), entity);
+		String reply = "";
+
+		try {
+			reply = doRequest(text).toLowerCase().strip();
+			reply = reply.replace(", ", ","); // you never know...
+			reply = reply.replace(".", "");
+			reply = reply.replace("\t", " "); // tabs -> spaces
+			reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
+			reply = reply.replace("\r\n", "\n"); // windows -> unix newline
+			reply = reply.replaceAll("[\n]+", "\n"); // empty lines
+			reply = reply.replace(" \n", "\n"); // empty lines
+
+			String[] lines = reply.split("\n");
+			for (String line : lines) {
+				String target = line.strip();
+				StringEdge edge = new StringEdge(entity, target, "capableof");
+				facts.add(edge);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		} catch (CompletionException e) {
+			System.err.println(e.getMessage());
+			// HTTP interaction failed: server returned a 429 response status.
+			// 429 error means that query rate limit has been Exceeded
+			if (e.getMessage().contains("429")) {
+				rateLimitExceeded.set(true);
+			}
+		}
+		return facts;
+	}
+
+	public static ArrayList<StringEdge> getWhatIsPartOf(String entity) {
+		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
+		String prompt = """
+				You are a knowledge base that answers questions made by an expert system. All your knowledge is in English.
+				You have a comprehensive ontology and knowledge base that spans the basic concepts and rules about how the world works.
+				You do not explain your answer nor your reasoning. You answer all possibilities.
+				Try to be as specific as possible and do not generalize.
+				The questions are about an entity and what it may be part of. You answer each thing that entity is part of as noun.
+				You list one thing that entity is part of per line.	Do not format your answer.
+				What is %s part of?	""";
+		String text = String.format(prompt.trim(), entity);
+		String reply = "";
+
+		try {
+			reply = doRequest(text).toLowerCase().strip();
+			reply = reply.replace(", ", ","); // you never know...
+			reply = reply.replace(".", "");
+			reply = reply.replace("\t", " "); // tabs -> spaces
+			reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
+			reply = reply.replace("\r\n", "\n"); // windows -> unix newline
+			reply = reply.replaceAll("[\n]+", "\n"); // empty lines
+			reply = reply.replace(" \n", "\n"); // empty lines
+
+			String[] lines = reply.split("\n");
+			for (String line : lines) {
+				String target = line.strip();
+				StringEdge edge = new StringEdge(entity, target, "partof");
+				facts.add(edge);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		} catch (CompletionException e) {
+			System.err.println(e.getMessage());
+			// HTTP interaction failed: server returned a 429 response status.
+			// 429 error means that query rate limit has been Exceeded
+			if (e.getMessage().contains("429")) {
+				rateLimitExceeded.set(true);
+			}
+		}
+		return facts;
+	}
+
 	public static ArrayList<StringEdge> getPartsAndPurpose(String entity) {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
 		String prompt = """
 				You are a knowledge base that answers questions made by an expert system. All your knowledge is in American English.
 				You have a comprehensive ontology and knowledge base that spans the basic concepts and rules about how the world works.
 				You do not explain your answer nor your reasoning. You answer all possibilities. Be as specific as possible. Do not generalize.
+
 				The questions made to you are about a generic entity and its constituent parts. You answer with as many parts of the entity as possible.
 				You answer each part as a noun in the singular form. For each part, you answer as many purposes for that part as possible.
 				Answer each purpose as verb object. You answer each part in one line followed by the various purposes of that part. Do not format your answer.
+
 				What are the parts and their purpose of %s %s?
 								""";
 		String article = IndefiniteArticle.get(entity);
@@ -236,7 +656,7 @@ public class OpenAiLLM_Caller {
 					StringEdge purposeFact = new StringEdge(part, purpose, "usedfor");
 					facts.add(purposeFact);
 				}
-		//		System.lineSeparator();
+				// System.lineSeparator();
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
