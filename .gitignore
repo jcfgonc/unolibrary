@@ -1,3 +1,8 @@
 /.settings/
 /bin/
 /target/
+/corenlp/stanford-corenlp-models-current.jar
+/corenlp/stanford-english-extra-corenlp-models-current.jar
+/corenlp/stanford-english-kbp-corenlp-models-current.jar
+/data/google_api_key.txt
+/data/openai_api_key.txt

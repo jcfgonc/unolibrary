@@ -26,6 +26,7 @@ import io.github.sashirestela.openai.domain.chat.Chat;
 import io.github.sashirestela.openai.domain.chat.ChatMessage.UserMessage;
 import io.github.sashirestela.openai.domain.chat.ChatRequest;
 import it.unimi.dsi.fastutil.booleans.BooleanArrayList;
+import linguistics.GrammarUtilsCoreNLP;
 import utils.VariousUtils;
 
 public class OpenAiLLM_Caller {
@@ -44,58 +45,6 @@ public class OpenAiLLM_Caller {
 		openAI = SimpleOpenAI.builder().apiKey(api_key).build();
 		chatCompletions = openAI.chatCompletions();
 		initialized = true;
-	}
-
-	public static String getSingularForm(String concept) {
-		String prompt = """
-				Not explaining your process and only giving your conversion,
-				convert all the plural nouns of the given sentence  to singular:
-				%s
-				""";
-		String text = String.format(prompt.trim(), concept);
-		String reply = "";
-		try {
-			reply = doRequest(text).toLowerCase().strip();
-			System.lineSeparator();
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		} catch (CompletionException e) {
-			System.err.println(e.getMessage());
-			// HTTP interaction failed: server returned a 429 response status.
-			// 429 error means that query rate limit has been Exceeded
-			if (e.getMessage().contains("429")) {
-				rateLimitExceeded.set(true);
-			}
-		}
-		return reply;
-	}
-
-	public static String getSingularForm_old(String concept) {
-		String prompt = """
-				do not format your output.
-				write the following sentence in the form subject verb object,
-				with the subject the first person singular present and the object in the singular:
-				%s""";
-		String text = String.format(prompt.trim(), concept);
-		String reply = "";
-		try {
-			reply = doRequest(text).toLowerCase().strip();
-			System.lineSeparator();
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		} catch (CompletionException e) {
-			System.err.println(e.getMessage());
-			// HTTP interaction failed: server returned a 429 response status.
-			// 429 error means that query rate limit has been Exceeded
-			if (e.getMessage().contains("429")) {
-				rateLimitExceeded.set(true);
-			}
-		}
-		return reply;
 	}
 
 	public static String doRequest(String prompt) throws IOException, URISyntaxException {
@@ -249,12 +198,11 @@ public class OpenAiLLM_Caller {
 		String prompt = """
 				You are a knowledge base that answers questions made by an expert system. All your knowledge is in English.
 				You have a comprehensive ontology and knowledge base that spans the basic concepts and rules about how the world works.
-				You do not explain your answer nor your reasoning. You answer all possibilities. Try to be as specific as possible
-				and do not generalize.
-				The questions are about a generic entity and what desires it might elicit in someone. You answer the most important desires by that
-				entity. A desire may be conscious impulses towards something that promises enjoyment or satisfaction in its attainment, longing or
+				You do not explain your answer nor your reasoning. You answer all possibilities. Be specific about the question. Do not generalize.
+				The questions are about a *generic entity* and what *desires* it might *elicit* in someone. You answer the most important desires by that
+				entity in the form of a **verb**. A desire may be conscious impulses towards something that promises enjoyment or satisfaction in its attainment, longing or
 				craving or a sudden spontaneous inclination or incitement to some usually unpremeditated action.
-				You answer each elicited desire as a noun or a noun phrase. You answer one elicited desire per line. Do not fancy format your answer.
+				You answer each elicited desire with a **verb**. You answer one elicited desire per line. Do not fancy format your answer.
 				Which desires does %s elicit in someone?""";
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
@@ -272,7 +220,7 @@ public class OpenAiLLM_Caller {
 
 			String[] lines = reply.split("\n");
 			for (String line : lines) {
-				String target = line.strip();
+				String target = preprocessConcept(line);
 				StringEdge edge = new StringEdge(entity, target, "causesdesire");
 				facts.add(edge);
 			}
@@ -299,12 +247,11 @@ public class OpenAiLLM_Caller {
 		String prompt = """
 				You are a knowledge base that answers questions made by an expert system. All your knowledge is in English.
 				You have a comprehensive ontology and knowledge base that spans the basic concepts and rules about how the
-				world works. You do not explain your answer nor your reasoning. You answer all possibilities. Answer as
-				specific as possible and do not generalize.
-				The questions are about a generic entity and its requirements. You answer the most important requirements
-				by that entity. A requirement may be something required for the entity’s functioning, something required
+				world works. You do not explain your answer nor your reasoning. You answer all possibilities. Be specific. Do not generalize.
+				The questions are about a generic entity and its requirements. You answer the most important requirements.
+				A requirement may be something required for the entity’s functioning, something required
 				for its existence, or something required for its purpose. You answer each requirement as a noun or a
-				noun phrase. You give one answer per line.
+				noun phrase. You give one answer per line. Do not fancy format your answer.
 				What does %s require?""";
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
@@ -322,7 +269,7 @@ public class OpenAiLLM_Caller {
 
 			String[] lines = reply.split("\n");
 			for (String line : lines) {
-				String target = line.strip();
+				String target = preprocessConcept(line);
 				StringEdge edge = new StringEdge(entity, target, "requires");
 				facts.add(edge);
 			}
@@ -341,17 +288,18 @@ public class OpenAiLLM_Caller {
 		return facts;
 	}
 
+	private static String preprocessConcept(String line) {
+		String target = GrammarUtilsCoreNLP.preprocessConcept(line.strip());
+		target = target.replace("desire for ", "");
+		target = target.replace("desire to ", "");
+		return target;
+	}
+
 	public static ArrayList<StringEdge> getCauses(String entity) {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
 		String prompt = """
-				You are a knowledge base that answers questions made by an expert system. All your knowledge is in English. 
-				You have a comprehensive ontology and knowledge base that spans the basic concepts and rules about how the world works. 
-				You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. 
-				You do not generalize. Your answer are in simple text. Your answers are easily stored in a knowledge graph. 
-				The questions are about a generic entity and what it causes or consequences. 
-				You answer the most important causes by that entity. A cause may be something that the entity causes either 
-				by existing or by interacting with something or someone, such as occasions or events. You give one cause per line. 
-				Do not fancy format your output. You answer each cause as a noun phrase. 
+				You are a knowledge base that answers questions made by an expert system. All your knowledge is in English. You have a comprehensive ontology and knowledge base that spans the basic concepts and rules about how the world works. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. Your answer in simple, unformatted text. Do not fancy format your output. Your answers are to be easily stored in a knowledge graph. When there are multiple possibilities, you give one answer per line.
+				The questions are about a generic entity and what it causes or its consequences. You answer the most important causes by that entity. A cause may be something that the entity causes either by existing or by interacting with something, such as occasions or events. Most importantly, a cause is answered as a transitive verb. A transitive verb is a verb followed by a direct object, the receiver of the cause.
 				What does %s cause?""";
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
@@ -369,7 +317,15 @@ public class OpenAiLLM_Caller {
 
 			String[] lines = reply.split("\n");
 			for (String line : lines) {
-				String target = line.strip();
+				String target = preprocessConcept(line);
+				int ix = target.indexOf(entity);
+				if (ix >= 0) {
+					target = target.substring(ix + entity.length() + 1);
+				}
+				ix = target.indexOf("cause ");
+				if (ix >= 0) {
+					target = target.substring(ix + 6);
+				}
 				StringEdge edge = new StringEdge(entity, target, "causes");
 				facts.add(edge);
 			}
@@ -700,10 +656,8 @@ public class OpenAiLLM_Caller {
 		try {
 			reply = doRequest(text).toLowerCase().strip();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (URISyntaxException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (CompletionException e) {
 			System.err.println(e.getMessage());
