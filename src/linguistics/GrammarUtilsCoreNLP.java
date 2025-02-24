@@ -440,6 +440,8 @@ public class GrammarUtilsCoreNLP {
 				addspace = true;
 				break;
 			case "DT": // do nothing
+			case "PRP":
+			case "PRP$":
 				addspace = false;
 				break;
 			default:
