@@ -2,6 +2,7 @@ package linguistics;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -10,6 +11,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 
+import chatbots.openai.OpenAiLLM_Caller;
 import edu.stanford.nlp.ling.CoreAnnotations;
 import edu.stanford.nlp.ling.CoreLabel;
 import edu.stanford.nlp.pipeline.Annotation;
@@ -21,6 +23,7 @@ import edu.stanford.nlp.trees.TreeCoreAnnotations;
 import graph.DirectedMultiGraph;
 import graph.StringEdge;
 import graph.StringGraph;
+import net.sf.extjwnl.JWNLException;
 import stream.ParallelConsumer;
 import structures.OrderedPair;
 import utils.VariousUtils;
@@ -164,6 +167,62 @@ public class GrammarUtilsCoreNLP {
 		}
 	}
 
+	public static String getClassificationFromCoreNLP_raw(String concept) {
+		Tree root = getConstituencyParsing(concept);
+		// System.out.println(root);
+		Tree level1 = root.children()[0];
+		String type_level1 = level1.label().toString();
+		return type_level1;
+
+//		switch (type_level1) {
+//		case "META":
+//		case "INTJ":
+//		case "ADVP":
+//		case "ADJP":
+//			return type_level1;
+//		case "NP":
+//			return "NP";
+//		case "FRAG":
+//			return type_level1;
+//		case "VP":
+//			return type_level1;
+//		case "SQ":
+//			return type_level1;
+//		case "LST":
+//			return type_level1;
+//		case "S": {
+//			List<String> type_level2 = getChildrenLabels(level1);
+//			if (type_level2.size() == 1) {
+//				if (type_level2.get(0).equals("VP")) {
+//					return "VP";
+//				}
+//			} else {
+//				if (type_level2.size() == 2) {
+//					// cases
+//					// [ADVP, VP]
+//					// [RB, VP]
+//					if (type_level2.get(0).equals("ADVP") && //
+//							type_level2.get(1).equals("VP")) {
+//						return "VP";
+//					}
+//					if (type_level2.get(0).equals("RB") && //
+//							type_level2.get(1).equals("VP")) {
+//						return "VP";
+//					}
+//					if (type_level2.get(0).equals("NP") && // typical sentence, NP VP
+//							type_level2.get(1).equals("VP")) {
+//						return "S";
+//					}
+//				}
+//			}
+//			return "S";
+//		}
+//		default:
+//			System.err.println("Unexpected value: " + type_level1 + " for: " + concept);
+//			return "UNKNOWN";
+//		}
+	}
+
 	private static String getClassificationFromCoreNLP(String concept) {
 		Tree root = getConstituencyParsing(concept);
 		// System.out.println(root);
@@ -174,21 +233,17 @@ public class GrammarUtilsCoreNLP {
 		case "INTJ":
 		case "ADVP":
 		case "ADJP":
-		case "NP": {
+			return type_level1;
+		case "NP":
 			return "NP";
-		}
-		case "FRAG": {
+		case "FRAG":
 			return type_level1;
-		}
-		case "VP": {
+		case "VP":
 			return type_level1;
-		}
-		case "SQ": {
+		case "SQ":
 			return type_level1;
-		}
-		case "LST": {
+		case "LST":
 			return type_level1;
-		}
 		case "S": {
 			List<String> type_level2 = getChildrenLabels(level1);
 			if (type_level2.size() == 1) {
@@ -456,4 +511,47 @@ public class GrammarUtilsCoreNLP {
 		return text_out;
 	}
 
+	public static HashMap<String, String> getClassification(Collection<String> concepts, StringGraph inputSpace) {
+		HashMap<String, String> classificationMap = new HashMap<String, String>();
+		for (String concept : concepts) {
+			classificationMap.put(concept, getClassification(concept, inputSpace));
+		}
+		return classificationMap;
+	}
+
+	public static HashMap<String, String> getClassificationCoreNLP_raw(Collection<String> concepts) {
+		HashMap<String, String> classificationMap = new HashMap<String, String>();
+		for (String concept : concepts) {
+			classificationMap.put(concept, getClassificationFromCoreNLP_raw(concept));
+		}
+		return classificationMap;
+	}
+
+	/**
+	 * WIP - to grammatically correct existing concepts in the graph
+	 * 
+	 * @param inputSpace
+	 * @throws InterruptedException
+	 */
+	public static void preprocessConcepts(StringGraph inputSpace) throws InterruptedException {
+		Set<String> concepts = inputSpace.getVertexSet();
+		ReentrantLock lock = new ReentrantLock();
+		ParallelConsumer<String> pc = new ParallelConsumer<>(16);
+		pc.parallelForEach(concepts, concept -> {
+			try {
+				String singularForm = GrammarUtilsCoreNLP.getSingularForm(concept);
+				if (!singularForm.equals(concept)) {
+					System.out.println(concept + "\t" + singularForm);
+				}
+				// lock.lock();
+				{
+				}
+				// lock.unlock();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		});
+		pc.shutdown();
+
+	}
 }

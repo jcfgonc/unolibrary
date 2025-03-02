@@ -7,7 +7,9 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -18,6 +20,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
+import graph.GraphAlgorithms;
 import graph.GraphReadWrite;
 import graph.StringEdge;
 import graph.StringGraph;
@@ -58,6 +61,14 @@ public class OpenAiLLM_Caller {
 		return target;
 	}
 
+	/**
+	 * does the raw OpenAI API request call
+	 * 
+	 * @param prompt
+	 * @return
+	 * @throws IOException
+	 * @throws URISyntaxException
+	 */
 	public static String doRequest(String prompt) throws IOException, URISyntaxException {
 		init();
 
@@ -319,6 +330,12 @@ public class OpenAiLLM_Caller {
 		return false;
 	}
 
+	/**
+	 * obtains the desires that the given entity causes
+	 * 
+	 * @param entity
+	 * @return
+	 */
 	public static ArrayList<StringEdge> getCausesDesire(String entity) {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
 		//
@@ -363,6 +380,12 @@ public class OpenAiLLM_Caller {
 		return facts;
 	}
 
+	/**
+	 * obtains the requirements for the given entity
+	 * 
+	 * @param entity
+	 * @return
+	 */
 	public static ArrayList<StringEdge> getRequires(String entity) {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
 		if (!checkIfEntityHasRequirements(entity)) {
@@ -407,6 +430,12 @@ public class OpenAiLLM_Caller {
 		return facts;
 	}
 
+	/**
+	 * obtains the effects that the given entity causes
+	 * 
+	 * @param entity
+	 * @return
+	 */
 	public static ArrayList<StringEdge> getCauses(String entity) {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
 		//
@@ -462,6 +491,12 @@ public class OpenAiLLM_Caller {
 		return facts;
 	}
 
+	/**
+	 * obtains the stuff that the given entity is made of
+	 * 
+	 * @param entity
+	 * @return
+	 */
 	public static ArrayList<StringEdge> getMadeOf(String entity) {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
 		if (!checkIfEntityIsMadeOfSomething(entity)) {
@@ -507,6 +542,12 @@ public class OpenAiLLM_Caller {
 		return facts;
 	}
 
+	/**
+	 * obtains the things that the given entity does not desire (dislikes)
+	 * 
+	 * @param entity
+	 * @return
+	 */
 	public static ArrayList<StringEdge> getNotDesires(String entity) {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
 		if (!checkIfEntityHasDesires(entity)) { // dislikes ~ desires
@@ -551,6 +592,12 @@ public class OpenAiLLM_Caller {
 		return facts;
 	}
 
+	/**
+	 * obtains the desires of the given entity
+	 * 
+	 * @param entity
+	 * @return
+	 */
 	public static ArrayList<StringEdge> getDesires(String entity) {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
 		if (!checkIfEntityHasDesires(entity)) {
@@ -595,6 +642,12 @@ public class OpenAiLLM_Caller {
 		return facts;
 	}
 
+	/**
+	 * obtains the capabilities of the given entity
+	 * 
+	 * @param entity
+	 * @return
+	 */
 	public static ArrayList<StringEdge> getCapableOf(String entity) {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
 		if (!checkIfEntityHasCapabilities(entity)) {
@@ -648,6 +701,12 @@ public class OpenAiLLM_Caller {
 		return facts;
 	}
 
+	/**
+	 * obtains the wholes that the given entity is part of
+	 * 
+	 * @param entity
+	 * @return
+	 */
 	public static ArrayList<StringEdge> getWhatIsPartOf(String entity) {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
 		//
@@ -692,6 +751,12 @@ public class OpenAiLLM_Caller {
 		return facts;
 	}
 
+	/**
+	 * obtains the parts of the given entity
+	 * 
+	 * @param entity
+	 * @return
+	 */
 	public static ArrayList<StringEdge> getPartOf(String entity) {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
 		if (!checkIfEntityHasParts(entity)) {
@@ -745,6 +810,13 @@ public class OpenAiLLM_Caller {
 		return facts;
 	}
 
+	/**
+	 * obtains the purposes of the given part (entity) that is part of a whole entity
+	 * 
+	 * @param whole
+	 * @param part
+	 * @return
+	 */
 	public static ArrayList<StringEdge> getUsedFor(String whole, String part) {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
 		//
@@ -789,6 +861,12 @@ public class OpenAiLLM_Caller {
 		return facts;
 	}
 
+	/**
+	 * obtains the concepts that the given entity is known for
+	 * 
+	 * @param entity
+	 * @return
+	 */
 	public static ArrayList<StringEdge> getKnownFor(String entity) {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
 		//
@@ -833,6 +911,12 @@ public class OpenAiLLM_Caller {
 		return facts;
 	}
 
+	/**
+	 * obtains the entities that created or create the given entity
+	 * 
+	 * @param entity
+	 * @return
+	 */
 	public static ArrayList<StringEdge> getCreatedBy(String entity) {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
 //		if (!checkIfEntityHasCreator(entity)) {
@@ -877,6 +961,12 @@ public class OpenAiLLM_Caller {
 		return facts;
 	}
 
+	/**
+	 * obtains the super classes of the given entity
+	 * 
+	 * @param entity
+	 * @return
+	 */
 	public static ArrayList<StringEdge> getIsaClass(String entity) {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
 		//
@@ -921,6 +1011,12 @@ public class OpenAiLLM_Caller {
 		return facts;
 	}
 
+	/**
+	 * obtains entities created by the given entity (or entities that the given entity creates)
+	 * 
+	 * @param entity
+	 * @return
+	 */
 	public static ArrayList<StringEdge> getCreatedBy_reverse(String entity) {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
 		//
@@ -948,6 +1044,48 @@ public class OpenAiLLM_Caller {
 				String target = preprocessConcept(line);
 				StringEdge edge = new StringEdge(target, entity, "createdby");
 				facts.add(edge);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		} catch (CompletionException e) {
+			System.err.println(e.getMessage());
+			// HTTP interaction failed: server returned a 429 response status.
+			// 429 error means that query rate limit has been Exceeded
+			if (e.getMessage().contains("429")) {
+				rateLimitExceeded.set(true);
+			}
+		}
+		return facts;
+	}
+
+	public static ArrayList<StringEdge> addExamplesOfClass() {
+		//
+		String prompt = """
+				You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer.
+				Give an exhaustive list of well-known comic characters. Do not explain those comic characters, only list their names. Answer each name as a noun phrase.""";
+		List<String> classTypes = Arrays.asList("comic character", "fictional character");
+
+		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
+		try {
+			String reply = "";
+			reply = doRequest(prompt).toLowerCase().strip();
+			reply = reply.replace(", ", ","); // you never know...
+			reply = reply.replace(".", "");
+			reply = reply.replace("\t", " "); // tabs -> spaces
+			reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
+			reply = reply.replace("\r\n", "\n"); // windows -> unix newline
+			reply = reply.replaceAll("[\n]+", "\n"); // empty lines
+			reply = reply.replace(" \n", "\n"); // empty lines
+			reply = reply.replaceAll("\\([\\w ]+\\)", ""); // text between parentheses
+
+			String[] lines = reply.split("\n");
+			for (String line : lines) {
+				String target = preprocessConcept(line);
+				for (String classType : classTypes) {
+					facts.add(new StringEdge(target, classType, "isa"));
+				}
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -1248,7 +1386,7 @@ public class OpenAiLLM_Caller {
 
 	public static void runTest(StringGraph inputSpace) throws InterruptedException {
 		String txt = "bomb,animal,author,atom,computer,island,book,death,vehicle,asteroid,mineral rock,crater,mountain,weapon,food,fictional character,celestial body";
-		txt = "universe,television,life,death,cancer,tobacco,albert einstein,donald trump,vladimir putin,heinrich hertz,luke skywalker,darth vader";
+		txt += ",universe,television,life,death,cancer,tobacco,albert einstein,donald trump,vladimir putin,heinrich hertz,luke skywalker,darth vader";
 		// txt = "death,cancer";
 		String[] split = txt.split(",");
 		int numThreads = 16;
@@ -1258,16 +1396,29 @@ public class OpenAiLLM_Caller {
 			numThreads = numConcepts;
 		}
 
+		Set<String> graphConcepts = inputSpace.getVertexSet();
+		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
+		ReentrantLock lock = new ReentrantLock();
+
 		ParallelConsumer<String> pc = new ParallelConsumer<>(numThreads);
 		pc.parallelForEach(concepts, concept -> {
 			try {
-				System.out.println(concept + "\t" + OpenAiLLM_Caller.getCreatedBy_reverse(concept));
+				ArrayList<StringEdge> edges = OpenAiLLM_Caller.getCreatedBy_reverse(concept);
+				lock.lock();
+				{
+					facts.addAll(edges);
+				}
+				lock.unlock();
+				System.out.println(concept + "\t" + edges);
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
 		});
-//		System.out.println("waiting");
 		pc.shutdown();
-//		System.out.println("shutdown");
+		Set<String> factsConcepts = GraphAlgorithms.getEdgesVerticesAsSet(facts);
+		Set<String> newConcepts = VariousUtils.subtract(factsConcepts, graphConcepts);
+		HashMap<String, String> classification = GrammarUtilsCoreNLP.getClassificationCoreNLP_raw(newConcepts);
+		System.lineSeparator();
 	}
+
 }

@@ -1611,4 +1611,13 @@ public class GraphAlgorithms {
 //		 counts.toSystemOut();
 		return rootConcepts;
 	}
+
+	public static Set<String> getEdgesVerticesAsSet(Collection<StringEdge> edges) {
+		HashSet<String> sources = new HashSet<>(edges.size());
+		for (StringEdge edge : edges) {
+			sources.add(edge.getSource());
+			sources.add(edge.getTarget());
+		}
+		return sources;
+	}
 }
