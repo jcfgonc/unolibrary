@@ -12,6 +12,9 @@ public class ParallelConsumer<T> {
 	private StreamService ss;
 
 	public ParallelConsumer(int numberOfThreads) {
+		if (numberOfThreads <= 0) {
+			throw new IllegalArgumentException("ParallelConsumer() called with " + numberOfThreads + " number of threads");
+		}
 		this.ss = new StreamService(numberOfThreads);
 		System.err.println("Parallel Consumer running with " + getNumberOfThreads() + " threads");
 	}
@@ -91,7 +94,7 @@ public class ParallelConsumer<T> {
 	 * @param args
 	 * @throws InterruptedException
 	 */
-	public static void main(String[] args) throws InterruptedException {
+	public static void mainDemo(String[] args) throws InterruptedException {
 		ArrayList<Integer> list = new ArrayList<>();
 		for (int i = 0; i < 2000; i++) {
 			list.add(i);

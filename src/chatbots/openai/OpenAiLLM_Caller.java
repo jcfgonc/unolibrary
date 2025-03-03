@@ -862,6 +862,57 @@ public class OpenAiLLM_Caller {
 	}
 
 	/**
+	 * obtains the purposes of the given part (entity) that is part of a whole entity
+	 * 
+	 * @param whole
+	 * @param part
+	 * @return
+	 */
+	public static ArrayList<StringEdge> getUsedFor(String entity) {
+		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
+		//
+		//
+		//
+		String prompt = """
+				Your answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph.
+				The question is about an entity and the purposes or functions of one of its parts. Answer the purpose with a transitive verb. You list one purpose per line.
+				What are the purposes of %s?""";
+		String text = String.format(prompt.trim(), entity);
+		String reply = "";
+
+		try {
+			reply = doRequest(text).toLowerCase().strip();
+			reply = reply.replace(", ", ","); // you never know...
+			reply = reply.replace(".", "");
+			reply = reply.replace("\t", " "); // tabs -> spaces
+			reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
+			reply = reply.replace("\r\n", "\n"); // windows -> unix newline
+			reply = reply.replaceAll("[\n]+", "\n"); // empty lines
+			reply = reply.replace(" \n", "\n"); // empty lines
+			reply = reply.replaceAll("\\([\\w ]+\\)", ""); // text between parentheses
+
+			String[] lines = reply.split("\n");
+			for (String line : lines) {
+				String target = preprocessConcept(line);
+				StringEdge edge = new StringEdge(entity, target, "usedfor");
+				facts.add(edge);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		} catch (CompletionException e) {
+			System.err.println(e.getMessage());
+			// HTTP interaction failed: server returned a 429 response status.
+			// 429 error means that query rate limit has been Exceeded
+			if (e.getMessage().contains("429")) {
+				rateLimitExceeded.set(true);
+			}
+		}
+		return facts;
+	}
+
+	/**
 	 * obtains the concepts that the given entity is known for
 	 * 
 	 * @param entity
@@ -1017,7 +1068,7 @@ public class OpenAiLLM_Caller {
 	 * @param entity
 	 * @return
 	 */
-	public static ArrayList<StringEdge> getCreatedBy_reverse(String entity) {
+	public static ArrayList<StringEdge> getCreates(String entity) {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
 		//
 		//
@@ -1389,8 +1440,10 @@ public class OpenAiLLM_Caller {
 		txt += ",universe,television,life,death,cancer,tobacco,albert einstein,donald trump,vladimir putin,heinrich hertz,luke skywalker,darth vader";
 		// txt = "death,cancer";
 		String[] split = txt.split(",");
+		// List<String> concepts = Arrays.asList(split);
+		List<String> concepts = VariousUtils.readFileRows("concepts.txt");
 		int numThreads = 16;
-		List<String> concepts = Arrays.asList(split);
+
 		int numConcepts = concepts.size();
 		if (numThreads > numConcepts) {
 			numThreads = numConcepts;
@@ -1403,7 +1456,21 @@ public class OpenAiLLM_Caller {
 		ParallelConsumer<String> pc = new ParallelConsumer<>(numThreads);
 		pc.parallelForEach(concepts, concept -> {
 			try {
-				ArrayList<StringEdge> edges = OpenAiLLM_Caller.getCreatedBy_reverse(concept);
+				ArrayList<StringEdge> edges = new ArrayList<StringEdge>();
+				edges.addAll(OpenAiLLM_Caller.getCapableOf(concept));
+				edges.addAll(OpenAiLLM_Caller.getCauses(concept));
+				edges.addAll(OpenAiLLM_Caller.getCausesDesire(concept));
+				edges.addAll(OpenAiLLM_Caller.getCreatedBy(concept));
+				edges.addAll(OpenAiLLM_Caller.getCreates(concept));
+				edges.addAll(OpenAiLLM_Caller.getDesires(concept));
+				edges.addAll(OpenAiLLM_Caller.getIsaClass(concept));
+				edges.addAll(OpenAiLLM_Caller.getKnownFor(concept));
+				edges.addAll(OpenAiLLM_Caller.getMadeOf(concept));
+				edges.addAll(OpenAiLLM_Caller.getNotDesires(concept));
+				edges.addAll(OpenAiLLM_Caller.getPartOf(concept));
+				edges.addAll(OpenAiLLM_Caller.getRequires(concept));
+				edges.addAll(OpenAiLLM_Caller.getUsedFor(concept));
+				edges.addAll(OpenAiLLM_Caller.getWhatIsPartOf(concept));
 				lock.lock();
 				{
 					facts.addAll(edges);
