@@ -1,5 +1,6 @@
 package linguistics;
 
+import java.io.FileNotFoundException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -25,20 +26,24 @@ public class GrammarUtilsWordNet {
 
 	static {
 		try {
+			uselessWords = Set.of(VariousUtils.fastSplitWhiteSpace(""));
+			stopWords = new HashSet<String>(VariousUtils.readFileRows("data/english stop words basic.txt"));
+			prepositions = new HashSet<String>(VariousUtils.readFileRows("data/english prepositions.txt"));
+			determiners = new HashSet<String>(VariousUtils.readFileRows("data/english determiners.txt"));
+			pronouns = new HashSet<String>(VariousUtils.readFileRows("data/english pronouns.txt"));
 			dictionary = Dictionary.getDefaultResourceInstance();
 		} catch (JWNLException e) {
+			e.printStackTrace();
+		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		}
 	}
 
-	/**
-	 * concepts with at least one of these words have no POS
-	 */
-	private static final Set<String> uselessWords = Set.of(VariousUtils.fastSplitWhiteSpace(""));
-	private static final HashSet<String> stopWords = new HashSet<String>(VariousUtils.readFileRows("data/english stop words basic.txt"));
-	private static final HashSet<String> prepositions = new HashSet<String>(VariousUtils.readFileRows("data/english prepositions.txt"));
-	private static final HashSet<String> determiners = new HashSet<String>(VariousUtils.readFileRows("data/english determiners.txt"));
-	private static final HashSet<String> pronouns = new HashSet<String>(VariousUtils.readFileRows("data/english pronouns.txt"));
+	private static Set<String> uselessWords;
+	private static HashSet<String> stopWords;;
+	private static HashSet<String> prepositions;;
+	private static HashSet<String> determiners;;
+	private static HashSet<String> pronouns;;
 
 	/**
 	 * cache of previously decoded POS for each concept

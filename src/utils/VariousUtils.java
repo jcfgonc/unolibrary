@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.Console;
 import java.io.File;
 import java.io.FileFilter;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -72,9 +73,11 @@ public class VariousUtils {
 	 * 
 	 * @param path
 	 * @return
+	 * @throws FileNotFoundException 
 	 * @throws IOException
 	 */
-	public static ArrayList<String> readFileRows(String filename) {
+	public static ArrayList<String> readFileRows(String filename) throws FileNotFoundException {
+		boolean illegalFilename = true;
 		ArrayList<String> rows = new ArrayList<String>(1 << 10);
 		try {
 			if (filename != null) {
@@ -88,10 +91,14 @@ public class VariousUtils {
 						rows.add(line);
 					}
 					br.close();
+					illegalFilename = false;
 				}
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
+		}
+		if (illegalFilename) {
+			throw new FileNotFoundException(filename);
 		}
 		return rows;
 	}

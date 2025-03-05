@@ -1,11 +1,11 @@
 package chatbots.openai;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -72,7 +72,8 @@ public class OpenAiLLM_Caller {
 	public static String doRequest(String prompt) throws IOException, URISyntaxException {
 		init();
 
-		ChatRequest chatRequest = ChatRequest.builder().model(llm_model).message(UserMessage.of(prompt)).temperature(0.000).maxCompletionTokens(512).build();
+		ChatRequest chatRequest = ChatRequest.builder().model(llm_model).message(UserMessage.of(prompt)).temperature(0.000).maxCompletionTokens(512)
+				.frequencyPenalty(0.05).presencePenalty(0.05).build();
 		CompletableFuture<Chat> futureChat = chatCompletions.create(chatRequest);
 		Chat chatResponse = futureChat.join();
 		String firstContent = chatResponse.firstContent();
@@ -257,7 +258,7 @@ public class OpenAiLLM_Caller {
 			}
 		}
 
-		System.out.println("check:" + entity + "\t" + reply);
+		// System.out.println("check:" + entity + "\t" + reply);
 
 		if (reply.startsWith("yes")) {
 			return true;
@@ -330,6 +331,37 @@ public class OpenAiLLM_Caller {
 		return false;
 	}
 
+	public static boolean checkIfEntityCreates(String entity) {
+		String prompt = """
+				Answer the following question exclusively with yes or no.
+				Does %s create anything?""";
+		String text = String.format(prompt.trim(), entity);
+		String reply = "";
+		try {
+			reply = doRequest(text).toLowerCase().strip();
+			System.lineSeparator();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		} catch (CompletionException e) {
+			System.err.println(e.getMessage());
+			// HTTP interaction failed: server returned a 429 response status.
+			// 429 error means that query rate limit has been Exceeded
+			if (e.getMessage().contains("429")) {
+				rateLimitExceeded.set(true);
+			}
+		}
+
+		if (reply.startsWith("yes")) {
+			return true;
+		} else if (reply.startsWith("no")) {
+			return false;
+		} else
+			System.err.println("unknown answer:" + reply + " for query\n" + text);
+		return false;
+	}
+
 	/**
 	 * obtains the desires that the given entity causes
 	 * 
@@ -342,9 +374,9 @@ public class OpenAiLLM_Caller {
 		//
 		//
 		String prompt = """
-				You are a knowledge base that answers questions made by an expert system. All your knowledge is in English. You have a comprehensive ontology and knowledge base that spans the basic concepts and rules about how the world works. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. Your answers are to be easily stored in a knowledge graph. When there are multiple possibilities, you give one answer per line.
-				The questions are about an entity and what desires it might elicit in other entities. A desire may be conscious impulses towards something that promises enjoyment or satisfaction in its attainment, longing or craving or a sudden spontaneous inclination or incitement to some usually unpremeditated action. You list the most important desires. You only list the desires that all entities of that type elicit on other entities. You list each elicited desire with a verb phrase. You list one elicited desire per line. Do not fancy format your answer.
-				Which desires does %s elicit in someone?""";
+				Your answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line.
+				The question is about the desires that an entity elicits in other entities. A desire may be conscious impulses towards something that promises enjoyment or satisfaction in its attainment, longing or craving or a sudden spontaneous inclination or incitement to some usually unpremeditated action. You list the most important desires. You only list the desires that all entities of that type elicit on other entities. You list each elicited desire with a verb phrase. You list one elicited desire per line. Do not fancy format your answer.
+				What desires does %s elicit in someone?""";
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
 
@@ -442,9 +474,9 @@ public class OpenAiLLM_Caller {
 		//
 		//
 		String prompt = """
-				You are a knowledge base that answers questions made by an expert system. All your knowledge is in English. You have a comprehensive ontology and knowledge base that spans the basic concepts and rules about how the world works. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. Your answers are to be easily stored in a knowledge graph. When there are multiple possibilities, you give one answer per line.
-				The questions are about an entity and what effects it causes on other entities. You answer the most important effects by that entity. You only answer the effects that you are certain to be caused by all entities of that type. An effect may be something that the entity causes either by existing or by interacting with something, such as occasions or events. Most importantly, an effect is answered as a transitive verb. A transitive verb is a verb followed by a direct object, the receiver of the effect.
-				What effects does %s cause?""";
+				Your answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reason or your answer.
+				The question is about the impact that the given entity has on other entities, as well as its consequences or what effects the entity has on other entities. You list the most consequences of that entity. You only answer the consequences that you are certain to be caused by all entities of that type. A consequence may be something that the entity causes either by existing or by interacting with something, such as occasions or events. Do not answer the purposes, do not list its objectives nor the goals of that entity. The purpose of an entity is not the same as its consequences nor the same as its impacts. Answer each consequence of the entity as a noun phrase.
+				What consequences does %s cause?""";
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
 
@@ -464,12 +496,14 @@ public class OpenAiLLM_Caller {
 				String target = preprocessConcept(line);
 				// remove redundant words
 				// remove entity self reference
-				// TODO rever isto
-				int ix = target.indexOf(entity);
-				if (ix >= 0) {
-					target = target.substring(ix + entity.length() + 1);
-				}
-				ix = target.indexOf("cause ");
+
+				// rever isto
+//				int ix = target.indexOf(entity);
+//				if (ix >= 0) {
+//					target = target.substring(ix + entity.length() + 1);
+//				}
+
+				int ix = target.indexOf("cause ");
 				if (ix >= 0) {
 					target = target.substring(ix + 6);
 				}
@@ -503,10 +537,9 @@ public class OpenAiLLM_Caller {
 			return facts;
 		}
 		String prompt = """
-				You are a knowledge base that answers questions made by an expert system. All your knowledge is in English. You have a comprehensive ontology and knowledge base that spans the basic concepts and rules about how the world works. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. Your answers are to be easily stored in a knowledge graph. When there are multiple possibilities, you give one answer per line.
-				The question is about who or what created a given entity, namely its creator, its multiple creators or what entities may have caused the given entity to exist. A creator may be a person, a collective, a company, a form of live, a phenomena, an object or any another type of entity. If the given entity is a person or an animal, you answer its parents or progenitors names. If the given entity is not an animal or a person, answer the entity or entities that may create or have created the given entity.
-				Answer each creator as a noun phrase or with its proper name. The question is:
-				Who or what created %s?""";
+				Your answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reason or your answer.
+				The question is about what a given entity is made of. You list the most important materials. An entity can be made of a physical material, from a form of matter, made from a substance, from a solid or the given entity can be made of a chemical constitution. Answer each material as a noun phrase
+				What is %s made of?""";
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
 
@@ -654,8 +687,8 @@ public class OpenAiLLM_Caller {
 			return facts;
 		}
 		String prompt = """
-				Your answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line.
-				The question is about what a given entity is capable of or able to. You answer in the form of a verb phrase. A verb phrase is composed of a verb and a noun. Only answer the most likely or undeniable capabilities or abilities of that entity. List one known fact per line.
+				Your answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reason or your answer.
+				The question is about what an entity is capable of or able to. You answer the most important and specific entity’s capabilities. You answer each capability of that entity as an action verb. Do not format your answer. You list one capability per line.
 				What is %s capable of?""";
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
@@ -970,9 +1003,9 @@ public class OpenAiLLM_Caller {
 	 */
 	public static ArrayList<StringEdge> getCreatedBy(String entity) {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
-//		if (!checkIfEntityHasCreator(entity)) {
-//			return facts;
-//		}
+		if (!checkIfEntityHasCreator(entity)) {
+			return facts;
+		}
 		String prompt = """
 				Your answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reason or your answer.
 				The question is about who or what created a given entity. You answer each creator as a noun phrase or with its name. A creator may be a person, a collective, a company or any another type of entity. If the asked entity is a person or an animal, you name its parents or progenitors. Answer all possible creators.
@@ -1070,8 +1103,9 @@ public class OpenAiLLM_Caller {
 	 */
 	public static ArrayList<StringEdge> getCreates(String entity) {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
-		//
-		//
+		if (!checkIfEntityCreates(entity)) {
+			return facts;
+		}
 		String prompt = """
 				Your answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reason or your answer.
 				The question is about what a given entity can create or originate. You answer each creation as a noun phrase or with its name. A creation may be a person, a collective, a single entity, a company or any another type of entity. If the asked entity is a person or an animal, you name its successors or children. Answer all possible creations.
@@ -1111,17 +1145,17 @@ public class OpenAiLLM_Caller {
 		return facts;
 	}
 
-	public static ArrayList<StringEdge> addExamplesOfClass() {
+	public static ArrayList<StringEdge> addExamplesOfClass(String classType) {
 		//
 		String prompt = """
 				You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer.
-				Give an exhaustive list of well-known comic characters. Do not explain those comic characters, only list their names. Answer each name as a noun phrase.""";
-		List<String> classTypes = Arrays.asList("comic character", "fictional character");
+				Give an exhaustive list of well-known %s. Do not explain those %s, only list their names. Answer each name as a noun phrase.""";
+		String text = String.format(prompt.trim(), classType, classType);
 
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
 		try {
 			String reply = "";
-			reply = doRequest(prompt).toLowerCase().strip();
+			reply = doRequest(text).toLowerCase().strip();
 			reply = reply.replace(", ", ","); // you never know...
 			reply = reply.replace(".", "");
 			reply = reply.replace("\t", " "); // tabs -> spaces
@@ -1134,9 +1168,7 @@ public class OpenAiLLM_Caller {
 			String[] lines = reply.split("\n");
 			for (String line : lines) {
 				String target = preprocessConcept(line);
-				for (String classType : classTypes) {
-					facts.add(new StringEdge(target, classType, "isa"));
-				}
+				facts.add(new StringEdge(target, classType, "isa"));
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -1435,13 +1467,13 @@ public class OpenAiLLM_Caller {
 		graph.removeEdges(falseFacts);
 	}
 
-	public static void runTest(StringGraph inputSpace) throws InterruptedException {
+	public static void runTest(StringGraph inputSpace) throws InterruptedException, FileNotFoundException {
 		String txt = "bomb,animal,author,atom,computer,island,book,death,vehicle,asteroid,mineral rock,crater,mountain,weapon,food,fictional character,celestial body";
 		txt += ",universe,television,life,death,cancer,tobacco,albert einstein,donald trump,vladimir putin,heinrich hertz,luke skywalker,darth vader";
 		// txt = "death,cancer";
 		String[] split = txt.split(",");
 		// List<String> concepts = Arrays.asList(split);
-		List<String> concepts = VariousUtils.readFileRows("concepts.txt");
+		List<String> concepts = VariousUtils.readFileRows("new concepts.txt");
 		int numThreads = 16;
 
 		int numConcepts = concepts.size();
@@ -1453,39 +1485,45 @@ public class OpenAiLLM_Caller {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
 		ReentrantLock lock = new ReentrantLock();
 
-		ParallelConsumer<String> pc = new ParallelConsumer<>(numThreads);
-		pc.parallelForEach(concepts, concept -> {
-			try {
-				ArrayList<StringEdge> edges = new ArrayList<StringEdge>();
-				edges.addAll(OpenAiLLM_Caller.getCapableOf(concept));
-				edges.addAll(OpenAiLLM_Caller.getCauses(concept));
-				edges.addAll(OpenAiLLM_Caller.getCausesDesire(concept));
-				edges.addAll(OpenAiLLM_Caller.getCreatedBy(concept));
-				edges.addAll(OpenAiLLM_Caller.getCreates(concept));
-				edges.addAll(OpenAiLLM_Caller.getDesires(concept));
-				edges.addAll(OpenAiLLM_Caller.getIsaClass(concept));
-				edges.addAll(OpenAiLLM_Caller.getKnownFor(concept));
-				edges.addAll(OpenAiLLM_Caller.getMadeOf(concept));
-				edges.addAll(OpenAiLLM_Caller.getNotDesires(concept));
-				edges.addAll(OpenAiLLM_Caller.getPartOf(concept));
-				edges.addAll(OpenAiLLM_Caller.getRequires(concept));
-				edges.addAll(OpenAiLLM_Caller.getUsedFor(concept));
-				edges.addAll(OpenAiLLM_Caller.getWhatIsPartOf(concept));
-				lock.lock();
-				{
-					facts.addAll(edges);
+		for (int i = 0; i < 10; i++) {
+
+			ParallelConsumer<String> pc = new ParallelConsumer<>(numThreads);
+			pc.parallelForEach(concepts, concept -> {
+				try {
+					ArrayList<StringEdge> edges = new ArrayList<StringEdge>();
+					edges.addAll(OpenAiLLM_Caller.getCapableOf(concept));
+					edges.addAll(OpenAiLLM_Caller.getCauses(concept));
+					edges.addAll(OpenAiLLM_Caller.getCausesDesire(concept));
+					edges.addAll(OpenAiLLM_Caller.getCreatedBy(concept));
+					edges.addAll(OpenAiLLM_Caller.getCreates(concept));
+					edges.addAll(OpenAiLLM_Caller.getDesires(concept));
+					edges.addAll(OpenAiLLM_Caller.getIsaClass(concept));
+					edges.addAll(OpenAiLLM_Caller.getKnownFor(concept));
+					edges.addAll(OpenAiLLM_Caller.getMadeOf(concept));
+					edges.addAll(OpenAiLLM_Caller.getNotDesires(concept));
+					edges.addAll(OpenAiLLM_Caller.getPartOf(concept));
+					edges.addAll(OpenAiLLM_Caller.getRequires(concept));
+					edges.addAll(OpenAiLLM_Caller.getUsedFor(concept));
+					edges.addAll(OpenAiLLM_Caller.getWhatIsPartOf(concept));
+					lock.lock();
+					{
+						facts.addAll(edges);
+					}
+					lock.unlock();
+					for (StringEdge edge : edges) {
+						System.out.println(edge);
+					}
+				} catch (Exception e) {
+					e.printStackTrace();
 				}
-				lock.unlock();
-				System.out.println(concept + "\t" + edges);
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-		});
-		pc.shutdown();
-		Set<String> factsConcepts = GraphAlgorithms.getEdgesVerticesAsSet(facts);
-		Set<String> newConcepts = VariousUtils.subtract(factsConcepts, graphConcepts);
-		HashMap<String, String> classification = GrammarUtilsCoreNLP.getClassificationCoreNLP_raw(newConcepts);
-		System.lineSeparator();
+			});
+			pc.shutdown();
+			GraphReadWrite.writeCSV("newfacts" + i + ".csv", facts);
+			Set<String> factsConcepts = GraphAlgorithms.getEdgesVerticesAsSet(facts);
+			Set<String> newConcepts = VariousUtils.subtract(factsConcepts, graphConcepts);
+			HashMap<String, String> classification = GrammarUtilsCoreNLP.getClassificationCoreNLP_raw(newConcepts);
+			concepts = GrammarUtilsCoreNLP.getNounPhrases(classification);
+		}
 	}
 
 }

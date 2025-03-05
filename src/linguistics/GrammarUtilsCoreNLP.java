@@ -7,11 +7,11 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 
-import chatbots.openai.OpenAiLLM_Caller;
 import edu.stanford.nlp.ling.CoreAnnotations;
 import edu.stanford.nlp.ling.CoreLabel;
 import edu.stanford.nlp.pipeline.Annotation;
@@ -553,5 +553,18 @@ public class GrammarUtilsCoreNLP {
 		});
 		pc.shutdown();
 
+	}
+
+	public static ArrayList<String> getNounPhrases(HashMap<String, String> classificationMap) {
+		ArrayList<String> nps = new ArrayList<String>();
+		Set<Entry<String, String>> entrySet = classificationMap.entrySet();
+		for (Entry<String, String> entry : entrySet) {
+			String value = entry.getValue();
+			if (value.equals("NP")) {
+				String key = entry.getKey();
+				nps.add(key);
+			}
+		}
+		return nps;
 	}
 }
