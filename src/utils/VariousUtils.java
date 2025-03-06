@@ -1,11 +1,13 @@
 package utils;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.Console;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigInteger;
@@ -73,7 +75,7 @@ public class VariousUtils {
 	 * 
 	 * @param path
 	 * @return
-	 * @throws FileNotFoundException 
+	 * @throws FileNotFoundException
 	 * @throws IOException
 	 */
 	public static ArrayList<String> readFileRows(String filename) throws FileNotFoundException {
@@ -839,5 +841,16 @@ public class VariousUtils {
 			targetCounter.addObject(edge.getTarget());
 		}
 		return targetCounter;
+	}
+
+	public static void writeFile(String filename, Collection<String> strings) throws IOException {
+		FileWriter fw = new FileWriter(filename);
+		BufferedWriter bw = new BufferedWriter(fw, 1 << 16);
+		for (String str : strings) {
+			bw.write(str);
+			bw.newLine();
+		}
+		bw.close();
+		fw.close();
 	}
 }

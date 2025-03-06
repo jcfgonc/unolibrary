@@ -20,6 +20,7 @@ import edu.stanford.nlp.pipeline.StanfordCoreNLP;
 import edu.stanford.nlp.simple.Sentence;
 import edu.stanford.nlp.trees.Tree;
 import edu.stanford.nlp.trees.TreeCoreAnnotations;
+import edu.stanford.nlp.util.CoreMap;
 import graph.DirectedMultiGraph;
 import graph.StringEdge;
 import graph.StringGraph;
@@ -92,8 +93,17 @@ public class GrammarUtilsCoreNLP {
 		// annotate
 		pipeline.annotate(annotation);
 		// get tree
-		Tree tree = annotation.get(CoreAnnotations.SentencesAnnotation.class).get(0).get(TreeCoreAnnotations.TreeAnnotation.class);
-		return tree;
+		Tree tree;
+		try {
+			List<CoreMap> list = annotation.get(CoreAnnotations.SentencesAnnotation.class);
+			CoreMap coreMap = list.get(0);
+			tree = coreMap.get(TreeCoreAnnotations.TreeAnnotation.class);
+			return tree;
+		} catch (Exception e) {
+			System.err.printf("text:%s\n", text);
+			e.printStackTrace();
+		}
+		return null;
 	}
 
 	private static List<String> getChildrenLabels(Tree root) {
@@ -173,54 +183,6 @@ public class GrammarUtilsCoreNLP {
 		Tree level1 = root.children()[0];
 		String type_level1 = level1.label().toString();
 		return type_level1;
-
-//		switch (type_level1) {
-//		case "META":
-//		case "INTJ":
-//		case "ADVP":
-//		case "ADJP":
-//			return type_level1;
-//		case "NP":
-//			return "NP";
-//		case "FRAG":
-//			return type_level1;
-//		case "VP":
-//			return type_level1;
-//		case "SQ":
-//			return type_level1;
-//		case "LST":
-//			return type_level1;
-//		case "S": {
-//			List<String> type_level2 = getChildrenLabels(level1);
-//			if (type_level2.size() == 1) {
-//				if (type_level2.get(0).equals("VP")) {
-//					return "VP";
-//				}
-//			} else {
-//				if (type_level2.size() == 2) {
-//					// cases
-//					// [ADVP, VP]
-//					// [RB, VP]
-//					if (type_level2.get(0).equals("ADVP") && //
-//							type_level2.get(1).equals("VP")) {
-//						return "VP";
-//					}
-//					if (type_level2.get(0).equals("RB") && //
-//							type_level2.get(1).equals("VP")) {
-//						return "VP";
-//					}
-//					if (type_level2.get(0).equals("NP") && // typical sentence, NP VP
-//							type_level2.get(1).equals("VP")) {
-//						return "S";
-//					}
-//				}
-//			}
-//			return "S";
-//		}
-//		default:
-//			System.err.println("Unexpected value: " + type_level1 + " for: " + concept);
-//			return "UNKNOWN";
-//		}
 	}
 
 	private static String getClassificationFromCoreNLP(String concept) {
@@ -519,7 +481,7 @@ public class GrammarUtilsCoreNLP {
 		return classificationMap;
 	}
 
-	public static HashMap<String, String> getClassificationCoreNLP_raw(Collection<String> concepts) {
+	public static HashMap<String, String> getClassificationFromCoreNLP_raw(Collection<String> concepts) {
 		HashMap<String, String> classificationMap = new HashMap<String, String>();
 		for (String concept : concepts) {
 			classificationMap.put(concept, getClassificationFromCoreNLP_raw(concept));

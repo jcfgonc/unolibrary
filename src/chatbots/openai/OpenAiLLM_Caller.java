@@ -1,26 +1,22 @@
 package chatbots.openai;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
-import graph.GraphAlgorithms;
 import graph.GraphReadWrite;
 import graph.StringEdge;
 import graph.StringGraph;
@@ -42,7 +38,6 @@ public class OpenAiLLM_Caller {
 	private static boolean initialized = false;
 	private static SimpleOpenAI openAI;
 	private static ChatCompletions chatCompletions;
-	private static AtomicBoolean rateLimitExceeded = new AtomicBoolean(false);
 
 	private static void init() throws IOException, URISyntaxException {
 		if (initialized)
@@ -81,6 +76,18 @@ public class OpenAiLLM_Caller {
 		return firstContent;
 	}
 
+	public static String cleanText(String reply) {
+		reply = reply.trim();
+		// reply = reply.replaceAll("\\s*,\\s*.*", ""); // remove text after the first comma
+		reply = reply.replaceAll("\\s*[,:]+\\s*", " "); // ...,... -> ' ' no commas can go into here, because of the CSV format
+		reply = reply.replaceAll("[\\s]+", " ");// multiple whitespace -> one space
+		reply = reply.replace(".", ""); // remove dots
+		reply = reply.replace("\r\n", "\n"); // windows -> unix newline
+		reply = reply.replaceAll("[\n]+", "\n"); // empty lines
+		reply = reply.replaceAll("\\s*\\(.+\\).*$", ""); // text between parentheses and text that follows until the end of string
+		return reply;
+	}
+
 	public static boolean checkIfEntityHasRequirements(String entity) {
 		String prompt = """
 				Answer the following question with yes or no.
@@ -99,7 +106,6 @@ public class OpenAiLLM_Caller {
 			// HTTP interaction failed: server returned a 429 response status.
 			// 429 error means that query rate limit has been Exceeded
 			if (e.getMessage().contains("429")) {
-				rateLimitExceeded.set(true);
 			}
 		}
 
@@ -130,7 +136,6 @@ public class OpenAiLLM_Caller {
 			// HTTP interaction failed: server returned a 429 response status.
 			// 429 error means that query rate limit has been Exceeded
 			if (e.getMessage().contains("429")) {
-				rateLimitExceeded.set(true);
 			}
 		}
 
@@ -161,7 +166,6 @@ public class OpenAiLLM_Caller {
 			// HTTP interaction failed: server returned a 429 response status.
 			// 429 error means that query rate limit has been Exceeded
 			if (e.getMessage().contains("429")) {
-				rateLimitExceeded.set(true);
 			}
 		}
 
@@ -192,7 +196,6 @@ public class OpenAiLLM_Caller {
 			// HTTP interaction failed: server returned a 429 response status.
 			// 429 error means that query rate limit has been Exceeded
 			if (e.getMessage().contains("429")) {
-				rateLimitExceeded.set(true);
 			}
 		}
 
@@ -223,7 +226,6 @@ public class OpenAiLLM_Caller {
 			// HTTP interaction failed: server returned a 429 response status.
 			// 429 error means that query rate limit has been Exceeded
 			if (e.getMessage().contains("429")) {
-				rateLimitExceeded.set(true);
 			}
 		}
 
@@ -254,7 +256,6 @@ public class OpenAiLLM_Caller {
 			// HTTP interaction failed: server returned a 429 response status.
 			// 429 error means that query rate limit has been Exceeded
 			if (e.getMessage().contains("429")) {
-				rateLimitExceeded.set(true);
 			}
 		}
 
@@ -287,7 +288,6 @@ public class OpenAiLLM_Caller {
 			// HTTP interaction failed: server returned a 429 response status.
 			// 429 error means that query rate limit has been Exceeded
 			if (e.getMessage().contains("429")) {
-				rateLimitExceeded.set(true);
 			}
 		}
 
@@ -318,7 +318,6 @@ public class OpenAiLLM_Caller {
 			// HTTP interaction failed: server returned a 429 response status.
 			// 429 error means that query rate limit has been Exceeded
 			if (e.getMessage().contains("429")) {
-				rateLimitExceeded.set(true);
 			}
 		}
 
@@ -349,7 +348,6 @@ public class OpenAiLLM_Caller {
 			// HTTP interaction failed: server returned a 429 response status.
 			// 429 error means that query rate limit has been Exceeded
 			if (e.getMessage().contains("429")) {
-				rateLimitExceeded.set(true);
 			}
 		}
 
@@ -374,22 +372,14 @@ public class OpenAiLLM_Caller {
 		//
 		//
 		String prompt = """
-				Your answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line.
+				Your answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reason or your answer.
 				The question is about the desires that an entity elicits in other entities. A desire may be conscious impulses towards something that promises enjoyment or satisfaction in its attainment, longing or craving or a sudden spontaneous inclination or incitement to some usually unpremeditated action. You list the most important desires. You only list the desires that all entities of that type elicit on other entities. You list each elicited desire with a verb phrase. You list one elicited desire per line. Do not fancy format your answer.
 				What desires does %s elicit in someone?""";
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
 
 		try {
-			reply = doRequest(text).toLowerCase().strip();
-			reply = reply.replace(", ", ","); // you never know...
-			reply = reply.replace(".", "");
-			reply = reply.replace("\t", " "); // tabs -> spaces
-			reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
-			reply = reply.replace("\r\n", "\n"); // windows -> unix newline
-			reply = reply.replaceAll("[\n]+", "\n"); // empty lines
-			reply = reply.replace(" \n", "\n"); // empty lines
-			reply = reply.replaceAll("\\([\\w ]+\\)", ""); // text between parentheses
+			reply = cleanText(doRequest(text).toLowerCase().strip());
 
 			String[] lines = reply.split("\n");
 			for (String line : lines) {
@@ -406,7 +396,6 @@ public class OpenAiLLM_Caller {
 			// HTTP interaction failed: server returned a 429 response status.
 			// 429 error means that query rate limit has been Exceeded
 			if (e.getMessage().contains("429")) {
-				rateLimitExceeded.set(true);
 			}
 		}
 		return facts;
@@ -431,15 +420,7 @@ public class OpenAiLLM_Caller {
 		String reply = "";
 
 		try {
-			reply = doRequest(text).toLowerCase().strip();
-			reply = reply.replace(", ", ","); // you never know...
-			reply = reply.replace(".", "");
-			reply = reply.replace("\t", " "); // tabs -> spaces
-			reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
-			reply = reply.replace("\r\n", "\n"); // windows -> unix newline
-			reply = reply.replaceAll("[\n]+", "\n"); // empty lines
-			reply = reply.replace(" \n", "\n"); // empty lines
-			reply = reply.replaceAll("\\([\\w ]+\\)", ""); // text between parentheses
+			reply = cleanText(doRequest(text).toLowerCase().strip());
 
 			String[] lines = reply.split("\n");
 			for (String line : lines) {
@@ -456,7 +437,6 @@ public class OpenAiLLM_Caller {
 			// HTTP interaction failed: server returned a 429 response status.
 			// 429 error means that query rate limit has been Exceeded
 			if (e.getMessage().contains("429")) {
-				rateLimitExceeded.set(true);
 			}
 		}
 		return facts;
@@ -481,15 +461,7 @@ public class OpenAiLLM_Caller {
 		String reply = "";
 
 		try {
-			reply = doRequest(text).toLowerCase().strip();
-			reply = reply.replace(", ", ","); // you never know...
-			reply = reply.replace(".", "");
-			reply = reply.replace("\t", " "); // tabs -> spaces
-			reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
-			reply = reply.replace("\r\n", "\n"); // windows -> unix newline
-			reply = reply.replaceAll("[\n]+", "\n"); // empty lines
-			reply = reply.replace(" \n", "\n"); // empty lines
-			reply = reply.replaceAll("\\([\\w ]+\\)", ""); // text between parentheses
+			reply = cleanText(doRequest(text).toLowerCase().strip());
 
 			String[] lines = reply.split("\n");
 			for (String line : lines) {
@@ -519,7 +491,6 @@ public class OpenAiLLM_Caller {
 			// HTTP interaction failed: server returned a 429 response status.
 			// 429 error means that query rate limit has been Exceeded
 			if (e.getMessage().contains("429")) {
-				rateLimitExceeded.set(true);
 			}
 		}
 		return facts;
@@ -544,15 +515,7 @@ public class OpenAiLLM_Caller {
 		String reply = "";
 
 		try {
-			reply = doRequest(text).toLowerCase().strip();
-			reply = reply.replace(", ", ","); // you never know...
-			reply = reply.replace(".", "");
-			reply = reply.replace("\t", " "); // tabs -> spaces
-			reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
-			reply = reply.replace("\r\n", "\n"); // windows -> unix newline
-			reply = reply.replaceAll("[\n]+", "\n"); // empty lines
-			reply = reply.replace(" \n", "\n"); // empty lines
-			reply = reply.replaceAll("\\([\\w ]+\\)", ""); // text between parentheses
+			reply = cleanText(doRequest(text).toLowerCase().strip());
 
 			String[] lines = reply.split("\n");
 			for (String line : lines) {
@@ -569,7 +532,6 @@ public class OpenAiLLM_Caller {
 			// HTTP interaction failed: server returned a 429 response status.
 			// 429 error means that query rate limit has been Exceeded
 			if (e.getMessage().contains("429")) {
-				rateLimitExceeded.set(true);
 			}
 		}
 		return facts;
@@ -594,15 +556,7 @@ public class OpenAiLLM_Caller {
 		String reply = "";
 
 		try {
-			reply = doRequest(text).toLowerCase().strip();
-			reply = reply.replace(", ", ","); // you never know...
-			reply = reply.replace(".", "");
-			reply = reply.replace("\t", " "); // tabs -> spaces
-			reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
-			reply = reply.replace("\r\n", "\n"); // windows -> unix newline
-			reply = reply.replaceAll("[\n]+", "\n"); // empty lines
-			reply = reply.replace(" \n", "\n"); // empty lines
-			reply = reply.replaceAll("\\([\\w ]+\\)", ""); // text between parentheses
+			reply = cleanText(doRequest(text).toLowerCase().strip());
 
 			String[] lines = reply.split("\n");
 			for (String line : lines) {
@@ -619,7 +573,6 @@ public class OpenAiLLM_Caller {
 			// HTTP interaction failed: server returned a 429 response status.
 			// 429 error means that query rate limit has been Exceeded
 			if (e.getMessage().contains("429")) {
-				rateLimitExceeded.set(true);
 			}
 		}
 		return facts;
@@ -644,15 +597,7 @@ public class OpenAiLLM_Caller {
 		String reply = "";
 
 		try {
-			reply = doRequest(text).toLowerCase().strip();
-			reply = reply.replace(", ", ","); // you never know...
-			reply = reply.replace(".", "");
-			reply = reply.replace("\t", " "); // tabs -> spaces
-			reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
-			reply = reply.replace("\r\n", "\n"); // windows -> unix newline
-			reply = reply.replaceAll("[\n]+", "\n"); // empty lines
-			reply = reply.replace(" \n", "\n"); // empty lines
-			reply = reply.replaceAll("\\([\\w ]+\\)", ""); // text between parentheses
+			reply = cleanText(doRequest(text).toLowerCase().strip());
 
 			String[] lines = reply.split("\n");
 			for (String line : lines) {
@@ -669,7 +614,6 @@ public class OpenAiLLM_Caller {
 			// HTTP interaction failed: server returned a 429 response status.
 			// 429 error means that query rate limit has been Exceeded
 			if (e.getMessage().contains("429")) {
-				rateLimitExceeded.set(true);
 			}
 		}
 		return facts;
@@ -694,15 +638,7 @@ public class OpenAiLLM_Caller {
 		String reply = "";
 
 		try {
-			reply = doRequest(text).toLowerCase().strip();
-			reply = reply.replace(", ", ","); // you never know...
-			reply = reply.replace(".", "");
-			reply = reply.replace("\t", " "); // tabs -> spaces
-			reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
-			reply = reply.replace("\r\n", "\n"); // windows -> unix newline
-			reply = reply.replaceAll("[\n]+", "\n"); // empty lines
-			reply = reply.replace(" \n", "\n"); // empty lines
-			reply = reply.replaceAll("\\([\\w ]+\\)", ""); // text between parentheses
+			reply = cleanText(doRequest(text).toLowerCase().strip());
 
 			String[] lines = reply.split("\n");
 			for (String line : lines) {
@@ -728,7 +664,6 @@ public class OpenAiLLM_Caller {
 			// HTTP interaction failed: server returned a 429 response status.
 			// 429 error means that query rate limit has been Exceeded
 			if (e.getMessage().contains("429")) {
-				rateLimitExceeded.set(true);
 			}
 		}
 		return facts;
@@ -746,22 +681,14 @@ public class OpenAiLLM_Caller {
 		//
 		//
 		String prompt = """
-				Your answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line.
+				Your answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reason or your answer.
 				The questions are about an entity and the greater whole that the entity is part of. Answer each whole as a noun phrase. You list one greater whole per line.
 				What is %s part of?""";
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
 
 		try {
-			reply = doRequest(text).toLowerCase().strip();
-			reply = reply.replace(", ", ","); // you never know...
-			reply = reply.replace(".", "");
-			reply = reply.replace("\t", " "); // tabs -> spaces
-			reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
-			reply = reply.replace("\r\n", "\n"); // windows -> unix newline
-			reply = reply.replaceAll("[\n]+", "\n"); // empty lines
-			reply = reply.replace(" \n", "\n"); // empty lines
-			reply = reply.replaceAll("\\([\\w ]+\\)", ""); // text between parentheses
+			reply = cleanText(doRequest(text).toLowerCase().strip());
 
 			String[] lines = reply.split("\n");
 			for (String line : lines) {
@@ -778,7 +705,6 @@ public class OpenAiLLM_Caller {
 			// HTTP interaction failed: server returned a 429 response status.
 			// 429 error means that query rate limit has been Exceeded
 			if (e.getMessage().contains("429")) {
-				rateLimitExceeded.set(true);
 			}
 		}
 		return facts;
@@ -796,22 +722,14 @@ public class OpenAiLLM_Caller {
 			return facts;
 		}
 		String prompt = """
-				Your answer to a single question in non-formatted text. You answer knowing that your output will be interpreted by an expert system and stored in a knowledge graph.
-				The question is about an entity and its constituent parts. List the most important parts exclusive to that entity. Name only the parts that you are certain that belong to all entities of that type. Most importantly, a part is answered as a noun phrase. You list one part per line.
+				Your answer to a single question in non-formatted text. You answer knowing that your output will be interpreted by an expert system and stored in a knowledge graph. You do not explain your reason or your answer.
+				The question is about an entity and its constituent parts. List the most well-known parts exclusive to that entity. Name only the parts that you are certain that belong to all entities of that type. Most importantly, a part is answered as a noun phrase. You list one part per line. If the entity is a person, answer with the parts of the human being. If the entity is an animal, answer with the parts of an animal of its species.
 				What are the parts of %s?""";
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
 
 		try {
-			reply = doRequest(text).toLowerCase().strip();
-			reply = reply.replace(", ", ","); // you never know...
-			reply = reply.replace(".", "");
-			reply = reply.replace("\t", " "); // tabs -> spaces
-			reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
-			reply = reply.replace("\r\n", "\n"); // windows -> unix newline
-			reply = reply.replaceAll("[\n]+", "\n"); // empty lines
-			reply = reply.replace(" \n", "\n"); // empty lines
-			reply = reply.replaceAll("\\([\\w ]+\\)", ""); // text between parentheses
+			reply = cleanText(doRequest(text).toLowerCase().strip());
 
 			String[] lines = reply.split("\n");
 			for (String line : lines) {
@@ -828,7 +746,6 @@ public class OpenAiLLM_Caller {
 			// HTTP interaction failed: server returned a 429 response status.
 			// 429 error means that query rate limit has been Exceeded
 			if (e.getMessage().contains("429")) {
-				rateLimitExceeded.set(true);
 			}
 		}
 		// get purposes for each part
@@ -863,15 +780,7 @@ public class OpenAiLLM_Caller {
 		String reply = "";
 
 		try {
-			reply = doRequest(text).toLowerCase().strip();
-			reply = reply.replace(", ", ","); // you never know...
-			reply = reply.replace(".", "");
-			reply = reply.replace("\t", " "); // tabs -> spaces
-			reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
-			reply = reply.replace("\r\n", "\n"); // windows -> unix newline
-			reply = reply.replaceAll("[\n]+", "\n"); // empty lines
-			reply = reply.replace(" \n", "\n"); // empty lines
-			reply = reply.replaceAll("\\([\\w ]+\\)", ""); // text between parentheses
+			reply = cleanText(doRequest(text).toLowerCase().strip());
 
 			String[] lines = reply.split("\n");
 			for (String line : lines) {
@@ -888,7 +797,6 @@ public class OpenAiLLM_Caller {
 			// HTTP interaction failed: server returned a 429 response status.
 			// 429 error means that query rate limit has been Exceeded
 			if (e.getMessage().contains("429")) {
-				rateLimitExceeded.set(true);
 			}
 		}
 		return facts;
@@ -907,22 +815,14 @@ public class OpenAiLLM_Caller {
 		//
 		//
 		String prompt = """
-				Your answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph.
-				The question is about an entity and the purposes or functions of one of its parts. Answer the purpose with a transitive verb. You list one purpose per line.
+				Your answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reason or your answer.
+				The question is about an entity and its specific purposes or its specific functions. You list the most specific purposes of the given entity. Answer each purpose with a transitive verb. List one purpose per line.
 				What are the purposes of %s?""";
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
 
 		try {
-			reply = doRequest(text).toLowerCase().strip();
-			reply = reply.replace(", ", ","); // you never know...
-			reply = reply.replace(".", "");
-			reply = reply.replace("\t", " "); // tabs -> spaces
-			reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
-			reply = reply.replace("\r\n", "\n"); // windows -> unix newline
-			reply = reply.replaceAll("[\n]+", "\n"); // empty lines
-			reply = reply.replace(" \n", "\n"); // empty lines
-			reply = reply.replaceAll("\\([\\w ]+\\)", ""); // text between parentheses
+			reply = cleanText(doRequest(text).toLowerCase().strip());
 
 			String[] lines = reply.split("\n");
 			for (String line : lines) {
@@ -939,7 +839,6 @@ public class OpenAiLLM_Caller {
 			// HTTP interaction failed: server returned a 429 response status.
 			// 429 error means that query rate limit has been Exceeded
 			if (e.getMessage().contains("429")) {
-				rateLimitExceeded.set(true);
 			}
 		}
 		return facts;
@@ -957,22 +856,14 @@ public class OpenAiLLM_Caller {
 		//
 		//
 		String prompt = """
-				Your answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line.
+				Your answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reason or your answer.
 				The questions are about an entity and what it is known for. Answer what it is known for in the form of a verb phrase. A verb phrase is composed of a verb and a noun. Only answer the most likely or important subjects that entity is known for. List one known fact per line.
 				What is %s known for?""";
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
 
 		try {
-			reply = doRequest(text).toLowerCase().strip();
-			reply = reply.replace(", ", ","); // you never know...
-			reply = reply.replace(".", "");
-			reply = reply.replace("\t", " "); // tabs -> spaces
-			reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
-			reply = reply.replace("\r\n", "\n"); // windows -> unix newline
-			reply = reply.replaceAll("[\n]+", "\n"); // empty lines
-			reply = reply.replace(" \n", "\n"); // empty lines
-			reply = reply.replaceAll("\\([\\w ]+\\)", ""); // text between parentheses
+			reply = cleanText(doRequest(text).toLowerCase().strip());
 
 			String[] lines = reply.split("\n");
 			for (String line : lines) {
@@ -989,7 +880,6 @@ public class OpenAiLLM_Caller {
 			// HTTP interaction failed: server returned a 429 response status.
 			// 429 error means that query rate limit has been Exceeded
 			if (e.getMessage().contains("429")) {
-				rateLimitExceeded.set(true);
 			}
 		}
 		return facts;
@@ -1014,15 +904,7 @@ public class OpenAiLLM_Caller {
 		String reply = "";
 
 		try {
-			reply = doRequest(text).toLowerCase().strip();
-			reply = reply.replace(", ", ","); // you never know...
-			reply = reply.replace(".", "");
-			reply = reply.replace("\t", " "); // tabs -> spaces
-			reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
-			reply = reply.replace("\r\n", "\n"); // windows -> unix newline
-			reply = reply.replaceAll("[\n]+", "\n"); // empty lines
-			reply = reply.replace(" \n", "\n"); // empty lines
-			reply = reply.replaceAll("\\([\\w ]+\\)", ""); // text between parentheses
+			reply = cleanText(doRequest(text).toLowerCase().strip());
 
 			String[] lines = reply.split("\n");
 			for (String line : lines) {
@@ -1039,7 +921,6 @@ public class OpenAiLLM_Caller {
 			// HTTP interaction failed: server returned a 429 response status.
 			// 429 error means that query rate limit has been Exceeded
 			if (e.getMessage().contains("429")) {
-				rateLimitExceeded.set(true);
 			}
 		}
 		return facts;
@@ -1064,15 +945,7 @@ public class OpenAiLLM_Caller {
 		String reply = "";
 
 		try {
-			reply = doRequest(text).toLowerCase().strip();
-			reply = reply.replace(", ", ","); // you never know...
-			reply = reply.replace(".", "");
-			reply = reply.replace("\t", " "); // tabs -> spaces
-			reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
-			reply = reply.replace("\r\n", "\n"); // windows -> unix newline
-			reply = reply.replaceAll("[\n]+", "\n"); // empty lines
-			reply = reply.replace(" \n", "\n"); // empty lines
-			reply = reply.replaceAll("\\([\\w ]+\\)", ""); // text between parentheses
+			reply = cleanText(doRequest(text).toLowerCase().strip());
 
 			String[] lines = reply.split("\n");
 			for (String line : lines) {
@@ -1089,7 +962,6 @@ public class OpenAiLLM_Caller {
 			// HTTP interaction failed: server returned a 429 response status.
 			// 429 error means that query rate limit has been Exceeded
 			if (e.getMessage().contains("429")) {
-				rateLimitExceeded.set(true);
 			}
 		}
 		return facts;
@@ -1114,15 +986,7 @@ public class OpenAiLLM_Caller {
 		String reply = "";
 
 		try {
-			reply = doRequest(text).toLowerCase().strip();
-			reply = reply.replace(", ", ","); // you never know...
-			reply = reply.replace(".", "");
-			reply = reply.replace("\t", " "); // tabs -> spaces
-			reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
-			reply = reply.replace("\r\n", "\n"); // windows -> unix newline
-			reply = reply.replaceAll("[\n]+", "\n"); // empty lines
-			reply = reply.replace(" \n", "\n"); // empty lines
-			reply = reply.replaceAll("\\([\\w ]+\\)", ""); // text between parentheses
+			reply = cleanText(doRequest(text).toLowerCase().strip());
 
 			String[] lines = reply.split("\n");
 			for (String line : lines) {
@@ -1139,7 +1003,6 @@ public class OpenAiLLM_Caller {
 			// HTTP interaction failed: server returned a 429 response status.
 			// 429 error means that query rate limit has been Exceeded
 			if (e.getMessage().contains("429")) {
-				rateLimitExceeded.set(true);
 			}
 		}
 		return facts;
@@ -1179,7 +1042,6 @@ public class OpenAiLLM_Caller {
 			// HTTP interaction failed: server returned a 429 response status.
 			// 429 error means that query rate limit has been Exceeded
 			if (e.getMessage().contains("429")) {
-				rateLimitExceeded.set(true);
 			}
 		}
 		return facts;
@@ -1199,14 +1061,7 @@ public class OpenAiLLM_Caller {
 		String reply = "";
 
 		try {
-			reply = doRequest(text).toLowerCase().strip();
-			reply = reply.replace(", ", ","); // you never know...
-			reply = reply.replace(".", "");
-			reply = reply.replace("\t", " "); // tabs -> spaces
-			reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
-			reply = reply.replace("\r\n", "\n"); // windows -> unix newline
-			reply = reply.replaceAll("[\n]+", "\n"); // empty lines
-			reply = reply.replace(" \n", "\n"); // empty lines
+			reply = cleanText(doRequest(text).toLowerCase().strip());
 
 			String[] lines = reply.split("\n");
 			for (String line : lines) {
@@ -1231,7 +1086,6 @@ public class OpenAiLLM_Caller {
 			// HTTP interaction failed: server returned a 429 response status.
 			// 429 error means that query rate limit has been Exceeded
 			if (e.getMessage().contains("429")) {
-				rateLimitExceeded.set(true);
 			}
 		}
 		return facts;
@@ -1272,7 +1126,6 @@ public class OpenAiLLM_Caller {
 			// HTTP interaction failed: server returned a 429 response status.
 			// 429 error means that query rate limit has been Exceeded
 			if (e.getMessage().contains("429")) {
-				rateLimitExceeded.set(true);
 			}
 		}
 
@@ -1404,13 +1257,6 @@ public class OpenAiLLM_Caller {
 						if (stopFile.exists())
 							flag = false;
 
-						if (rateLimitExceeded.get()) {
-							try {
-								Thread.sleep(pauseDurationMillis);
-							} catch (InterruptedException e) {
-							}
-						}
-
 						// extract from global edges list to local/thread storage
 						ArrayList<StringEdge> local_edges = new ArrayList<StringEdge>();
 						dequeLock.lock();
@@ -1467,28 +1313,32 @@ public class OpenAiLLM_Caller {
 		graph.removeEdges(falseFacts);
 	}
 
-	public static void runTest(StringGraph inputSpace) throws InterruptedException, FileNotFoundException {
-		String txt = "bomb,animal,author,atom,computer,island,book,death,vehicle,asteroid,mineral rock,crater,mountain,weapon,food,fictional character,celestial body";
-		txt += ",universe,television,life,death,cancer,tobacco,albert einstein,donald trump,vladimir putin,heinrich hertz,luke skywalker,darth vader";
+	public static void runTest(StringGraph inputSpace) throws InterruptedException, IOException {
+//		String txt = "bomb,animal,author,atom,computer,island,book,death,vehicle,asteroid,mineral rock,crater,mountain,weapon,food,fictional character,celestial body";
+//		txt += ",universe,television,life,death,cancer,tobacco,albert einstein,donald trump,vladimir putin,heinrich hertz,luke skywalker,darth vader";
 		// txt = "death,cancer";
-		String[] split = txt.split(",");
+//		String[] split = txt.split(",");
 		// List<String> concepts = Arrays.asList(split);
-		List<String> concepts = VariousUtils.readFileRows("new concepts.txt");
-		int numThreads = 16;
+		List<String> initialConcepts = VariousUtils.readFileRows("new concepts.txt");
+		int numThreads = 13;
 
-		int numConcepts = concepts.size();
+		int numConcepts = initialConcepts.size();
 		if (numThreads > numConcepts) {
 			numThreads = numConcepts;
 		}
 
-		Set<String> graphConcepts = inputSpace.getVertexSet();
-		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
-		ReentrantLock lock = new ReentrantLock();
+//		Set<String> graphConcepts = inputSpace.getVertexSet();
+		HashSet<String> openConcepts = new HashSet<String>();
+		HashSet<String> closedConcepts = new HashSet<String>();
 
-		for (int i = 0; i < 10; i++) {
+		ReentrantLock lock = new ReentrantLock();
+		openConcepts.addAll(initialConcepts);
+
+		for (int i = 0; i <= 2; i++) {
+			ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
 
 			ParallelConsumer<String> pc = new ParallelConsumer<>(numThreads);
-			pc.parallelForEach(concepts, concept -> {
+			pc.parallelForEach(openConcepts, concept -> {
 				try {
 					ArrayList<StringEdge> edges = new ArrayList<StringEdge>();
 					edges.addAll(OpenAiLLM_Caller.getCapableOf(concept));
@@ -1510,19 +1360,56 @@ public class OpenAiLLM_Caller {
 						facts.addAll(edges);
 					}
 					lock.unlock();
-					for (StringEdge edge : edges) {
-						System.out.println(edge);
-					}
+//					for (StringEdge edge : edges) {
+//						System.out.println(edge);
+//					}
+					System.out.println(concept);
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
 			});
 			pc.shutdown();
+
+			closedConcepts.addAll(openConcepts);
+			int previousSize = openConcepts.size();
+			openConcepts.clear();
+
 			GraphReadWrite.writeCSV("newfacts" + i + ".csv", facts);
-			Set<String> factsConcepts = GraphAlgorithms.getEdgesVerticesAsSet(facts);
-			Set<String> newConcepts = VariousUtils.subtract(factsConcepts, graphConcepts);
-			HashMap<String, String> classification = GrammarUtilsCoreNLP.getClassificationCoreNLP_raw(newConcepts);
-			concepts = GrammarUtilsCoreNLP.getNounPhrases(classification);
+			System.err.println("round " + i + " done LLM calls, processing CoreNLP...");
+
+			// collect into openConcepts the concepts from facts that are NP and not in the closed set
+			facts.parallelStream().forEach(fact -> {
+				{
+					String source = fact.getSource();
+					if (!closedConcepts.contains(source)) {
+						String phraseType = GrammarUtilsCoreNLP.getClassificationFromCoreNLP_raw(source);
+						if (phraseType.equals("NP")) {
+							lock.lock();
+							{
+								openConcepts.add(source);
+							}
+							lock.unlock();
+						}
+					}
+				}
+				{
+					String target = fact.getTarget();
+					if (!closedConcepts.contains(target)) {
+						String phraseType = GrammarUtilsCoreNLP.getClassificationFromCoreNLP_raw(target);
+						if (phraseType.equals("NP")) {
+							lock.lock();
+							{
+								openConcepts.add(target);
+							}
+							lock.unlock();
+						}
+					}
+				}
+			});
+
+			System.err.printf("expanded %d concepts, %d new facts discovered, %d new concepts, %d total explored concepts\n", previousSize, facts.size(),
+					openConcepts.size(), closedConcepts.size());
+			VariousUtils.writeFile("newconcepts" + i + ".txt", openConcepts);
 		}
 	}
 
