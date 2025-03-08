@@ -1110,7 +1110,7 @@ public class OpenAiLLM_Caller {
 		graph.removeEdges(falseFacts);
 	}
 
-	public static void runTest(StringGraph inputSpace) throws InterruptedException, IOException {
+	public static void runGetStuff(StringGraph inputSpace) throws InterruptedException, IOException {
 		List<String> initialConcepts = VariousUtils.readFileRows("newconcepts.txt");
 
 		int numThreads = 20;
@@ -1228,15 +1228,226 @@ public class OpenAiLLM_Caller {
 		}
 	}
 
-	public static void runTest2(StringGraph inputSpace) {
+	public static void runGetExamples() {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
 		facts.addAll(getAllRelations(getExamplesOf(
 				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer.
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						Give an exhaustive list of well-known comic characters. Do not explain those comic characters, only list their names. Answer each name as a noun phrase.
 						""",
 				"comic character")));
-		System.lineSeparator();
+
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						Give an exhaustive list of well-known jobs or occupations. Do not explain those jobs, only list their names. Answer each name as a noun phrase.
+						""",
+				"occupation")));
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						List all proven and demonstrated elementary particles in physics. Do not explain those particles, only list their names. Answer each elementary particle as a noun phrase. Do not list hypothetical or unproven particles.
+						""",
+				"elementary particle")));
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						List the thirty most important and well-known electronic components used in electronics. Do not explain those components, only list their names. Answer each name as a noun phrase. Do not list hypothetical or unproven components.
+						""",
+				"electronic component")));
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						List all types of audio equipment used in audio or in music. Do not explain those equipments , only list their names. Answer each audio equipment as a noun phrase.
+						""",
+				"audio equipment")));
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						Give an exhaustive list of organs present in vertebrate animals. Do not explain those organs, only list their names. Answer each organ as a noun phrase.
+						""",
+				"organ")));
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						Give an exhaustive list of tools used by tradesperson in their daily work. Do not explain those tools , only list their names. Answer each tool as a noun phrase.
+						""",
+				"tool")));
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						Give an exhaustive list of medication types. Do not explain those medications, only list their names. Answer each medication as a noun phrase.
+						""",
+				"drug")));
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						Give a list of cosmetic types. Do not explain those types, only list their names. Answer each cosmetic type type as a noun phrase.
+						""",
+				"cosmetic")));
+		// --------------
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						Given a comprehensive list of musical instruments. Do not explain those instruments, only list their names. Answer each musical instrument as a noun phrase.
+						""",
+				"musical instrument")));
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						Give an comprehensive list of items or products sold in a supermarket. Do not explain those products , only list their names. Answer each product as a noun phrase.
+						""",
+				"merchandise")));
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						List all types of weapons usable by a single person. Do not explain those weapons, only list their names. Answer each weapon as a noun phrase.
+						""",
+				"weapon")));
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						List common furniture that is present in a home or in a building. Do not explain those furniture, only list their names. Answer each furniture as a noun phrase.
+						""",
+				"furniture")));
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						List common hardware components of a computer. Do not explain those component, only list their names. Answer each hardware component as a noun phrase.
+						""",
+				"hardware component")));
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						List 30 types of celestial objects of the universe. Do not explain those celestial objects, only list their names. Do not answer hypothetical or unproven celestial objects. Answer each celestial object as a noun phrase.
+						""",
+				"celestial object")));
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						List 50 celestial objects that can be seen with a telescope. Do not explain those celestial objects, only list their names. Answer each celestial object as a noun phrase.
+						""",
+				"celestial object")));
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						List 30 of the most popular sports. Include group sports and individual sports. Do not explain those sports, only list their names. Answer each sport as a noun phrase.
+						""",
+				"sport")));
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						List 30 of the most popular video games of all time. Include console and computer games. Do not explain those video games, only list their names. Answer each video game as a noun phrase.
+						""",
+				"video game")));
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						List 30 of the most popular table games. Do not explain those table games, only list their names. Answer each table game as a noun phrase.
+						""",
+				"table game")));
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						List 30 of the most common illnesses. Do not explain those illnesses, only list their names. Answer each illness as a noun phrase.
+						""",
+				"illness")));
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						List 30 of the most common diseases. Do not explain those diseases, only list their names. Answer each disease as a noun phrase.
+						""",
+				"disease")));
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						List 30 of the most common viruses. Do not explain those viruses, only list their names. Answer each virus as a noun phrase.
+						""",
+				"virus")));
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						List 30 of the most common bacteria. Do not explain those bacteria, only list their names. Answer each bacteria as a noun phrase.
+						""",
+				"bacteria")));
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						List 30 of the most common mushrooms. Do not explain those mushrooms, only list their names. Answer each mushroom as a noun phrase.
+						""",
+				"mushroom")));
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						List 30 of the most common plants in a garden. Do not explain those plants , only list their names. Answer each plant as a noun phrase.
+						""",
+				"plant")));
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						List the 20 most common mental disorders. Do not explain those mental disorders, only list their names. Answer each mental disorder as a noun phrase.
+						""",
+				"mental disorder")));
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						List the 30 most common atomic elements. Do not explain those atomic elements, only list their names. Answer each atomic element as a noun phrase.
+						""",
+				"atomic element")));
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						List the 30 most common chemical molecules present in the earth. Do not explain those chemical molecules, only list their names. Answer each chemical molecule as a noun phrase.
+						""",
+				"cosmetic")));
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						List body parts of complex animals. Do not explain those body parts, only list their names. Answer each body part as a noun phrase.
+						""",
+				"body part")));
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						List the 50 most famous inventions. Do not explain those inventions, only list their names. Answer each invention as a noun phrase.
+						""",
+				"invention")));
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						List the 30 most famous stories or epic poems. Focus on classical or ancient stories. Do not explain those stories, only list their names. Do not include the story's author. Answer each story as a noun phrase.
+						""",
+				"novel")));
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						List the 30 most famous novels. List novels of the last century. Do not explain those novels, only list their names. Do not include the novel's author. Answer each novel as a noun phrase.
+						""",
+				"novel")));
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						List the 50 most famous fictional characters of classical novels and poems. Focus on classical or ancient characters. Do not explain those fictional characters, only list their names. Answer each fictional character as a noun phrase.
+						""",
+				"fictional character")));
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						List 30 of the most well-known characters of star trek. Do not explain those characters, only list their names. Answer each character as a noun phrase.
+						""",
+				"fictional character")));
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						List 30 of the most well-known characters of star wars. Do not explain those characters, only list their names. Answer each character as a noun phrase.
+						""",
+				"fictional character")));
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
+						List 30 of the most common home appliances. Do not explain those home appliances, only list their names. Answer each home appliance as a noun phrase.
+						""",
+				"home appliance")));
 	}
 
 	/**
@@ -1252,9 +1463,10 @@ public class OpenAiLLM_Caller {
 		ParallelConsumer<StringEdge> pc = new ParallelConsumer<>(8);
 		try {
 			pc.parallelForEach(examples, example -> {
+				ArrayList<StringEdge> allRelations = getAllRelations(example);
 				lock.lock();
 				{
-					facts.addAll(getAllRelations(example));
+					facts.addAll(allRelations);
 				}
 				lock.unlock();
 				System.out.println(example);
