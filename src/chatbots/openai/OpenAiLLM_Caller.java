@@ -16,6 +16,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import graph.GraphReadWrite;
 import graph.StringEdge;
@@ -29,6 +30,7 @@ import io.github.sashirestela.openai.domain.chat.ChatRequest;
 import it.unimi.dsi.fastutil.booleans.BooleanArrayList;
 import linguistics.GrammarUtilsCoreNLP;
 import stream.ParallelConsumer;
+import utils.InvocationsPerMinuteTracker;
 import utils.VariousUtils;
 
 public class OpenAiLLM_Caller {
@@ -39,21 +41,19 @@ public class OpenAiLLM_Caller {
 	private static SimpleOpenAI openAI;
 	private static ChatCompletions chatCompletions;
 
-	private static void init() throws IOException, URISyntaxException {
+	private static void init() {
 		if (initialized)
 			return;
-		api_key = VariousUtils.readFile("data/openai_api_key.txt");
+		try {
+			api_key = VariousUtils.readFile("data/openai_api_key.txt");
+		} catch (IOException e) {
+			// no api key, forget it
+			e.printStackTrace();
+			System.exit(-1);
+		}
 		openAI = SimpleOpenAI.builder().apiKey(api_key).build();
 		chatCompletions = openAI.chatCompletions();
 		initialized = true;
-	}
-
-	private static String preprocessConcept(String line) {
-		String target = GrammarUtilsCoreNLP.preprocessConcept(line.strip());
-		target = target.replace("desire for ", "");
-		target = target.replace("desire to ", "");
-		target = target.replace("- ", "");
-		return target;
 	}
 
 	/**
@@ -64,50 +64,71 @@ public class OpenAiLLM_Caller {
 	 * @throws IOException
 	 * @throws URISyntaxException
 	 */
-	public static String doRequest(String prompt) throws IOException, URISyntaxException {
+	public static String doRequest(String prompt) {
 		init();
-
-		ChatRequest chatRequest = ChatRequest.builder().model(llm_model).message(UserMessage.of(prompt)).temperature(0.000).maxCompletionTokens(512)
-				.frequencyPenalty(0.05).presencePenalty(0.05).build();
-		CompletableFuture<Chat> futureChat = chatCompletions.create(chatRequest);
-		Chat chatResponse = futureChat.join();
-		String firstContent = chatResponse.firstContent();
+		while (true) {
+			try {
+				InvocationsPerMinuteTracker.printInvocationsPerMinute("OpenAI call");
+				ChatRequest chatRequest = ChatRequest.builder().model(llm_model).message(UserMessage.of(prompt)).temperature(0.000).maxCompletionTokens(512)
+						.frequencyPenalty(0.05).presencePenalty(0.05).build();
+				CompletableFuture<Chat> futureChat = chatCompletions.create(chatRequest);
+				Chat chatResponse = futureChat.join();
+				String firstContent = chatResponse.firstContent();
 //		System.out.println(firstContent);
-		return firstContent;
+				return firstContent;
+			} catch (CompletionException e) {
+				System.err.println(e.getMessage());
+				// HTTP interaction failed: server returned a 429 response status.
+				// 429 error means that query rate limit has been Exceeded
+				if (e.getMessage().contains("429")) {
+				}
+			} catch (Exception e) {
+				System.err.println(e.getMessage());
+				e.printStackTrace();
+			}
+			try {
+				Thread.sleep(2000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
 	}
 
-	public static String cleanText(String reply) {
+	public static String cleanLine(String line) {
+		line = line.trim();
+		line = line.replace(".", ""); // remove dots
+		line = line.replaceAll("^[\\s\t]*[-]+[\\s\t]*", ""); // start space* - space* (multiple space)
+		line = line.replaceAll("[ ]*-[ ]*", " "); // space-space -> space
+		// number followed by text
+		String test = line.replaceAll("^[\\d]+[ \\t]+[\\w ]+", "");
+		if (test.isEmpty()) {
+			line = line.substring(line.indexOf(' ') + 1);
+		}
+		line = line.replaceAll("\\s*\\(.+\\).*$", ""); // text between parentheses and text that follows until the end of string
+		String target = GrammarUtilsCoreNLP.preprocessConcept(line);
+		target = target.replace("desire for ", "");
+		target = target.replace("desire to ", "");
+		// target = target.replace("- ", "");
+		return target;
+	}
+
+	public static String cleanReply(String reply) {
 		reply = reply.trim();
-		// reply = reply.replaceAll("\\s*,\\s*.*", ""); // remove text after the first comma
 		reply = reply.replaceAll("\\s*[,:]+\\s*", " "); // ...,... -> ' ' no commas can go into here, because of the CSV format
-		reply = reply.replaceAll("[\\s]+", " ");// multiple whitespace -> one space
+		reply = reply.replaceAll("[ \t]+", " ");// multiple whitespace -> one space
 		reply = reply.replace(".", ""); // remove dots
 		reply = reply.replace("\r\n", "\n"); // windows -> unix newline
 		reply = reply.replaceAll("[\n]+", "\n"); // empty lines
-		reply = reply.replaceAll("\\s*\\(.+\\).*$", ""); // text between parentheses and text that follows until the end of string
 		return reply;
 	}
 
 	public static boolean checkIfEntityHasRequirements(String entity) {
 		String prompt = """
-				Answer the following question with yes or no.
-				does %s require anything or %s have pre-conditions?""";
+				Evaluate if the following question is logical or if the question makes sense. Do not explain your reasoning nor your answer. Answer strictly yes or no.
+				Did in the past or does in the present %s require anything or %s have pre-conditions?""";
 		String text = String.format(prompt.trim(), entity, entity);
 		String reply = "";
-		try {
-			reply = doRequest(text).toLowerCase().strip();
-			System.lineSeparator();
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		} catch (CompletionException e) {
-			System.err.println(e.getMessage());
-			// HTTP interaction failed: server returned a 429 response status.
-			// 429 error means that query rate limit has been Exceeded
-			if (e.getMessage().contains("429")) {
-			}
-		}
+		reply = doRequest(text).toLowerCase().strip();
 
 		if (reply.startsWith("yes")) {
 			return true;
@@ -120,24 +141,11 @@ public class OpenAiLLM_Caller {
 
 	public static boolean checkIfEntityHasDesires(String entity) {
 		String prompt = """
-				Answer the following question with yes or no.
-				does %s have desires?""";
+				Evaluate if the following question is logical or if the question makes sense. Do not explain your reasoning nor your answer. Answer strictly yes or no.
+				Did in the past or does in the present %s have desires?""";
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
-		try {
-			reply = doRequest(text).toLowerCase().strip();
-			System.lineSeparator();
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		} catch (CompletionException e) {
-			System.err.println(e.getMessage());
-			// HTTP interaction failed: server returned a 429 response status.
-			// 429 error means that query rate limit has been Exceeded
-			if (e.getMessage().contains("429")) {
-			}
-		}
+		reply = doRequest(text).toLowerCase().strip();
 
 		if (reply.startsWith("yes")) {
 			return true;
@@ -150,24 +158,11 @@ public class OpenAiLLM_Caller {
 
 	public static boolean checkIfEntityHasMotivesOrGoals(String entity) {
 		String prompt = """
-				Answer the following question with yes or no.
-				does %s have goals to achieve?""";
+				Evaluate if the following question is logical or if the question makes sense. Do not explain your reasoning nor your answer. Answer strictly yes or no.
+				Did in the past or does in the present %s have goals to achieve?""";
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
-		try {
-			reply = doRequest(text).toLowerCase().strip();
-			System.lineSeparator();
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		} catch (CompletionException e) {
-			System.err.println(e.getMessage());
-			// HTTP interaction failed: server returned a 429 response status.
-			// 429 error means that query rate limit has been Exceeded
-			if (e.getMessage().contains("429")) {
-			}
-		}
+		reply = doRequest(text).toLowerCase().strip();
 
 		if (reply.startsWith("yes")) {
 			return true;
@@ -180,24 +175,11 @@ public class OpenAiLLM_Caller {
 
 	public static boolean checkIfEntityHasNotableIdeas(String entity) {
 		String prompt = """
-				Answer the following question with yes or no.
-				is %s known to have notable ideas?""";
+				Evaluate if the following question is logical or if the question makes sense. Do not explain your reasoning nor your answer. Answer strictly yes or no.
+				Is %s known to have notable ideas?""";
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
-		try {
-			reply = doRequest(text).toLowerCase().strip();
-			System.lineSeparator();
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		} catch (CompletionException e) {
-			System.err.println(e.getMessage());
-			// HTTP interaction failed: server returned a 429 response status.
-			// 429 error means that query rate limit has been Exceeded
-			if (e.getMessage().contains("429")) {
-			}
-		}
+		reply = doRequest(text).toLowerCase().strip();
 
 		if (reply.startsWith("yes")) {
 			return true;
@@ -210,24 +192,11 @@ public class OpenAiLLM_Caller {
 
 	public static boolean checkIfEntityIsMadeOfSomething(String entity) {
 		String prompt = """
-				Answer the following question with yes or no.
-				is %s made of something?""";
+				Evaluate if the following question is logical or if the question makes sense. Do not explain your reasoning nor your answer. Answer strictly yes or no.
+				Is in the present or was in the past %s made of something?""";
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
-		try {
-			reply = doRequest(text).toLowerCase().strip();
-			System.lineSeparator();
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		} catch (CompletionException e) {
-			System.err.println(e.getMessage());
-			// HTTP interaction failed: server returned a 429 response status.
-			// 429 error means that query rate limit has been Exceeded
-			if (e.getMessage().contains("429")) {
-			}
-		}
+		reply = doRequest(text).toLowerCase().strip();
 
 		if (reply.startsWith("yes")) {
 			return true;
@@ -240,26 +209,11 @@ public class OpenAiLLM_Caller {
 
 	public static boolean checkIfEntityHasCapabilities(String entity) {
 		String prompt = """
-				Answer the following question with yes or no.
-				did in the past or does in the present %s have abilities?""";
+				Evaluate if the following question is logical or if the question makes sense. Do not explain your reasoning nor your answer. Answer strictly yes or no.
+				Did in the past or does in the present %s have abilities?""";
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
-		try {
-			reply = doRequest(text).toLowerCase().strip();
-			System.lineSeparator();
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		} catch (CompletionException e) {
-			System.err.println(e.getMessage());
-			// HTTP interaction failed: server returned a 429 response status.
-			// 429 error means that query rate limit has been Exceeded
-			if (e.getMessage().contains("429")) {
-			}
-		}
-
-		// System.out.println("check:" + entity + "\t" + reply);
+		reply = doRequest(text).toLowerCase().strip();
 
 		if (reply.startsWith("yes")) {
 			return true;
@@ -272,24 +226,11 @@ public class OpenAiLLM_Caller {
 
 	public static boolean checkIfEntityHasParts(String entity) {
 		String prompt = """
-				Answer the following question with yes or no.
-				does %s have any parts or components?""";
+				Evaluate if the following question is logical or if the question makes sense. Do not explain your reasoning nor your answer. Answer strictly yes or no.
+				Does %s have any parts or components?""";
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
-		try {
-			reply = doRequest(text).toLowerCase().strip();
-			System.lineSeparator();
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		} catch (CompletionException e) {
-			System.err.println(e.getMessage());
-			// HTTP interaction failed: server returned a 429 response status.
-			// 429 error means that query rate limit has been Exceeded
-			if (e.getMessage().contains("429")) {
-			}
-		}
+		reply = doRequest(text).toLowerCase().strip();
 
 		if (reply.startsWith("yes")) {
 			return true;
@@ -302,24 +243,11 @@ public class OpenAiLLM_Caller {
 
 	public static boolean checkIfEntityHasCreator(String entity) {
 		String prompt = """
-				Answer the following question exclusively with yes or no.
+				Evaluate if the following question is logical or if the question makes sense. Do not explain your reasoning nor your answer. Answer strictly yes or no.
 				Does %s have a creator, parents or an origin?""";
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
-		try {
-			reply = doRequest(text).toLowerCase().strip();
-			System.lineSeparator();
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		} catch (CompletionException e) {
-			System.err.println(e.getMessage());
-			// HTTP interaction failed: server returned a 429 response status.
-			// 429 error means that query rate limit has been Exceeded
-			if (e.getMessage().contains("429")) {
-			}
-		}
+		reply = doRequest(text).toLowerCase().strip();
 
 		if (reply.startsWith("yes")) {
 			return true;
@@ -332,24 +260,11 @@ public class OpenAiLLM_Caller {
 
 	public static boolean checkIfEntityCreates(String entity) {
 		String prompt = """
-				Answer the following question exclusively with yes or no.
-				Does %s create anything?""";
+				Evaluate if the following question is logical or if the question makes sense. Do not explain your reasoning nor your answer. Answer strictly yes or no.
+				Did in the past or does in the present %s create anything?""";
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
-		try {
-			reply = doRequest(text).toLowerCase().strip();
-			System.lineSeparator();
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		} catch (CompletionException e) {
-			System.err.println(e.getMessage());
-			// HTTP interaction failed: server returned a 429 response status.
-			// 429 error means that query rate limit has been Exceeded
-			if (e.getMessage().contains("429")) {
-			}
-		}
+		reply = doRequest(text).toLowerCase().strip();
 
 		if (reply.startsWith("yes")) {
 			return true;
@@ -372,32 +287,21 @@ public class OpenAiLLM_Caller {
 		//
 		//
 		String prompt = """
-				Your answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reason or your answer.
+				Your answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reason or your answer. Do not enumerate your answer.
 				The question is about the desires that an entity elicits in other entities. A desire may be conscious impulses towards something that promises enjoyment or satisfaction in its attainment, longing or craving or a sudden spontaneous inclination or incitement to some usually unpremeditated action. You list the most important desires. You only list the desires that all entities of that type elicit on other entities. You list each elicited desire with a verb phrase. You list one elicited desire per line. Do not fancy format your answer.
 				What desires does %s elicit in someone?""";
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
 
-		try {
-			reply = cleanText(doRequest(text).toLowerCase().strip());
+		reply = cleanReply(doRequest(text).toLowerCase().strip());
 
-			String[] lines = reply.split("\n");
-			for (String line : lines) {
-				String target = preprocessConcept(line);
-				StringEdge edge = new StringEdge(entity, target, "causesdesire");
-				facts.add(edge);
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		} catch (CompletionException e) {
-			System.err.println(e.getMessage());
-			// HTTP interaction failed: server returned a 429 response status.
-			// 429 error means that query rate limit has been Exceeded
-			if (e.getMessage().contains("429")) {
-			}
+		String[] lines = reply.split("\n");
+		for (String line : lines) {
+			String target = cleanLine(line);
+			StringEdge edge = new StringEdge(entity, target, "causesdesire");
+			facts.add(edge);
 		}
+
 		return facts;
 	}
 
@@ -413,32 +317,21 @@ public class OpenAiLLM_Caller {
 			return facts;
 		}
 		String prompt = """
-				You are a knowledge base that answers questions made by an expert system. All your knowledge is in English. You have a comprehensive ontology and knowledge base that spans the basic concepts and rules about how the world works. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. Your answers are to be easily stored in a knowledge graph. When there are multiple possibilities, you give one answer per line.
-				The questions are about an entity and its requirements. You answer the most important requirements. You only answer the requirements that you are certain to be required by all entities of that type. A requirement may be something required for the entity’s functioning, something required for its existence, or something required for its purposes. You give one requirement per line. You answer a requirement as a noun phrase. Do not fancy format your answer.
+				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
+				The questions are about an entity and its requirements. You answer the most important requirements. You only answer the requirements that you are certain to be required by all entities of that type. A requirement may be something required for the entity’s functioning, something required for its existence, or something required for its purposes. You give one requirement per line. You answer a requirement as a noun phrase.
 				What does %s require?""";
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
 
-		try {
-			reply = cleanText(doRequest(text).toLowerCase().strip());
+		reply = cleanReply(doRequest(text).toLowerCase().strip());
 
-			String[] lines = reply.split("\n");
-			for (String line : lines) {
-				String target = preprocessConcept(line);
-				StringEdge edge = new StringEdge(entity, target, "requires");
-				facts.add(edge);
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		} catch (CompletionException e) {
-			System.err.println(e.getMessage());
-			// HTTP interaction failed: server returned a 429 response status.
-			// 429 error means that query rate limit has been Exceeded
-			if (e.getMessage().contains("429")) {
-			}
+		String[] lines = reply.split("\n");
+		for (String line : lines) {
+			String target = cleanLine(line);
+			StringEdge edge = new StringEdge(entity, target, "requires");
+			facts.add(edge);
 		}
+
 		return facts;
 	}
 
@@ -454,45 +347,35 @@ public class OpenAiLLM_Caller {
 		//
 		//
 		String prompt = """
-				Your answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reason or your answer.
+				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
 				The question is about the impact that the given entity has on other entities, as well as its consequences or what effects the entity has on other entities. You list the most consequences of that entity. You only answer the consequences that you are certain to be caused by all entities of that type. A consequence may be something that the entity causes either by existing or by interacting with something, such as occasions or events. Do not answer the purposes, do not list its objectives nor the goals of that entity. The purpose of an entity is not the same as its consequences nor the same as its impacts. Answer each consequence of the entity as a noun phrase.
 				What consequences does %s cause?""";
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
 
-		try {
-			reply = cleanText(doRequest(text).toLowerCase().strip());
+		String strip = doRequest(text).toLowerCase().strip();
+		reply = cleanReply(strip);
 
-			String[] lines = reply.split("\n");
-			for (String line : lines) {
-				String target = preprocessConcept(line);
-				// remove redundant words
-				// remove entity self reference
+		String[] lines = reply.split("\n");
+		for (String line : lines) {
+			String target = cleanLine(line);
+			// remove redundant words
+			// remove entity self reference
 
-				// rever isto
+			// rever isto
 //				int ix = target.indexOf(entity);
 //				if (ix >= 0) {
 //					target = target.substring(ix + entity.length() + 1);
 //				}
 
-				int ix = target.indexOf("cause ");
-				if (ix >= 0) {
-					target = target.substring(ix + 6);
-				}
-				StringEdge edge = new StringEdge(entity, target, "causes");
-				facts.add(edge);
+			int ix = target.indexOf("cause ");
+			if (ix >= 0) {
+				target = target.substring(ix + 6);
 			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		} catch (CompletionException e) {
-			System.err.println(e.getMessage());
-			// HTTP interaction failed: server returned a 429 response status.
-			// 429 error means that query rate limit has been Exceeded
-			if (e.getMessage().contains("429")) {
-			}
+			StringEdge edge = new StringEdge(entity, target, "causes");
+			facts.add(edge);
 		}
+
 		return facts;
 	}
 
@@ -508,31 +391,19 @@ public class OpenAiLLM_Caller {
 			return facts;
 		}
 		String prompt = """
-				Your answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reason or your answer.
+				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
 				The question is about what a given entity is made of. You list the most important materials. An entity can be made of a physical material, from a form of matter, made from a substance, from a solid or the given entity can be made of a chemical constitution. Answer each material as a noun phrase
 				What is %s made of?""";
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
 
-		try {
-			reply = cleanText(doRequest(text).toLowerCase().strip());
+		reply = cleanReply(doRequest(text).toLowerCase().strip());
 
-			String[] lines = reply.split("\n");
-			for (String line : lines) {
-				String target = preprocessConcept(line);
-				StringEdge edge = new StringEdge(entity, target, "madeof");
-				facts.add(edge);
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		} catch (CompletionException e) {
-			System.err.println(e.getMessage());
-			// HTTP interaction failed: server returned a 429 response status.
-			// 429 error means that query rate limit has been Exceeded
-			if (e.getMessage().contains("429")) {
-			}
+		String[] lines = reply.split("\n");
+		for (String line : lines) {
+			String target = cleanLine(line);
+			StringEdge edge = new StringEdge(entity, target, "madeof");
+			facts.add(edge);
 		}
 		return facts;
 	}
@@ -549,32 +420,21 @@ public class OpenAiLLM_Caller {
 			return facts;
 		}
 		String prompt = """
-				You are a knowledge base that answers questions made by an expert system. All your knowledge is in English. You have a comprehensive ontology and knowledge base that spans the basic concepts and rules about how the world works. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. Your answers are to be easily stored in a knowledge graph. When there are multiple possibilities, you give one answer per line.
+				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
 				The questions are about an entity and what that entity dislikes, what it has repulsion of, it loathes or it averts. You answer the most important dislikes by that entity. You only answer the dislikes that you are certain to be disliked by all entities of that type. You answer a dislike as a noun phrase.
 				What does %s dislike?""";
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
 
-		try {
-			reply = cleanText(doRequest(text).toLowerCase().strip());
+		reply = cleanReply(doRequest(text).toLowerCase().strip());
 
-			String[] lines = reply.split("\n");
-			for (String line : lines) {
-				String target = preprocessConcept(line);
-				StringEdge edge = new StringEdge(entity, target, "notdesires");
-				facts.add(edge);
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		} catch (CompletionException e) {
-			System.err.println(e.getMessage());
-			// HTTP interaction failed: server returned a 429 response status.
-			// 429 error means that query rate limit has been Exceeded
-			if (e.getMessage().contains("429")) {
-			}
+		String[] lines = reply.split("\n");
+		for (String line : lines) {
+			String target = cleanLine(line);
+			StringEdge edge = new StringEdge(entity, target, "notdesires");
+			facts.add(edge);
 		}
+
 		return facts;
 	}
 
@@ -590,32 +450,21 @@ public class OpenAiLLM_Caller {
 			return facts;
 		}
 		String prompt = """
-				You are a knowledge base that answers questions made by an expert system. All your knowledge is in English. You have a comprehensive ontology and knowledge base that spans the basic concepts and rules about how the world works. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. Your answers are to be easily stored in a knowledge graph. When there are multiple possibilities, you give one answer per line.
+				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
 				The questions are about an entity and what that entity desires, what that entity wishes, what that entity wants or what that entity hopes for. You answer the most important desires by that entity. You only answer the desires that you are certain to be desired by all entities of that type. You answer a desire as a noun phrase.
 				What does %s desire?""";
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
 
-		try {
-			reply = cleanText(doRequest(text).toLowerCase().strip());
+		reply = cleanReply(doRequest(text).toLowerCase().strip());
 
-			String[] lines = reply.split("\n");
-			for (String line : lines) {
-				String target = preprocessConcept(line);
-				StringEdge edge = new StringEdge(entity, target, "desires");
-				facts.add(edge);
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		} catch (CompletionException e) {
-			System.err.println(e.getMessage());
-			// HTTP interaction failed: server returned a 429 response status.
-			// 429 error means that query rate limit has been Exceeded
-			if (e.getMessage().contains("429")) {
-			}
+		String[] lines = reply.split("\n");
+		for (String line : lines) {
+			String target = cleanLine(line);
+			StringEdge edge = new StringEdge(entity, target, "desires");
+			facts.add(edge);
 		}
+
 		return facts;
 	}
 
@@ -631,40 +480,28 @@ public class OpenAiLLM_Caller {
 			return facts;
 		}
 		String prompt = """
-				Your answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reason or your answer.
-				The question is about what an entity is capable of or able to. You answer the most important and specific entity’s capabilities. You answer each capability of that entity as an action verb. Do not format your answer. You list one capability per line.
+				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
+				The question is about what an entity is capable of or able to. You answer the most important and specific entity’s capabilities. You answer each capability of that entity as an action verb. Do not format your answer. You list one capability per line. Do not enumerate your answer.
 				What is %s capable of?""";
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
 
-		try {
-			reply = cleanText(doRequest(text).toLowerCase().strip());
+		reply = cleanReply(doRequest(text).toLowerCase().strip());
 
-			String[] lines = reply.split("\n");
-			for (String line : lines) {
-				String target = preprocessConcept(line);
-				// likely text:
-				// X be capable of Y
-				if (target.startsWith(entity + " ")) {
-					target = target.substring(entity.length() + 1);
-				}
-				String prefix = "be capable of ";
-				if (target.startsWith(prefix)) {
-					target = target.substring(prefix.length());
-				}
-				StringEdge edge = new StringEdge(entity, target, "capableof");
-				facts.add(edge);
+		String[] lines = reply.split("\n");
+		for (String line : lines) {
+			String target = cleanLine(line);
+			// likely text:
+			// X be capable of Y
+			if (target.startsWith(entity + " ")) {
+				target = target.substring(entity.length() + 1);
 			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		} catch (CompletionException e) {
-			System.err.println(e.getMessage());
-			// HTTP interaction failed: server returned a 429 response status.
-			// 429 error means that query rate limit has been Exceeded
-			if (e.getMessage().contains("429")) {
+			String prefix = "be capable of ";
+			if (target.startsWith(prefix)) {
+				target = target.substring(prefix.length());
 			}
+			StringEdge edge = new StringEdge(entity, target, "capableof");
+			facts.add(edge);
 		}
 		return facts;
 	}
@@ -681,32 +518,21 @@ public class OpenAiLLM_Caller {
 		//
 		//
 		String prompt = """
-				Your answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reason or your answer.
-				The questions are about an entity and the greater whole that the entity is part of. Answer each whole as a noun phrase. You list one greater whole per line.
+				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
+				The questions are about an entity and the greater whole that the entity is part of. Answer each whole as a noun phrase. You list one greater whole per line. Do not enumerate your answer.
 				What is %s part of?""";
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
 
-		try {
-			reply = cleanText(doRequest(text).toLowerCase().strip());
+		reply = cleanReply(doRequest(text).toLowerCase().strip());
 
-			String[] lines = reply.split("\n");
-			for (String line : lines) {
-				String target = preprocessConcept(line);
-				StringEdge edge = new StringEdge(entity, target, "partof");
-				facts.add(edge);
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		} catch (CompletionException e) {
-			System.err.println(e.getMessage());
-			// HTTP interaction failed: server returned a 429 response status.
-			// 429 error means that query rate limit has been Exceeded
-			if (e.getMessage().contains("429")) {
-			}
+		String[] lines = reply.split("\n");
+		for (String line : lines) {
+			String target = cleanLine(line);
+			StringEdge edge = new StringEdge(entity, target, "partof");
+			facts.add(edge);
 		}
+
 		return facts;
 	}
 
@@ -722,32 +548,21 @@ public class OpenAiLLM_Caller {
 			return facts;
 		}
 		String prompt = """
-				Your answer to a single question in non-formatted text. You answer knowing that your output will be interpreted by an expert system and stored in a knowledge graph. You do not explain your reason or your answer.
+				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
 				The question is about an entity and its constituent parts. List the most well-known parts exclusive to that entity. Name only the parts that you are certain that belong to all entities of that type. Most importantly, a part is answered as a noun phrase. You list one part per line. If the entity is a person, answer with the parts of the human being. If the entity is an animal, answer with the parts of an animal of its species.
 				What are the parts of %s?""";
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
 
-		try {
-			reply = cleanText(doRequest(text).toLowerCase().strip());
+		reply = cleanReply(doRequest(text).toLowerCase().strip());
 
-			String[] lines = reply.split("\n");
-			for (String line : lines) {
-				String target = preprocessConcept(line);
-				StringEdge edge = new StringEdge(target, entity, "partof");
-				facts.add(edge);
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		} catch (CompletionException e) {
-			System.err.println(e.getMessage());
-			// HTTP interaction failed: server returned a 429 response status.
-			// 429 error means that query rate limit has been Exceeded
-			if (e.getMessage().contains("429")) {
-			}
+		String[] lines = reply.split("\n");
+		for (String line : lines) {
+			String target = cleanLine(line);
+			StringEdge edge = new StringEdge(target, entity, "partof");
+			facts.add(edge);
 		}
+
 		// get purposes for each part
 		ArrayList<StringEdge> purposeFacts = new ArrayList<StringEdge>();
 		for (StringEdge fact : facts) {
@@ -773,32 +588,21 @@ public class OpenAiLLM_Caller {
 		//
 		//
 		String prompt = """
-				Your answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph.
-				The question is about an entity and the purposes or functions of one of its parts. Answer the purpose with a transitive verb. You list one purpose per line.
-				What are the purposes of %s that is part of %s?""";
+				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
+				The question is about an entity and the purposes or functions of one of its parts. Answer the purpose with a transitive verb. You list one purpose per line. Do not enumerate your answer.
+				What are the purposes of the part %s that belongs to %s?""";
 		String text = String.format(prompt.trim(), part, whole);
 		String reply = "";
 
-		try {
-			reply = cleanText(doRequest(text).toLowerCase().strip());
+		reply = cleanReply(doRequest(text).toLowerCase().strip());
 
-			String[] lines = reply.split("\n");
-			for (String line : lines) {
-				String target = preprocessConcept(line);
-				StringEdge edge = new StringEdge(part, target, "usedfor");
-				facts.add(edge);
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		} catch (CompletionException e) {
-			System.err.println(e.getMessage());
-			// HTTP interaction failed: server returned a 429 response status.
-			// 429 error means that query rate limit has been Exceeded
-			if (e.getMessage().contains("429")) {
-			}
+		String[] lines = reply.split("\n");
+		for (String line : lines) {
+			String target = cleanLine(line);
+			StringEdge edge = new StringEdge(part, target, "usedfor");
+			facts.add(edge);
 		}
+
 		return facts;
 	}
 
@@ -815,32 +619,21 @@ public class OpenAiLLM_Caller {
 		//
 		//
 		String prompt = """
-				Your answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reason or your answer.
+				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
 				The question is about an entity and its specific purposes or its specific functions. You list the most specific purposes of the given entity. Answer each purpose with a transitive verb. List one purpose per line.
 				What are the purposes of %s?""";
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
 
-		try {
-			reply = cleanText(doRequest(text).toLowerCase().strip());
+		reply = cleanReply(doRequest(text).toLowerCase().strip());
 
-			String[] lines = reply.split("\n");
-			for (String line : lines) {
-				String target = preprocessConcept(line);
-				StringEdge edge = new StringEdge(entity, target, "usedfor");
-				facts.add(edge);
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		} catch (CompletionException e) {
-			System.err.println(e.getMessage());
-			// HTTP interaction failed: server returned a 429 response status.
-			// 429 error means that query rate limit has been Exceeded
-			if (e.getMessage().contains("429")) {
-			}
+		String[] lines = reply.split("\n");
+		for (String line : lines) {
+			String target = cleanLine(line);
+			StringEdge edge = new StringEdge(entity, target, "usedfor");
+			facts.add(edge);
 		}
+
 		return facts;
 	}
 
@@ -856,31 +649,19 @@ public class OpenAiLLM_Caller {
 		//
 		//
 		String prompt = """
-				Your answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reason or your answer.
-				The questions are about an entity and what it is known for. Answer what it is known for in the form of a verb phrase. A verb phrase is composed of a verb and a noun. Only answer the most likely or important subjects that entity is known for. List one known fact per line.
+				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
+				The questions are about an entity and what it is known for. Answer what it is known for in the form of a verb phrase. A verb phrase is composed of a verb and a noun. Only answer the most likely or important subjects that entity is known for. List one known fact per line. Do not enumerate your answer.
 				What is %s known for?""";
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
 
-		try {
-			reply = cleanText(doRequest(text).toLowerCase().strip());
+		reply = cleanReply(doRequest(text).toLowerCase().strip());
 
-			String[] lines = reply.split("\n");
-			for (String line : lines) {
-				String target = preprocessConcept(line);
-				StringEdge edge = new StringEdge(entity, target, "knownfor");
-				facts.add(edge);
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		} catch (CompletionException e) {
-			System.err.println(e.getMessage());
-			// HTTP interaction failed: server returned a 429 response status.
-			// 429 error means that query rate limit has been Exceeded
-			if (e.getMessage().contains("429")) {
-			}
+		String[] lines = reply.split("\n");
+		for (String line : lines) {
+			String target = cleanLine(line);
+			StringEdge edge = new StringEdge(entity, target, "knownfor");
+			facts.add(edge);
 		}
 		return facts;
 	}
@@ -897,31 +678,19 @@ public class OpenAiLLM_Caller {
 			return facts;
 		}
 		String prompt = """
-				Your answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reason or your answer.
+				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
 				The question is about who or what created a given entity. You answer each creator as a noun phrase or with its name. A creator may be a person, a collective, a company or any another type of entity. If the asked entity is a person or an animal, you name its parents or progenitors. Answer all possible creators.
 				Who or what created %s?""";
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
 
-		try {
-			reply = cleanText(doRequest(text).toLowerCase().strip());
+		reply = cleanReply(doRequest(text).toLowerCase().strip());
 
-			String[] lines = reply.split("\n");
-			for (String line : lines) {
-				String target = preprocessConcept(line);
-				StringEdge edge = new StringEdge(entity, target, "createdby");
-				facts.add(edge);
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		} catch (CompletionException e) {
-			System.err.println(e.getMessage());
-			// HTTP interaction failed: server returned a 429 response status.
-			// 429 error means that query rate limit has been Exceeded
-			if (e.getMessage().contains("429")) {
-			}
+		String[] lines = reply.split("\n");
+		for (String line : lines) {
+			String target = cleanLine(line);
+			StringEdge edge = new StringEdge(entity, target, "createdby");
+			facts.add(edge);
 		}
 		return facts;
 	}
@@ -937,32 +706,20 @@ public class OpenAiLLM_Caller {
 		//
 		//
 		String prompt = """
-				Your answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reason or your answer.
+				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
 				The question is about a hierarchical relationship indicating a superclass or a generalization.
-				The question asks which types or super classes the given entity is. You answer each type as a noun phrase. you list one type per line. You answer all possible types that entity is. Be careful between generalization and specialization. The question asks about types that generalize the asked entity.
+				The question asks which types or super classes the given entity is. You answer each type as a noun phrase. you list one type per line. You answer all possible types that entity is. Be careful between generalization and specialization. The question asks about types that generalize the asked entity. Do not enumerate your answer.
 				What is %s?""";
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
 
-		try {
-			reply = cleanText(doRequest(text).toLowerCase().strip());
+		reply = cleanReply(doRequest(text).toLowerCase().strip());
 
-			String[] lines = reply.split("\n");
-			for (String line : lines) {
-				String target = preprocessConcept(line);
-				StringEdge edge = new StringEdge(entity, target, "isa");
-				facts.add(edge);
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		} catch (CompletionException e) {
-			System.err.println(e.getMessage());
-			// HTTP interaction failed: server returned a 429 response status.
-			// 429 error means that query rate limit has been Exceeded
-			if (e.getMessage().contains("429")) {
-			}
+		String[] lines = reply.split("\n");
+		for (String line : lines) {
+			String target = cleanLine(line);
+			StringEdge edge = new StringEdge(entity, target, "isa");
+			facts.add(edge);
 		}
 		return facts;
 	}
@@ -979,72 +736,136 @@ public class OpenAiLLM_Caller {
 			return facts;
 		}
 		String prompt = """
-				Your answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reason or your answer.
+				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
 				The question is about what a given entity can create or originate. You answer each creation as a noun phrase or with its name. A creation may be a person, a collective, a single entity, a company or any another type of entity. If the asked entity is a person or an animal, you name its successors or children. Answer all possible creations.
 				Who or what does %s create?""";
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
 
-		try {
-			reply = cleanText(doRequest(text).toLowerCase().strip());
+		reply = cleanReply(doRequest(text).toLowerCase().strip());
 
-			String[] lines = reply.split("\n");
-			for (String line : lines) {
-				String target = preprocessConcept(line);
-				StringEdge edge = new StringEdge(target, entity, "createdby");
-				facts.add(edge);
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		} catch (CompletionException e) {
-			System.err.println(e.getMessage());
-			// HTTP interaction failed: server returned a 429 response status.
-			// 429 error means that query rate limit has been Exceeded
-			if (e.getMessage().contains("429")) {
-			}
+		String[] lines = reply.split("\n");
+		for (String line : lines) {
+			String target = cleanLine(line);
+			StringEdge edge = new StringEdge(target, entity, "createdby");
+			facts.add(edge);
 		}
+
 		return facts;
 	}
 
-	public static ArrayList<StringEdge> addExamplesOfClass(String classType) {
+	/**
+	 * obtains the places where the entity is located at
+	 * 
+	 * @param entity
+	 * @return
+	 */
+	public static ArrayList<StringEdge> getAtLocation(String entity) {
+		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
+		//
+		//
 		//
 		String prompt = """
-				You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer.
+				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
+				The question is about the locations or places that a given entity is usually at or located at. You list the most important locations. A location can be a common noun or a proper noun, such as a city, village, country, etc. Answer each location as a noun phrase.
+				Where is %s located?""";
+		String text = String.format(prompt.trim(), entity);
+		String reply = "";
+
+		reply = cleanReply(doRequest(text).toLowerCase().strip());
+
+		String[] lines = reply.split("\n");
+		for (String line : lines) {
+			String target = cleanLine(line);
+			StringEdge edge = new StringEdge(entity, target, "atlocation");
+			facts.add(edge);
+		}
+
+		return facts;
+	}
+
+	/**
+	 * obtains an exhaustive list of well-known examples of the given class type
+	 * 
+	 * @param classType
+	 * @return
+	 */
+	public static ArrayList<StringEdge> getExamplesOfClass(String classType) {
+		//
+		String prompt = """
+				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
 				Give an exhaustive list of well-known %s. Do not explain those %s, only list their names. Answer each name as a noun phrase.""";
 		String text = String.format(prompt.trim(), classType, classType);
 
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
-		try {
-			String reply = "";
-			reply = doRequest(text).toLowerCase().strip();
-			reply = reply.replace(", ", ","); // you never know...
-			reply = reply.replace(".", "");
-			reply = reply.replace("\t", " "); // tabs -> spaces
-			reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
-			reply = reply.replace("\r\n", "\n"); // windows -> unix newline
-			reply = reply.replaceAll("[\n]+", "\n"); // empty lines
-			reply = reply.replace(" \n", "\n"); // empty lines
-			reply = reply.replaceAll("\\([\\w ]+\\)", ""); // text between parentheses
+		String reply = "";
+		reply = doRequest(text).toLowerCase().strip();
+		reply = reply.replace(", ", ","); // you never know...
+		reply = reply.replace(".", "");
+		reply = reply.replace("\t", " "); // tabs -> spaces
+		reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
+		reply = reply.replace("\r\n", "\n"); // windows -> unix newline
+		reply = reply.replaceAll("[\n]+", "\n"); // empty lines
+		reply = reply.replace(" \n", "\n"); // empty lines
+		reply = reply.replaceAll("\\([\\w ]+\\)", ""); // text between parentheses
 
-			String[] lines = reply.split("\n");
-			for (String line : lines) {
-				String target = preprocessConcept(line);
-				facts.add(new StringEdge(target, classType, "isa"));
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		} catch (CompletionException e) {
-			System.err.println(e.getMessage());
-			// HTTP interaction failed: server returned a 429 response status.
-			// 429 error means that query rate limit has been Exceeded
-			if (e.getMessage().contains("429")) {
-			}
+		String[] lines = reply.split("\n");
+		for (String line : lines) {
+			String target = cleanLine(line);
+			facts.add(new StringEdge(target, classType, "isa"));
 		}
+
 		return facts;
+	}
+
+	/**
+	 * obtains concept examples of the given class type. the prompt must be in accordance
+	 * 
+	 * @param prompt
+	 * @param classType
+	 * @return
+	 */
+	public static ArrayList<StringEdge> getExamplesOf(String prompt, String classType) {
+		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
+		String reply = "";
+		reply = doRequest(prompt).toLowerCase().strip();
+		reply = reply.replace(", ", ","); // you never know...
+		reply = reply.replace(".", "");
+		reply = reply.replace("\t", " "); // tabs -> spaces
+		reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
+		reply = reply.replace("\r\n", "\n"); // windows -> unix newline
+		reply = reply.replaceAll("[\n]+", "\n"); // empty lines
+		reply = reply.replace(" \n", "\n"); // empty lines
+		reply = reply.replaceAll("\\([\\w ]+\\)", ""); // text between parentheses
+
+		String[] lines = reply.split("\n");
+		for (String line : lines) {
+			String target = cleanLine(line);
+			facts.add(new StringEdge(target, classType, "isa"));
+		}
+
+		return facts;
+	}
+
+	public static String getPhraseType(String phrase) {
+		//
+		String prompt = """
+				Do not explain your reasoning. Ignore case sensitivity. Is the following text a noun phrase or a verb phrase?
+				%s""";
+		String text = String.format(prompt.trim(), phrase, phrase);
+
+		String reply = "";
+		reply = doRequest(text).toLowerCase().strip();
+		reply = reply.replace(", ", ","); // you never know...
+		reply = reply.replace(".", "");
+		reply = reply.replace("\t", " "); // tabs -> spaces
+		reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
+		reply = reply.replace("\r\n", "\n"); // windows -> unix newline
+		reply = reply.replaceAll("[\n]+", "\n"); // empty lines
+		reply = reply.replace(" \n", "\n"); // empty lines
+		reply = reply.replaceAll("\\([\\w ]+\\)", ""); // text between parentheses
+
+		return reply;
 	}
 
 	public static ArrayList<StringEdge> old_getPartsAndPurpose(String entity) {
@@ -1060,33 +881,21 @@ public class OpenAiLLM_Caller {
 		String text = String.format(prompt.trim(), article, entity);
 		String reply = "";
 
-		try {
-			reply = cleanText(doRequest(text).toLowerCase().strip());
+		reply = cleanReply(doRequest(text).toLowerCase().strip());
 
-			String[] lines = reply.split("\n");
-			for (String line : lines) {
-				String[] tokens = line.split(":");
-				String part = tokens[0];
-				StringEdge partof = new StringEdge(part, entity, "partof");
-				facts.add(partof);
-				String[] purposes = tokens[1].split(",");
-				for (String purpose : purposes) {
-					purpose = purpose.trim();
-					StringEdge purposeFact = new StringEdge(part, purpose, "usedfor");
-					facts.add(purposeFact);
-				}
-				// System.lineSeparator();
+		String[] lines = reply.split("\n");
+		for (String line : lines) {
+			String[] tokens = line.split(":");
+			String part = tokens[0];
+			StringEdge partof = new StringEdge(part, entity, "partof");
+			facts.add(partof);
+			String[] purposes = tokens[1].split(",");
+			for (String purpose : purposes) {
+				purpose = purpose.trim();
+				StringEdge purposeFact = new StringEdge(part, purpose, "usedfor");
+				facts.add(purposeFact);
 			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		} catch (CompletionException e) {
-			System.err.println(e.getMessage());
-			// HTTP interaction failed: server returned a 429 response status.
-			// 429 error means that query rate limit has been Exceeded
-			if (e.getMessage().contains("429")) {
-			}
+			// System.lineSeparator();
 		}
 		return facts;
 	}
@@ -1115,19 +924,7 @@ public class OpenAiLLM_Caller {
 		String text = base_prompt + facts;
 
 		String reply = "";
-		try {
-			reply = doRequest(text).toLowerCase().strip();
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
-		} catch (CompletionException e) {
-			System.err.println(e.getMessage());
-			// HTTP interaction failed: server returned a 429 response status.
-			// 429 error means that query rate limit has been Exceeded
-			if (e.getMessage().contains("429")) {
-			}
-		}
+		reply = doRequest(text).toLowerCase().strip();
 
 		String reply_original = reply;
 
@@ -1314,103 +1111,191 @@ public class OpenAiLLM_Caller {
 	}
 
 	public static void runTest(StringGraph inputSpace) throws InterruptedException, IOException {
-//		String txt = "bomb,animal,author,atom,computer,island,book,death,vehicle,asteroid,mineral rock,crater,mountain,weapon,food,fictional character,celestial body";
-//		txt += ",universe,television,life,death,cancer,tobacco,albert einstein,donald trump,vladimir putin,heinrich hertz,luke skywalker,darth vader";
-		// txt = "death,cancer";
-//		String[] split = txt.split(",");
-		// List<String> concepts = Arrays.asList(split);
-		List<String> initialConcepts = VariousUtils.readFileRows("new concepts.txt");
-		int numThreads = 13;
+		List<String> initialConcepts = VariousUtils.readFileRows("newconcepts.txt");
+
+		int numThreads = 20;
+		int blockSize = 1000;
 
 		int numConcepts = initialConcepts.size();
 		if (numThreads > numConcepts) {
 			numThreads = numConcepts;
 		}
 
-//		Set<String> graphConcepts = inputSpace.getVertexSet();
-		HashSet<String> openConcepts = new HashSet<String>();
-		HashSet<String> closedConcepts = new HashSet<String>();
+		ArrayDeque<String> openSet = new ArrayDeque<String>();
+		HashSet<String> closedSet = new HashSet<String>();
+		openSet.addAll(initialConcepts);
 
+		File stopFile = new File("stop");
 		ReentrantLock lock = new ReentrantLock();
-		openConcepts.addAll(initialConcepts);
+		ReentrantReadWriteLock rwLock = new ReentrantReadWriteLock();
+		int counter = 0;
 
-		for (int i = 0; i <= 2; i++) {
+		while (!openSet.isEmpty()) {
+
+			if (stopFile.exists())
+				break;
+
+			List<String> openSetBatch = VariousUtils.removeBlockFromDeque(openSet, blockSize);
+
 			ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
 
 			ParallelConsumer<String> pc = new ParallelConsumer<>(numThreads);
-			pc.parallelForEach(openConcepts, concept -> {
-				try {
-					ArrayList<StringEdge> edges = new ArrayList<StringEdge>();
-					edges.addAll(OpenAiLLM_Caller.getCapableOf(concept));
-					edges.addAll(OpenAiLLM_Caller.getCauses(concept));
-					edges.addAll(OpenAiLLM_Caller.getCausesDesire(concept));
-					edges.addAll(OpenAiLLM_Caller.getCreatedBy(concept));
-					edges.addAll(OpenAiLLM_Caller.getCreates(concept));
-					edges.addAll(OpenAiLLM_Caller.getDesires(concept));
-					edges.addAll(OpenAiLLM_Caller.getIsaClass(concept));
-					edges.addAll(OpenAiLLM_Caller.getKnownFor(concept));
-					edges.addAll(OpenAiLLM_Caller.getMadeOf(concept));
-					edges.addAll(OpenAiLLM_Caller.getNotDesires(concept));
-					edges.addAll(OpenAiLLM_Caller.getPartOf(concept));
-					edges.addAll(OpenAiLLM_Caller.getRequires(concept));
-					edges.addAll(OpenAiLLM_Caller.getUsedFor(concept));
-					edges.addAll(OpenAiLLM_Caller.getWhatIsPartOf(concept));
-					lock.lock();
-					{
-						facts.addAll(edges);
-					}
-					lock.unlock();
-//					for (StringEdge edge : edges) {
-//						System.out.println(edge);
-//					}
-					System.out.println(concept);
-				} catch (Exception e) {
-					e.printStackTrace();
+			pc.parallelForEach(openSetBatch, concept -> {
+				concept = cleanLine(concept);
+				boolean conceptClosed = true;
+				{
+					rwLock.readLock().lock();
+					conceptClosed = closedSet.contains(concept);
+					rwLock.readLock().unlock();
 				}
+				if (concept.length() <= 32 && (VariousUtils.countCharOccurences(concept, ' ') + 1) <= 2 && !conceptClosed) {
+
+					try {
+						ArrayList<StringEdge> localEdges = new ArrayList<StringEdge>();
+						localEdges.addAll(OpenAiLLM_Caller.getCapableOf(concept));
+						localEdges.addAll(OpenAiLLM_Caller.getCauses(concept));
+						localEdges.addAll(OpenAiLLM_Caller.getCausesDesire(concept));
+						localEdges.addAll(OpenAiLLM_Caller.getCreatedBy(concept));
+						localEdges.addAll(OpenAiLLM_Caller.getCreates(concept));
+						localEdges.addAll(OpenAiLLM_Caller.getDesires(concept));
+						localEdges.addAll(OpenAiLLM_Caller.getIsaClass(concept));
+						localEdges.addAll(OpenAiLLM_Caller.getKnownFor(concept));
+						localEdges.addAll(OpenAiLLM_Caller.getMadeOf(concept));
+						localEdges.addAll(OpenAiLLM_Caller.getNotDesires(concept));
+						localEdges.addAll(OpenAiLLM_Caller.getPartOf(concept));
+						localEdges.addAll(OpenAiLLM_Caller.getRequires(concept));
+						localEdges.addAll(OpenAiLLM_Caller.getUsedFor(concept));
+						localEdges.addAll(OpenAiLLM_Caller.getWhatIsPartOf(concept));
+						localEdges.addAll(OpenAiLLM_Caller.getAtLocation(concept));
+						lock.lock();
+						{
+							facts.addAll(localEdges);
+						}
+						lock.unlock();
+						System.out.println(concept);
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				} else {
+					// System.err.printf("1 skipping concept %s\n", concept);
+				}
+				{
+					rwLock.writeLock().lock();
+					closedSet.add(concept);
+					rwLock.writeLock().unlock();
+				}
+
 			});
 			pc.shutdown();
 
-			closedConcepts.addAll(openConcepts);
-			int previousSize = openConcepts.size();
-			openConcepts.clear();
+			closedSet.addAll(openSetBatch);
+			int previousSize = openSetBatch.size();
 
-			GraphReadWrite.writeCSV("newfacts" + i + ".csv", facts);
-			System.err.println("round " + i + " done LLM calls, processing CoreNLP...");
+			GraphReadWrite.writeCSV("newfacts" + counter + ".csv", facts);
+			System.err.println("round " + counter + " done LLM calls, processing CoreNLP...");
 
 			// collect into openConcepts the concepts from facts that are NP and not in the closed set
-			facts.parallelStream().forEach(fact -> {
-				{
-					String source = fact.getSource();
-					if (!closedConcepts.contains(source)) {
-						String phraseType = GrammarUtilsCoreNLP.getClassificationFromCoreNLP_raw(source);
-						if (phraseType.equals("NP")) {
-							lock.lock();
-							{
-								openConcepts.add(source);
-							}
-							lock.unlock();
-						}
-					}
+			{
+				HashSet<String> conceptsToAdd = new HashSet<String>();
+				for (StringEdge fact : facts) {
+					conceptsToAdd.add(fact.getSource());
+					conceptsToAdd.add(fact.getTarget());
 				}
-				{
-					String target = fact.getTarget();
-					if (!closedConcepts.contains(target)) {
-						String phraseType = GrammarUtilsCoreNLP.getClassificationFromCoreNLP_raw(target);
-						if (phraseType.equals("NP")) {
-							lock.lock();
-							{
-								openConcepts.add(target);
+				conceptsToAdd.parallelStream().forEach(concept -> {
+					// do not explore lengthy concepts or with many words
+					if (concept.length() <= 32 && (VariousUtils.countCharOccurences(concept, ' ') + 1) <= 3) {
+						if (!closedSet.contains(concept)) {
+							String phraseType = GrammarUtilsCoreNLP.getClassificationFromCoreNLP_raw(concept);
+							if (phraseType.equals("NP")) {
+								lock.lock();
+								{
+									openSet.add(concept);
+								}
+								lock.unlock();
 							}
-							lock.unlock();
 						}
+					} else {
+						// System.err.printf("2 skipping concept %s\n", concept);
 					}
-				}
-			});
+				});
+			}
 
 			System.err.printf("expanded %d concepts, %d new facts discovered, %d new concepts, %d total explored concepts\n", previousSize, facts.size(),
-					openConcepts.size(), closedConcepts.size());
-			VariousUtils.writeFile("newconcepts" + i + ".txt", openConcepts);
+					openSet.size(), closedSet.size());
+			VariousUtils.writeFile("newconcepts" + counter + ".txt", openSet);
+
+			counter++;
 		}
+	}
+
+	public static void runTest2(StringGraph inputSpace) {
+		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
+		facts.addAll(getAllRelations(getExamplesOf(
+				"""
+						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer.
+						Give an exhaustive list of well-known comic characters. Do not explain those comic characters, only list their names. Answer each name as a noun phrase.
+						""",
+				"comic character")));
+		System.lineSeparator();
+	}
+
+	/**
+	 * receives a list of ISA facts and populates each fact source with relations from a LLM
+	 * 
+	 * @param examples
+	 * @return
+	 */
+	private static ArrayList<StringEdge> getAllRelations(ArrayList<StringEdge> examples) {
+
+		ReentrantLock lock = new ReentrantLock();
+		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
+		ParallelConsumer<StringEdge> pc = new ParallelConsumer<>(8);
+		try {
+			pc.parallelForEach(examples, example -> {
+				lock.lock();
+				{
+					facts.addAll(getAllRelations(example));
+				}
+				lock.unlock();
+				System.out.println(example);
+			});
+			pc.shutdown();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+		return facts;
+	}
+
+	private static ArrayList<StringEdge> getAllRelations(StringEdge edge) {
+		assert edge.getLabel().equals("isa");
+
+		// formats as concept (type)
+		String concept = edge.getSource();
+		String type = edge.getTarget();
+		String conceptWithContext = String.format("%s (%s)", concept, type);
+		ArrayList<StringEdge> localEdges = new ArrayList<StringEdge>();
+		localEdges.addAll(OpenAiLLM_Caller.getCapableOf(conceptWithContext));
+		localEdges.addAll(OpenAiLLM_Caller.getCauses(conceptWithContext));
+		localEdges.addAll(OpenAiLLM_Caller.getCausesDesire(conceptWithContext));
+		localEdges.addAll(OpenAiLLM_Caller.getCreatedBy(conceptWithContext));
+		localEdges.addAll(OpenAiLLM_Caller.getCreates(conceptWithContext));
+		localEdges.addAll(OpenAiLLM_Caller.getDesires(conceptWithContext));
+		localEdges.addAll(OpenAiLLM_Caller.getIsaClass(conceptWithContext));
+		localEdges.addAll(OpenAiLLM_Caller.getKnownFor(conceptWithContext));
+		localEdges.addAll(OpenAiLLM_Caller.getMadeOf(conceptWithContext));
+		localEdges.addAll(OpenAiLLM_Caller.getNotDesires(conceptWithContext));
+		localEdges.addAll(OpenAiLLM_Caller.getPartOf(conceptWithContext));
+		localEdges.addAll(OpenAiLLM_Caller.getRequires(conceptWithContext));
+		localEdges.addAll(OpenAiLLM_Caller.getUsedFor(conceptWithContext));
+		localEdges.addAll(OpenAiLLM_Caller.getWhatIsPartOf(conceptWithContext));
+		localEdges.addAll(OpenAiLLM_Caller.getAtLocation(conceptWithContext));
+
+		ArrayList<StringEdge> tempEdges = new ArrayList<StringEdge>();
+		for (StringEdge t_edge : localEdges) {
+			tempEdges.add(t_edge.replaceSourceOrTarget(conceptWithContext, concept));
+		}
+
+		return tempEdges;
 	}
 
 }

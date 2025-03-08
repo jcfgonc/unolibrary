@@ -22,6 +22,10 @@ public class StringEdge implements Comparable<StringEdge>, Serializable, Cloneab
 		this.source = source;
 		this.target = target;
 		this.label = label;
+
+		if (source.trim().isEmpty() || target.trim().isEmpty()) {
+			System.err.printf("ERROR:new StringEdge() %s,%s,%s\n", source, label, target);
+		}
 	}
 
 	/**
@@ -390,7 +394,7 @@ public class StringEdge implements Comparable<StringEdge>, Serializable, Cloneab
 		newEdge.target = newTarget;
 		return newEdge;
 	}
-	
+
 	public StringEdge replaceSource(String newSource) {
 		StringEdge newEdge = new StringEdge(this);
 		newEdge.source = newSource;

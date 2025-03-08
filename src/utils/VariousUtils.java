@@ -853,4 +853,32 @@ public class VariousUtils {
 		bw.close();
 		fw.close();
 	}
+
+	/**
+	 * returns a sublist starting at start and ending at end or at its tail, whichever is smaller
+	 * 
+	 * @param <T>
+	 * @param list
+	 * @param start
+	 * @param end
+	 * @return
+	 */
+	public static <T> List<T> sublistMin(List<T> list, int start, int end) {
+		int size = list.size();
+		if (end >= size) {
+			end = size - 1;
+		}
+		return list.subList(start, end);
+	}
+
+	public static <T> ArrayList<T> removeBlockFromDeque(Deque<T> deque, int nElements) {
+		ArrayList<T> extractedElements = new ArrayList<T>();
+		if (nElements > deque.size()) {
+			nElements = deque.size();
+		}
+		for (int i = 0; i < nElements; i++) {
+			extractedElements.add(deque.remove());
+		}
+		return extractedElements;
+	}
 }

@@ -50,7 +50,6 @@ public class GrammarUtilsCoreNLP {
 		initialized = true;
 	}
 
-	@SuppressWarnings("unused")
 	private static Tree getConstituencyParsingSimpleNLP(String text) {
 		Sentence set = new Sentence(text);
 		Tree tree = set.parse();
@@ -179,6 +178,14 @@ public class GrammarUtilsCoreNLP {
 
 	public static String getClassificationFromCoreNLP_raw(String concept) {
 		Tree root = getConstituencyParsing(concept);
+		// System.out.println(root);
+		Tree level1 = root.children()[0];
+		String type_level1 = level1.label().toString();
+		return type_level1;
+	}
+
+	public static String getClassificationFromCoreNLP_Simple(String concept) {
+		Tree root = getConstituencyParsingSimpleNLP(concept);
 		// System.out.println(root);
 		Tree level1 = root.children()[0];
 		String type_level1 = level1.label().toString();
@@ -457,8 +464,8 @@ public class GrammarUtilsCoreNLP {
 				addspace = true;
 				break;
 			case "DT": // do nothing
-			case "PRP":
-			case "PRP$":
+				// case "PRP":
+				// case "PRP$":
 				addspace = false;
 				break;
 			default:
