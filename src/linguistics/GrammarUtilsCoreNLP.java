@@ -41,10 +41,11 @@ public class GrammarUtilsCoreNLP {
 			return;
 		// set up pipeline properties
 		Properties props = new Properties();
-		props.setProperty("annotators", "tokenize,truecase,pos,lemma,ner,parse");
+		props.setProperty("annotators", "tokenize,ssplit,truecase,pos,lemma,ner,parse");
 		// use faster shift reduce parser
-		props.setProperty("parse.model", "edu/stanford/nlp/models/srparser/englishSR.ser.gz");
-		props.setProperty("parse.maxlen", "100");
+//		props.setProperty("pos.model", "english-bidirectional-distsim.tagger");
+//		props.setProperty("parse.model", "edu/stanford/nlp/models/srparser/englishSR.ser.gz");
+//		props.setProperty("parse.maxlen", "100");
 		// set up Stanford CoreNLP pipeline
 		pipeline = new StanfordCoreNLP(props);
 		initialized = true;
@@ -435,7 +436,7 @@ public class GrammarUtilsCoreNLP {
 	 * @param strip
 	 * @return
 	 */
-	public static String preprocessConcept(String concept) {
+	public static String stripDeterminantsAndSingularize(String concept) {
 		initialize();
 		// build annotation for a review
 		Annotation annotation = new Annotation(concept);
@@ -449,17 +450,17 @@ public class GrammarUtilsCoreNLP {
 		while (iterator.hasNext()) {
 			CoreLabel tok = iterator.next();
 			switch (tok.tag()) {
-			// plural nouns
 			// verb
-			case "VB":
-			case "VBD":
-			case "VBG":
-			case "VBN":
-			case "VBP":
-			case "VBZ":
+//			case "VB":
+//			case "VBD":
+//			case "VBG":
+//			case "VBN":
+//			case "VBP":
+//			case "VBZ":
 				// noun
 			case "NNS":
 			case "NNPS":
+				// goes into singular form
 				text_out += tok.lemma();
 				addspace = true;
 				break;

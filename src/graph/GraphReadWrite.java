@@ -25,6 +25,7 @@ import java.util.StringTokenizer;
 import java.util.regex.Pattern;
 
 import structures.ObjectIndex;
+import structures.Ticker;
 import utils.NonblockingBufferedReader;
 import utils.VariousUtils;
 
@@ -493,7 +494,7 @@ public class GraphReadWrite {
 		writeCSV(out, graph);
 		out.close();
 	}
-	
+
 	public static <V, E> void writeCSV(String filename, Collection<StringEdge> edges) throws IOException {
 		BufferedWriter out = Files.newBufferedWriter(Paths.get(filename));
 		writeCSV(out, edges);
@@ -669,4 +670,14 @@ public class GraphReadWrite {
 		writeTGF(new File(filename), graph);
 	}
 
+	public static StringGraph readInputSpaceCSV(String inputSpacePath) throws IOException, NoSuchFileException {
+		System.out.println("loading input space from " + inputSpacePath);
+		StringGraph inputSpace = new StringGraph();
+		Ticker ticker = new Ticker();
+		GraphReadWrite.readCSV(inputSpacePath, inputSpace);
+		inputSpace.showStructureSizes();
+		System.out.println("loading took " + ticker.getTimeDeltaLastCall() + " s");
+		System.out.println("-------");
+		return inputSpace;
+	}
 }

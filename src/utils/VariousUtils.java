@@ -38,6 +38,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.math3.random.RandomGenerator;
 import org.apache.commons.math3.util.FastMath;
 
@@ -880,5 +881,29 @@ public class VariousUtils {
 			extractedElements.add(deque.remove());
 		}
 		return extractedElements;
+	}
+
+	/**
+	 * Removes diacritics (~= accents) from a string. The case will not be altered.
+	 * 
+	 * For instance, 'à' will be replaced by 'a'.
+	 * 
+	 * Calls Apache Commons Lang3 StringUtils.stripAccents(String input)
+	 * 
+	 * @param text
+	 * @return
+	 */
+	public static String stripAccents(String text) {
+		return StringUtils.stripAccents(text);
+	}
+
+	public static boolean checkIfFileExists(String filepath) {
+		if (filepath != null && !filepath.isEmpty()) {
+			File f = new File(filepath);
+			if (f.exists() && !f.isDirectory()) {
+				return true;
+			}
+		}
+		return false;
 	}
 }

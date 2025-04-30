@@ -28,7 +28,7 @@ import io.github.sashirestela.openai.domain.chat.Chat;
 import io.github.sashirestela.openai.domain.chat.ChatMessage.UserMessage;
 import io.github.sashirestela.openai.domain.chat.ChatRequest;
 import it.unimi.dsi.fastutil.booleans.BooleanArrayList;
-import linguistics.GrammarUtilsCoreNLP;
+import linguistics.PythonNLP_RestServiceInterface;
 import stream.ParallelConsumer;
 import utils.InvocationsPerMinuteTracker;
 import utils.VariousUtils;
@@ -96,22 +96,34 @@ public class OpenAiLLM_Caller {
 
 	public static String cleanLine(String line) {
 		line = line.trim();
-		line = line.replace(".", ""); // remove dots
-		line = line.replaceAll("^[\\s\t]*[-]+[\\s\t]*", ""); // start space* - space* (multiple space)
-		line = line.replaceAll("[ ]*-[ ]*", " "); // space-space -> space
+		line = line.replaceAll("[^a-zA-Z \\-'0-9\\r\\n]+", " "); // remove all non text characters (excluding hyphen "-" )
+		line = line.replaceAll("[\\s]+", " "); // multiple whitespace -> space
+		line = line.replaceFirst("^[0-9]+[ -.:;,*]+", ""); // remove enumeration ie 12. something OR 1 something
 		// number followed by text
 		String test = line.replaceAll("^[\\d]+[ \\t]+[\\w ]+", "");
 		if (test.isEmpty()) {
 			line = line.substring(line.indexOf(' ') + 1);
 		}
 		line = line.replaceAll("\\s*\\(.+\\).*$", ""); // text between parentheses and text that follows until the end of string
-		String target = GrammarUtilsCoreNLP.preprocessConcept(line);
-		target = target.replace("desire for ", "");
-		target = target.replace("desire to ", "");
+		String target = null;
+		// simplify sentence
+		try {
+			target = PythonNLP_RestServiceInterface.stripDeterminantsAndSingularize(line);
+		} catch (IOException e) {
+			e.printStackTrace();
+			System.exit(0);
+		}
+		// GrammarUtilsCoreNLP.stripDeterminantsAndSingularize(line);
 		// target = target.replace("- ", "");
 		return target;
 	}
 
+	/**
+	 * this function MUST maintain the presence of newlines \r \n
+	 * 
+	 * @param reply
+	 * @return
+	 */
 	public static String cleanReply(String reply) {
 		reply = reply.trim();
 		reply = reply.replaceAll("\\s*[,:]+\\s*", " "); // ...,... -> ' ' no commas can go into here, because of the CSV format
@@ -313,9 +325,9 @@ public class OpenAiLLM_Caller {
 	 */
 	public static ArrayList<StringEdge> getRequires(String entity) {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
-		if (!checkIfEntityHasRequirements(entity)) {
-			return facts;
-		}
+//		if (!checkIfEntityHasRequirements(entity)) {
+//			return facts;
+//		}
 		String prompt = """
 				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
 				The questions are about an entity and its requirements. You answer the most important requirements. You only answer the requirements that you are certain to be required by all entities of that type. A requirement may be something required for the entity’s functioning, something required for its existence, or something required for its purposes. You give one requirement per line. You answer a requirement as a noun phrase.
@@ -387,9 +399,9 @@ public class OpenAiLLM_Caller {
 	 */
 	public static ArrayList<StringEdge> getMadeOf(String entity) {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
-		if (!checkIfEntityIsMadeOfSomething(entity)) {
-			return facts;
-		}
+//		if (!checkIfEntityIsMadeOfSomething(entity)) {
+//			return facts;
+//		}
 		String prompt = """
 				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
 				The question is about what a given entity is made of. You list the most important materials. An entity can be made of a physical material, from a form of matter, made from a substance, from a solid or the given entity can be made of a chemical constitution. Answer each material as a noun phrase
@@ -416,9 +428,9 @@ public class OpenAiLLM_Caller {
 	 */
 	public static ArrayList<StringEdge> getNotDesires(String entity) {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
-		if (!checkIfEntityHasDesires(entity)) { // dislikes ~ desires
-			return facts;
-		}
+//		if (!checkIfEntityHasDesires(entity)) { // dislikes ~ desires
+//			return facts;
+//		}
 		String prompt = """
 				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
 				The questions are about an entity and what that entity dislikes, what it has repulsion of, it loathes or it averts. You answer the most important dislikes by that entity. You only answer the dislikes that you are certain to be disliked by all entities of that type. You answer a dislike as a noun phrase.
@@ -446,9 +458,9 @@ public class OpenAiLLM_Caller {
 	 */
 	public static ArrayList<StringEdge> getDesires(String entity) {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
-		if (!checkIfEntityHasDesires(entity)) {
-			return facts;
-		}
+//		if (!checkIfEntityHasDesires(entity)) {
+//			return facts;
+//		}
 		String prompt = """
 				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
 				The questions are about an entity and what that entity desires, what that entity wishes, what that entity wants or what that entity hopes for. You answer the most important desires by that entity. You only answer the desires that you are certain to be desired by all entities of that type. You answer a desire as a noun phrase.
@@ -476,9 +488,9 @@ public class OpenAiLLM_Caller {
 	 */
 	public static ArrayList<StringEdge> getCapableOf(String entity) {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
-		if (!checkIfEntityHasCapabilities(entity)) {
-			return facts;
-		}
+//		if (!checkIfEntityHasCapabilities(entity)) {
+//			return facts;
+//		}
 		String prompt = """
 				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
 				The question is about what an entity is capable of or able to. You answer the most important and specific entity’s capabilities. You answer each capability of that entity as an action verb. Do not format your answer. You list one capability per line. Do not enumerate your answer.
@@ -544,9 +556,9 @@ public class OpenAiLLM_Caller {
 	 */
 	public static ArrayList<StringEdge> getPartOf(String entity) {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
-		if (!checkIfEntityHasParts(entity)) {
-			return facts;
-		}
+//		if (!checkIfEntityHasParts(entity)) {
+//			return facts;
+//		}
 		String prompt = """
 				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
 				The question is about an entity and its constituent parts. List the most well-known parts exclusive to that entity. Name only the parts that you are certain that belong to all entities of that type. Most importantly, a part is answered as a noun phrase. You list one part per line. If the entity is a person, answer with the parts of the human being. If the entity is an animal, answer with the parts of an animal of its species.
@@ -674,9 +686,9 @@ public class OpenAiLLM_Caller {
 	 */
 	public static ArrayList<StringEdge> getCreatedBy(String entity) {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
-		if (!checkIfEntityHasCreator(entity)) {
-			return facts;
-		}
+//		if (!checkIfEntityHasCreator(entity)) {
+//			return facts;
+//		}
 		String prompt = """
 				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
 				The question is about who or what created a given entity. You answer each creator as a noun phrase or with its name. A creator may be a person, a collective, a company or any another type of entity. If the asked entity is a person or an animal, you name its parents or progenitors. Answer all possible creators.
@@ -732,9 +744,9 @@ public class OpenAiLLM_Caller {
 	 */
 	public static ArrayList<StringEdge> getCreates(String entity) {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
-		if (!checkIfEntityCreates(entity)) {
-			return facts;
-		}
+//		if (!checkIfEntityCreates(entity)) {
+//			return facts;
+//		}
 		String prompt = """
 				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
 				The question is about what a given entity can create or originate. You answer each creation as a noun phrase or with its name. A creation may be a person, a collective, a single entity, a company or any another type of entity. If the asked entity is a person or an animal, you name its successors or children. Answer all possible creations.
@@ -813,6 +825,8 @@ public class OpenAiLLM_Caller {
 		for (String line : lines) {
 			String target = cleanLine(line);
 			facts.add(new StringEdge(target, classType, "isa"));
+			// TODO propagate existing relations in classType to the new target
+			// TODO if there are none, use the LLM to get new relations about classType
 		}
 
 		return facts;
@@ -828,7 +842,7 @@ public class OpenAiLLM_Caller {
 	public static ArrayList<StringEdge> getExamplesOf(String prompt, String classType) {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
 		String reply = "";
-		reply = doRequest(prompt).toLowerCase().strip();
+		reply = cleanReply(doRequest(prompt).toLowerCase().strip());
 		reply = reply.replace(", ", ","); // you never know...
 		reply = reply.replace(".", "");
 		reply = reply.replace("\t", " "); // tabs -> spaces
@@ -842,6 +856,8 @@ public class OpenAiLLM_Caller {
 		for (String line : lines) {
 			String target = cleanLine(line);
 			facts.add(new StringEdge(target, classType, "isa"));
+			// TODO propagate existing relations in classType to the new target
+			// TODO if there are none, use the LLM to get new relations about classType
 		}
 
 		return facts;
@@ -849,23 +865,31 @@ public class OpenAiLLM_Caller {
 
 	public static String getPhraseType(String phrase) {
 		//
+//		String prompt = """
+//				Do not explain your reasoning. Ignore case sensitivity. Is the following text a noun phrase or a verb phrase?
+//				%s""";
 		String prompt = """
-				Do not explain your reasoning. Ignore case sensitivity. Is the following text a noun phrase or a verb phrase?
+				You classify the type of phrase structure for a given sentence.
+				There are various types of phrase structures: Sentence, Noun phrase,
+				Adverb phrase, Adjective phrase and Verb phrase.
+				Do not explain your classification or your answer.
+				What is the type of phrase of the following text?
 				%s""";
 		String text = String.format(prompt.trim(), phrase, phrase);
 
 		String reply = "";
 		reply = doRequest(text).toLowerCase().strip();
-		reply = reply.replace(", ", ","); // you never know...
-		reply = reply.replace(".", "");
 		reply = reply.replace("\t", " "); // tabs -> spaces
 		reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
-		reply = reply.replace("\r\n", "\n"); // windows -> unix newline
-		reply = reply.replaceAll("[\n]+", "\n"); // empty lines
-		reply = reply.replace(" \n", "\n"); // empty lines
-		reply = reply.replaceAll("\\([\\w ]+\\)", ""); // text between parentheses
+		if (reply.startsWith("noun phrase")) {
+			return "NP";
+		} else if (reply.startsWith("verb phrase")) {
+			return "VP";
+		} else if (reply.startsWith("sentence")) {
+			return "S";
+		}
 
-		return reply;
+		return "UNKNOWN";
 	}
 
 	public static ArrayList<StringEdge> old_getPartsAndPurpose(String entity) {
@@ -1020,7 +1044,6 @@ public class OpenAiLLM_Caller {
 	public static void checkISA_concurrent(StringGraph graph) throws IOException, URISyntaxException {
 		final int batchSize = 10;
 		final int queryLimit = 6000;
-		final long pauseDurationMillis = 1 * 11 * 1000;
 		final int numThreads = 2;
 
 		ArrayList<StringEdge> trueFacts = new ArrayList<StringEdge>();
@@ -1110,7 +1133,7 @@ public class OpenAiLLM_Caller {
 		graph.removeEdges(falseFacts);
 	}
 
-	public static void runGetStuff(StringGraph inputSpace) throws InterruptedException, IOException {
+	public static void populateKB_withFacts(StringGraph inputSpace) throws InterruptedException, IOException {
 		List<String> initialConcepts = VariousUtils.readFileRows("newconcepts.txt");
 
 		int numThreads = 20;
@@ -1205,13 +1228,21 @@ public class OpenAiLLM_Caller {
 					// do not explore lengthy concepts or with many words
 					if (concept.length() <= 32 && (VariousUtils.countCharOccurences(concept, ' ') + 1) <= 3) {
 						if (!closedSet.contains(concept)) {
-							String phraseType = GrammarUtilsCoreNLP.getClassificationFromCoreNLP_raw(concept);
-							if (phraseType.equals("NP")) {
-								lock.lock();
-								{
-									openSet.add(concept);
+							// only explore concepts that are NP
+							try {
+								String phraseType = PythonNLP_RestServiceInterface.getConstituencyLocalHostSpacy(concept);
+								// String phraseType = GrammarUtilsCoreNLP.getClassificationFromCoreNLP_raw(concept);
+								if (phraseType.equals("NP")) {
+									lock.lock();
+									{
+										openSet.add(concept);
+									}
+									lock.unlock();
 								}
-								lock.unlock();
+							} catch (IOException e) {
+								if (lock.isHeldByCurrentThread())
+									lock.unlock();
+								e.printStackTrace();
 							}
 						}
 					} else {
@@ -1228,7 +1259,7 @@ public class OpenAiLLM_Caller {
 		}
 	}
 
-	public static void runGetExamples() {
+	public static void populateKB_withExamples() {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
 		facts.addAll(getAllRelations(getExamplesOf(
 				"""
@@ -1509,5 +1540,4 @@ public class OpenAiLLM_Caller {
 
 		return tempEdges;
 	}
-
 }
