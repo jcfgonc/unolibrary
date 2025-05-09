@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -18,6 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import graph.GraphAlgorithms;
 import graph.GraphReadWrite;
 import graph.StringEdge;
 import graph.StringGraph;
@@ -104,7 +106,7 @@ public class OpenAiLLM_Caller {
 		if (test.isEmpty()) {
 			line = line.substring(line.indexOf(' ') + 1);
 		}
-		line = line.replaceAll("\\s*\\(.+\\).*$", ""); // text between parentheses and text that follows until the end of string
+		line = line.replaceAll("\\s*\\(.+\\).*$", ""); // remove text between parentheses and text that follows until the end of string
 		String target = null;
 		// simplify sentence
 		try {
@@ -498,7 +500,8 @@ public class OpenAiLLM_Caller {
 		String text = String.format(prompt.trim(), entity);
 		String reply = "";
 
-		reply = cleanReply(doRequest(text).toLowerCase().strip());
+		String request = doRequest(text);
+		reply = cleanReply(request.toLowerCase().strip());
 
 		String[] lines = reply.split("\n");
 		for (String line : lines) {
@@ -581,7 +584,6 @@ public class OpenAiLLM_Caller {
 			String part = fact.getSource();
 			ArrayList<StringEdge> partPurposes = getUsedFor(entity, part);
 			purposeFacts.addAll(partPurposes);
-			System.lineSeparator();
 		}
 		facts.addAll(purposeFacts);
 		return facts;
@@ -797,12 +799,15 @@ public class OpenAiLLM_Caller {
 	}
 
 	/**
-	 * obtains an exhaustive list of well-known examples of the given class type
+	 * Obtains an exhaustive list of well-known examples of the given class type, in the form of ISA relations. Also adds relations from the given class type.
 	 * 
 	 * @param classType
+	 * @param kb
 	 * @return
 	 */
-	public static ArrayList<StringEdge> getExamplesOfClass(String classType) {
+	public static ArrayList<StringEdge> getExamplesOfClass(String classType, StringGraph kb) {
+		Set<StringEdge> edgesOfClass = kb.edgesOf(classType);
+		assert edgesOfClass.size() > 0;
 		//
 		String prompt = """
 				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
@@ -811,7 +816,8 @@ public class OpenAiLLM_Caller {
 
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
 		String reply = "";
-		reply = doRequest(text).toLowerCase().strip();
+		String response = doRequest(text).toLowerCase().strip();
+		reply = cleanReply(response);
 		reply = reply.replace(", ", ","); // you never know...
 		reply = reply.replace(".", "");
 		reply = reply.replace("\t", " "); // tabs -> spaces
@@ -825,39 +831,51 @@ public class OpenAiLLM_Caller {
 		for (String line : lines) {
 			String target = cleanLine(line);
 			facts.add(new StringEdge(target, classType, "isa"));
-			// TODO propagate existing relations in classType to the new target
-			// TODO if there are none, use the LLM to get new relations about classType
 		}
 
 		return facts;
 	}
 
 	/**
-	 * obtains concept examples of the given class type. the prompt must be in accordance
+	 * Obtains concept examples of the given class type and related knowledge (additional relations) using the given base class. The prompt must be in
+	 * accordance. Called by populateKB_withExamples()
 	 * 
 	 * @param prompt
 	 * @param classType
 	 * @return
 	 */
-	public static ArrayList<StringEdge> getExamplesOf(String prompt, String classType) {
+	public static ArrayList<StringEdge> getExamplesOf(String prompt, String classType, StringGraph kb) {
+		System.out.printf("getting examples of %s\n",classType);
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
+
+		Set<StringEdge> baseClassFacts = kb.edgesOf(classType);
+		// if insufficient amount of base class facts, get more
+		if (baseClassFacts.size() < 3) {
+			baseClassFacts.addAll(getLLM_AllRelationsForConcept(classType));
+			facts.addAll(baseClassFacts); // duplicating edges should not create problems in the KB
+		}
+
 		String reply = "";
-		reply = cleanReply(doRequest(prompt).toLowerCase().strip());
-		reply = reply.replace(", ", ","); // you never know...
-		reply = reply.replace(".", "");
-		reply = reply.replace("\t", " "); // tabs -> spaces
-		reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
-		reply = reply.replace("\r\n", "\n"); // windows -> unix newline
-		reply = reply.replaceAll("[\n]+", "\n"); // empty lines
-		reply = reply.replace(" \n", "\n"); // empty lines
-		reply = reply.replaceAll("\\([\\w ]+\\)", ""); // text between parentheses
+//		reply = cleanReply(doRequest(prompt).toLowerCase().strip());
+//		reply = reply.replace(", ", ","); // you never know...
+//		reply = reply.replace(".", "");
+//		reply = reply.replace("\t", " "); // tabs -> spaces
+//		reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
+//		reply = reply.replace("\r\n", "\n"); // windows -> unix newline
+//		reply = reply.replaceAll("[\n]+", "\n"); // empty lines
+//		reply = reply.replace(" \n", "\n"); // empty lines
+//		reply = reply.replaceAll("\\([\\w ]+\\)", ""); // text between parentheses
 
 		String[] lines = reply.split("\n");
 		for (String line : lines) {
-			String target = cleanLine(line);
-			facts.add(new StringEdge(target, classType, "isa"));
-			// TODO propagate existing relations in classType to the new target
-			// TODO if there are none, use the LLM to get new relations about classType
+			String newConcept = cleanLine(line);
+			facts.add(new StringEdge(newConcept, classType, "isa"));
+
+			// propagate existing relations in classType to the new target
+			// if there are none, use the LLM to get new relations about classType (done above)
+			// propagate existing relations in classType to the examples
+			ArrayList<StringEdge> inheritedRelations = GraphAlgorithms.propagateInheritance(newConcept, baseClassFacts, classType);
+			facts.addAll(inheritedRelations);
 		}
 
 		return facts;
@@ -996,7 +1014,6 @@ public class OpenAiLLM_Caller {
 					}
 				}
 			}
-			System.lineSeparator();
 		}
 		if (facts_evaluations.size() != edges.size()) {
 			System.err.printf("unrecognized output|%s|\nfor input\n%s\n", reply_original, text);
@@ -1133,11 +1150,12 @@ public class OpenAiLLM_Caller {
 		graph.removeEdges(falseFacts);
 	}
 
-	public static void populateKB_withFacts(StringGraph inputSpace) throws InterruptedException, IOException {
-		List<String> initialConcepts = VariousUtils.readFileRows("newconcepts.txt");
+	public static void populateKB_withFacts(StringGraph kb) throws InterruptedException, IOException {
+		List<String> initialConcepts = VariousUtils.readFileRows("concept_classes.txt");
 
-		int numThreads = 20;
-		int blockSize = 1000;
+		int numThreads = 8;
+		final int blockSize = 1000;
+		final boolean exploreNewConcepts = false;
 
 		int numConcepts = initialConcepts.size();
 		if (numThreads > numConcepts) {
@@ -1171,25 +1189,22 @@ public class OpenAiLLM_Caller {
 					conceptClosed = closedSet.contains(concept);
 					rwLock.readLock().unlock();
 				}
+				// do not expand large concepts, or with many words, word already explored
 				if (concept.length() <= 32 && (VariousUtils.countCharOccurences(concept, ' ') + 1) <= 2 && !conceptClosed) {
 
 					try {
 						ArrayList<StringEdge> localEdges = new ArrayList<StringEdge>();
-						localEdges.addAll(OpenAiLLM_Caller.getCapableOf(concept));
-						localEdges.addAll(OpenAiLLM_Caller.getCauses(concept));
-						localEdges.addAll(OpenAiLLM_Caller.getCausesDesire(concept));
-						localEdges.addAll(OpenAiLLM_Caller.getCreatedBy(concept));
-						localEdges.addAll(OpenAiLLM_Caller.getCreates(concept));
-						localEdges.addAll(OpenAiLLM_Caller.getDesires(concept));
-						localEdges.addAll(OpenAiLLM_Caller.getIsaClass(concept));
-						localEdges.addAll(OpenAiLLM_Caller.getKnownFor(concept));
-						localEdges.addAll(OpenAiLLM_Caller.getMadeOf(concept));
-						localEdges.addAll(OpenAiLLM_Caller.getNotDesires(concept));
-						localEdges.addAll(OpenAiLLM_Caller.getPartOf(concept));
-						localEdges.addAll(OpenAiLLM_Caller.getRequires(concept));
-						localEdges.addAll(OpenAiLLM_Caller.getUsedFor(concept));
-						localEdges.addAll(OpenAiLLM_Caller.getWhatIsPartOf(concept));
-						localEdges.addAll(OpenAiLLM_Caller.getAtLocation(concept));
+						localEdges.addAll(OpenAiLLM_Caller.getLLM_AllRelationsForConcept(concept));
+
+						// assuming the concept represents a class, otherwise this call might not make sense
+						ArrayList<StringEdge> examplesOfClass = OpenAiLLM_Caller.getExamplesOfClass(concept, kb);
+						// propagate existing relations in classType to the examples
+						ArrayList<String> newClasses = GraphAlgorithms.getEdgesSources(examplesOfClass);
+						ArrayList<StringEdge> inheritedRelations = GraphAlgorithms.propagateInheritance(newClasses, localEdges, concept);
+
+						localEdges.addAll(examplesOfClass);
+						localEdges.addAll(inheritedRelations);
+
 						lock.lock();
 						{
 							facts.addAll(localEdges);
@@ -1215,10 +1230,10 @@ public class OpenAiLLM_Caller {
 			int previousSize = openSetBatch.size();
 
 			GraphReadWrite.writeCSV("newfacts" + counter + ".csv", facts);
-			System.err.println("round " + counter + " done LLM calls, processing CoreNLP...");
+			System.err.println("iteration " + counter + " done doing LLM calls, processing CoreNLP...");
 
 			// collect into openConcepts the concepts from facts that are NP and not in the closed set
-			{
+			if (exploreNewConcepts) {
 				HashSet<String> conceptsToAdd = new HashSet<String>();
 				for (StringEdge fact : facts) {
 					conceptsToAdd.add(fact.getSource());
@@ -1259,242 +1274,242 @@ public class OpenAiLLM_Caller {
 		}
 	}
 
-	public static void populateKB_withExamples() {
+	public static void populateKB_withExamples(StringGraph kb) {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
-		facts.addAll(getAllRelations(getExamplesOf(
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						Give an exhaustive list of well-known comic characters. Do not explain those comic characters, only list their names. Answer each name as a noun phrase.
 						""",
-				"comic character")));
+				"comic character", kb)));
 
-		facts.addAll(getAllRelations(getExamplesOf(
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						Give an exhaustive list of well-known jobs or occupations. Do not explain those jobs, only list their names. Answer each name as a noun phrase.
 						""",
-				"occupation")));
-		facts.addAll(getAllRelations(getExamplesOf(
+				"occupation", kb)));
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						List all proven and demonstrated elementary particles in physics. Do not explain those particles, only list their names. Answer each elementary particle as a noun phrase. Do not list hypothetical or unproven particles.
 						""",
-				"elementary particle")));
-		facts.addAll(getAllRelations(getExamplesOf(
+				"elementary particle", kb)));
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						List the thirty most important and well-known electronic components used in electronics. Do not explain those components, only list their names. Answer each name as a noun phrase. Do not list hypothetical or unproven components.
 						""",
-				"electronic component")));
-		facts.addAll(getAllRelations(getExamplesOf(
+				"electronic component", kb)));
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						List all types of audio equipment used in audio or in music. Do not explain those equipments , only list their names. Answer each audio equipment as a noun phrase.
 						""",
-				"audio equipment")));
-		facts.addAll(getAllRelations(getExamplesOf(
+				"audio equipment", kb)));
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						Give an exhaustive list of organs present in vertebrate animals. Do not explain those organs, only list their names. Answer each organ as a noun phrase.
 						""",
-				"organ")));
-		facts.addAll(getAllRelations(getExamplesOf(
+				"organ", kb)));
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						Give an exhaustive list of tools used by tradesperson in their daily work. Do not explain those tools , only list their names. Answer each tool as a noun phrase.
 						""",
-				"tool")));
-		facts.addAll(getAllRelations(getExamplesOf(
+				"tool", kb)));
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						Give an exhaustive list of medication types. Do not explain those medications, only list their names. Answer each medication as a noun phrase.
 						""",
-				"drug")));
-		facts.addAll(getAllRelations(getExamplesOf(
+				"drug", kb)));
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						Give a list of cosmetic types. Do not explain those types, only list their names. Answer each cosmetic type type as a noun phrase.
 						""",
-				"cosmetic")));
+				"cosmetic", kb)));
 		// --------------
-		facts.addAll(getAllRelations(getExamplesOf(
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						Given a comprehensive list of musical instruments. Do not explain those instruments, only list their names. Answer each musical instrument as a noun phrase.
 						""",
-				"musical instrument")));
-		facts.addAll(getAllRelations(getExamplesOf(
+				"musical instrument", kb)));
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						Give an comprehensive list of items or products sold in a supermarket. Do not explain those products , only list their names. Answer each product as a noun phrase.
 						""",
-				"merchandise")));
-		facts.addAll(getAllRelations(getExamplesOf(
+				"merchandise", kb)));
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						List all types of weapons usable by a single person. Do not explain those weapons, only list their names. Answer each weapon as a noun phrase.
 						""",
-				"weapon")));
-		facts.addAll(getAllRelations(getExamplesOf(
+				"weapon", kb)));
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						List common furniture that is present in a home or in a building. Do not explain those furniture, only list their names. Answer each furniture as a noun phrase.
 						""",
-				"furniture")));
-		facts.addAll(getAllRelations(getExamplesOf(
+				"furniture", kb)));
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						List common hardware components of a computer. Do not explain those component, only list their names. Answer each hardware component as a noun phrase.
 						""",
-				"hardware component")));
-		facts.addAll(getAllRelations(getExamplesOf(
+				"hardware component", kb)));
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						List 30 types of celestial objects of the universe. Do not explain those celestial objects, only list their names. Do not answer hypothetical or unproven celestial objects. Answer each celestial object as a noun phrase.
 						""",
-				"celestial object")));
-		facts.addAll(getAllRelations(getExamplesOf(
+				"celestial object", kb)));
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						List 50 celestial objects that can be seen with a telescope. Do not explain those celestial objects, only list their names. Answer each celestial object as a noun phrase.
 						""",
-				"celestial object")));
-		facts.addAll(getAllRelations(getExamplesOf(
+				"celestial object", kb)));
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						List 30 of the most popular sports. Include group sports and individual sports. Do not explain those sports, only list their names. Answer each sport as a noun phrase.
 						""",
-				"sport")));
-		facts.addAll(getAllRelations(getExamplesOf(
+				"sport", kb)));
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						List 30 of the most popular video games of all time. Include console and computer games. Do not explain those video games, only list their names. Answer each video game as a noun phrase.
 						""",
-				"video game")));
-		facts.addAll(getAllRelations(getExamplesOf(
+				"video game", kb)));
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						List 30 of the most popular table games. Do not explain those table games, only list their names. Answer each table game as a noun phrase.
 						""",
-				"table game")));
-		facts.addAll(getAllRelations(getExamplesOf(
+				"table game", kb)));
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						List 30 of the most common illnesses. Do not explain those illnesses, only list their names. Answer each illness as a noun phrase.
 						""",
-				"illness")));
-		facts.addAll(getAllRelations(getExamplesOf(
+				"illness", kb)));
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						List 30 of the most common diseases. Do not explain those diseases, only list their names. Answer each disease as a noun phrase.
 						""",
-				"disease")));
-		facts.addAll(getAllRelations(getExamplesOf(
+				"disease", kb)));
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						List 30 of the most common viruses. Do not explain those viruses, only list their names. Answer each virus as a noun phrase.
 						""",
-				"virus")));
-		facts.addAll(getAllRelations(getExamplesOf(
+				"virus", kb)));
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						List 30 of the most common bacteria. Do not explain those bacteria, only list their names. Answer each bacteria as a noun phrase.
 						""",
-				"bacteria")));
-		facts.addAll(getAllRelations(getExamplesOf(
+				"bacteria", kb)));
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						List 30 of the most common mushrooms. Do not explain those mushrooms, only list their names. Answer each mushroom as a noun phrase.
 						""",
-				"mushroom")));
-		facts.addAll(getAllRelations(getExamplesOf(
+				"mushroom", kb)));
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						List 30 of the most common plants in a garden. Do not explain those plants , only list their names. Answer each plant as a noun phrase.
 						""",
-				"plant")));
-		facts.addAll(getAllRelations(getExamplesOf(
+				"plant", kb)));
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						List the 20 most common mental disorders. Do not explain those mental disorders, only list their names. Answer each mental disorder as a noun phrase.
 						""",
-				"mental disorder")));
-		facts.addAll(getAllRelations(getExamplesOf(
+				"mental disorder", kb)));
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						List the 30 most common atomic elements. Do not explain those atomic elements, only list their names. Answer each atomic element as a noun phrase.
 						""",
-				"atomic element")));
-		facts.addAll(getAllRelations(getExamplesOf(
+				"atomic element", kb)));
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						List the 30 most common chemical molecules present in the earth. Do not explain those chemical molecules, only list their names. Answer each chemical molecule as a noun phrase.
 						""",
-				"cosmetic")));
-		facts.addAll(getAllRelations(getExamplesOf(
+				"cosmetic", kb)));
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						List body parts of complex animals. Do not explain those body parts, only list their names. Answer each body part as a noun phrase.
 						""",
-				"body part")));
-		facts.addAll(getAllRelations(getExamplesOf(
+				"body part", kb)));
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						List the 50 most famous inventions. Do not explain those inventions, only list their names. Answer each invention as a noun phrase.
 						""",
-				"invention")));
-		facts.addAll(getAllRelations(getExamplesOf(
+				"invention", kb)));
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						List the 30 most famous stories or epic poems. Focus on classical or ancient stories. Do not explain those stories, only list their names. Do not include the story's author. Answer each story as a noun phrase.
 						""",
-				"novel")));
-		facts.addAll(getAllRelations(getExamplesOf(
+				"novel", kb)));
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						List the 30 most famous novels. List novels of the last century. Do not explain those novels, only list their names. Do not include the novel's author. Answer each novel as a noun phrase.
 						""",
-				"novel")));
-		facts.addAll(getAllRelations(getExamplesOf(
+				"novel", kb)));
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						List the 50 most famous fictional characters of classical novels and poems. Focus on classical or ancient characters. Do not explain those fictional characters, only list their names. Answer each fictional character as a noun phrase.
 						""",
-				"fictional character")));
-		facts.addAll(getAllRelations(getExamplesOf(
+				"fictional character", kb)));
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						List 30 of the most well-known characters of star trek. Do not explain those characters, only list their names. Answer each character as a noun phrase.
 						""",
-				"fictional character")));
-		facts.addAll(getAllRelations(getExamplesOf(
+				"fictional character", kb)));
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						List 30 of the most well-known characters of star wars. Do not explain those characters, only list their names. Answer each character as a noun phrase.
 						""",
-				"fictional character")));
-		facts.addAll(getAllRelations(getExamplesOf(
+				"fictional character", kb)));
+		facts.addAll(getAllRelationsContextualized(getExamplesOf(
 				"""
 						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
 						List 30 of the most common home appliances. Do not explain those home appliances, only list their names. Answer each home appliance as a noun phrase.
 						""",
-				"home appliance")));
+				"home appliance", kb)));
 	}
 
 	/**
-	 * receives a list of ISA facts and populates each fact source with relations from a LLM
+	 * Receives a list of ISA facts and populates each fact source with relations from a LLM. (Parallelized)
 	 * 
 	 * @param examples
 	 * @return
 	 */
-	private static ArrayList<StringEdge> getAllRelations(ArrayList<StringEdge> examples) {
+	private static ArrayList<StringEdge> getAllRelationsContextualized(ArrayList<StringEdge> examples) {
 
 		ReentrantLock lock = new ReentrantLock();
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
 		ParallelConsumer<StringEdge> pc = new ParallelConsumer<>(8);
 		try {
 			pc.parallelForEach(examples, example -> {
-				ArrayList<StringEdge> allRelations = getAllRelations(example);
+				ArrayList<StringEdge> allRelations = getAllRelationsContextualized(example);
 				lock.lock();
 				{
 					facts.addAll(allRelations);
@@ -1509,29 +1524,14 @@ public class OpenAiLLM_Caller {
 		return facts;
 	}
 
-	private static ArrayList<StringEdge> getAllRelations(StringEdge edge) {
+	private static ArrayList<StringEdge> getAllRelationsContextualized(StringEdge edge) {
 		assert edge.getLabel().equals("isa");
 
 		// formats as concept (type)
 		String concept = edge.getSource();
 		String type = edge.getTarget();
 		String conceptWithContext = String.format("%s (%s)", concept, type);
-		ArrayList<StringEdge> localEdges = new ArrayList<StringEdge>();
-		localEdges.addAll(OpenAiLLM_Caller.getCapableOf(conceptWithContext));
-		localEdges.addAll(OpenAiLLM_Caller.getCauses(conceptWithContext));
-		localEdges.addAll(OpenAiLLM_Caller.getCausesDesire(conceptWithContext));
-		localEdges.addAll(OpenAiLLM_Caller.getCreatedBy(conceptWithContext));
-		localEdges.addAll(OpenAiLLM_Caller.getCreates(conceptWithContext));
-		localEdges.addAll(OpenAiLLM_Caller.getDesires(conceptWithContext));
-		localEdges.addAll(OpenAiLLM_Caller.getIsaClass(conceptWithContext));
-		localEdges.addAll(OpenAiLLM_Caller.getKnownFor(conceptWithContext));
-		localEdges.addAll(OpenAiLLM_Caller.getMadeOf(conceptWithContext));
-		localEdges.addAll(OpenAiLLM_Caller.getNotDesires(conceptWithContext));
-		localEdges.addAll(OpenAiLLM_Caller.getPartOf(conceptWithContext));
-		localEdges.addAll(OpenAiLLM_Caller.getRequires(conceptWithContext));
-		localEdges.addAll(OpenAiLLM_Caller.getUsedFor(conceptWithContext));
-		localEdges.addAll(OpenAiLLM_Caller.getWhatIsPartOf(conceptWithContext));
-		localEdges.addAll(OpenAiLLM_Caller.getAtLocation(conceptWithContext));
+		ArrayList<StringEdge> localEdges = getLLM_AllRelationsForConcept(conceptWithContext);
 
 		ArrayList<StringEdge> tempEdges = new ArrayList<StringEdge>();
 		for (StringEdge t_edge : localEdges) {
@@ -1539,5 +1539,41 @@ public class OpenAiLLM_Caller {
 		}
 
 		return tempEdges;
+	}
+
+	private static ArrayList<StringEdge> getLLM_AllRelationsForConcept(String concept) {
+		System.out.printf("getting all relations for %s\n",concept);
+		ArrayList<StringEdge> localEdges = new ArrayList<StringEdge>();
+		localEdges.addAll(OpenAiLLM_Caller.getCapableOf(concept));
+		System.out.printf("getCapableOf %s\n",concept);
+		localEdges.addAll(OpenAiLLM_Caller.getCauses(concept));
+		System.out.printf("getCauses %s\n",concept);
+		localEdges.addAll(OpenAiLLM_Caller.getCausesDesire(concept));
+		System.out.printf("getCausesDesire %s\n",concept);
+		localEdges.addAll(OpenAiLLM_Caller.getCreatedBy(concept));
+		System.out.printf("getCreatedBy %s\n",concept);
+		localEdges.addAll(OpenAiLLM_Caller.getCreates(concept));
+		System.out.printf("getCreates %s\n",concept);
+		localEdges.addAll(OpenAiLLM_Caller.getDesires(concept));
+		System.out.printf("getDesires %s\n",concept);
+		localEdges.addAll(OpenAiLLM_Caller.getIsaClass(concept));
+		System.out.printf("getIsaClass %s\n",concept);
+		localEdges.addAll(OpenAiLLM_Caller.getKnownFor(concept));
+		System.out.printf("getKnownFor %s\n",concept);
+		localEdges.addAll(OpenAiLLM_Caller.getMadeOf(concept));
+		System.out.printf("getMadeOf %s\n",concept);
+		localEdges.addAll(OpenAiLLM_Caller.getNotDesires(concept));
+		System.out.printf("getNotDesires %s\n",concept);
+		localEdges.addAll(OpenAiLLM_Caller.getPartOf(concept));
+		System.out.printf("getPartOf %s\n",concept);
+		localEdges.addAll(OpenAiLLM_Caller.getRequires(concept));
+		System.out.printf("getRequires %s\n",concept);
+		localEdges.addAll(OpenAiLLM_Caller.getUsedFor(concept));
+		System.out.printf("getUsedFor %s\n",concept);
+		localEdges.addAll(OpenAiLLM_Caller.getWhatIsPartOf(concept));
+		System.out.printf("getWhatIsPartOf %s\n",concept);
+		localEdges.addAll(OpenAiLLM_Caller.getAtLocation(concept));
+		System.out.printf("getAtLocation %s\n",concept);
+		return localEdges;
 	}
 }

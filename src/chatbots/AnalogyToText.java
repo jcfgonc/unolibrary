@@ -24,8 +24,6 @@ public class AnalogyToText {
 		// root pair TAB graph in CSV
 		String txt = "fridge|orchestra	fridge|orchestra,atlocation,south london|concert hall;fridge|orchestra,usedfor,refrigeration|make music;yogurt|instrument,atlocation,fridge|orchestra;fridge|orchestra,isa,refrigerator|group of musician;fridge|orchestra,partof,kitchen|theatre;fridge|orchestra,capableof,cool food|play symphony;oven|band,antonym,fridge|orchestra;";
 		completeAnalogy(txt);
-
-		System.lineSeparator();
 	}
 
 	private static void completeAnalogy(String txt) throws NoSuchFileException, IOException, URISyntaxException {
@@ -66,7 +64,6 @@ public class AnalogyToText {
 			String d = targets[1];
 			String template = rt_templates.get(relation);
 			text += template.replace("%a%", a).replace("%b%", b).replace("%c%", c).replace("%d%", d) + ". ";
-			System.lineSeparator();
 		}
 		return text;
 	}

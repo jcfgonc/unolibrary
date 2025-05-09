@@ -301,7 +301,6 @@ public class GrammarUtilsWordNet {
 					}
 				}
 			}
-			System.lineSeparator();
 			// not matched with the two word rules
 		} else if (numWords == 3) {
 			HashSet<MyPOS> pos0 = possiblePOS_perWord.get(0);
@@ -348,10 +347,7 @@ public class GrammarUtilsWordNet {
 				retval.add(MyPOS.NOUN);
 			}
 
-			System.lineSeparator();
-
 		} else {
-			System.lineSeparator();
 //				if (pos0.contains(POS.VERB)) {
 //
 //				}		

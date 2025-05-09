@@ -222,8 +222,6 @@ public class GoogleLLM_knowledgeExtractor {
 						}
 					}
 					graph.addEdges(newEdges);
-
-					System.lineSeparator();
 				}
 				Thread.sleep(333);
 			} catch (Exception e) {

@@ -10,6 +10,7 @@ import java.net.ProtocolException;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 
@@ -24,19 +25,16 @@ public class PythonNLP_RestServiceInterface {
 	 */
 	private static SynchronizedSeriarizableHashMap<String, String> cachedConstituencies = new SynchronizedSeriarizableHashMap<>("constituencyCache.dat", 15);
 	private static SynchronizedSeriarizableHashMap<String, String> cachedCleaned = new SynchronizedSeriarizableHashMap<>("cleanedCache.dat", 15);
-	private static HashSet<String> fileNounPhrases;
+	private static HashSet<String> nounPhrases_fromFile;
 	private static boolean initialized = false;
 	private static final String SERVER_URL = "http://ckhp";
 	private static final String NP_FILENAME = "data/noun_phrases.txt";
 
-	public static void main(String[] args) throws IOException {
-		System.out.println(getConstituencyLocalHostSpacy("O João Carlos é um espectáculo e é um coração de pessoa :)"));
-	}
-
 	public static String getConstituencyLocalHostSpacy(String concept) throws IOException {
-		if (fileNounPhrases.contains(concept))
-			return "NP";
 		initialize();
+
+		if (nounPhrases_fromFile.contains(concept))
+			return "NP";
 
 		final String baseUrl = SERVER_URL + "/api/constituency";
 
@@ -76,7 +74,7 @@ public class PythonNLP_RestServiceInterface {
 		String concept_encoded = URLEncoder.encode(concept.toLowerCase().trim(), "UTF-8");
 		final String params = "concept=" + concept_encoded;
 		String output_encoded = getRemoteResponse(params, url);
-		System.out.printf("%s->%s\n", concept_encoded, output_encoded);
+		//System.out.printf("%s->%s\n", concept_encoded, output_encoded);
 		String output_decoded = URLDecoder.decode(output_encoded, "UTF-8");
 		return output_decoded;
 	}
@@ -100,9 +98,10 @@ public class PythonNLP_RestServiceInterface {
 
 	private static void initialize() throws FileNotFoundException {
 		if (!initialized) {
-			fileNounPhrases = new HashSet<String>();
+			nounPhrases_fromFile = new HashSet<String>();
 			if (VariousUtils.checkIfFileExists(NP_FILENAME)) {
-				fileNounPhrases.addAll(VariousUtils.readFileRows(NP_FILENAME));
+				ArrayList<String> rows = VariousUtils.readFileRows(NP_FILENAME);
+				nounPhrases_fromFile.addAll(rows);
 			}
 			initialized = true;
 		}

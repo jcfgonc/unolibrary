@@ -1620,4 +1620,38 @@ public class GraphAlgorithms {
 		}
 		return sources;
 	}
+
+	/**
+	 * propagates the relations from parent to each each element of the children
+	 * 
+	 * @param children
+	 * @param edges
+	 * @param concept
+	 * @return
+	 */
+	public static ArrayList<StringEdge> propagateInheritance(Collection<String> children, Collection<StringEdge> edges, String parent) {
+		ArrayList<StringEdge> newRelations = new ArrayList<>();
+		for (String child : children) {
+			ArrayList<StringEdge> newEdges = propagateInheritance(child, edges, parent);
+			newRelations.addAll(newEdges);
+		}
+		return newRelations;
+	}
+
+	/**
+	 * propagates the relations from parent to the child
+	 * 
+	 * @param children
+	 * @param edges
+	 * @param concept
+	 */
+	public static ArrayList<StringEdge> propagateInheritance(String child, Collection<StringEdge> edges, String parent) {
+		ArrayList<StringEdge> new_edges = new ArrayList<>();
+		for (StringEdge edge : edges) {
+			StringEdge newEdge = edge.replaceSourceOrTarget(parent, child);
+			new_edges.add(newEdge);
+		}
+		return new_edges;
+	}
+
 }
