@@ -36,6 +36,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import utils.OSTools;
+
 /**
  * <p>
  * A class for arbitrary-precision integer arithmetic purely written in Java.
@@ -1564,7 +1566,7 @@ public class BigInt extends Number implements Comparable<BigInt> {
 		if (!parallel)
 			res = kmul(dig, mul.dig, 0, mlen);
 		else {
-			final ExecutorService pool = Executors.newFixedThreadPool(12);
+			final ExecutorService pool = Executors.newFixedThreadPool(OSTools.getNumberOfLogicalProcessors());
 			try {
 				res = pmul(dig, mul.dig, 0, mlen, 1, pool);
 			} catch (Exception e) {
