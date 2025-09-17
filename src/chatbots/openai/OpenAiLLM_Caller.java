@@ -6,7 +6,9 @@ import java.net.URISyntaxException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.StringTokenizer;
@@ -19,7 +21,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import graph.GraphAlgorithms;
 import graph.GraphReadWrite;
 import graph.StringEdge;
 import graph.StringGraph;
@@ -32,22 +33,46 @@ import io.github.sashirestela.openai.domain.chat.ChatRequest;
 import it.unimi.dsi.fastutil.booleans.BooleanArrayList;
 import linguistics.PythonNLP_RestServiceInterface;
 import stream.ParallelConsumer;
+import structures.SynchronizedSeriarizableHashMap;
 import utils.InvocationsPerMinuteTracker;
+import utils.OSTools;
 import utils.VariousUtils;
 
 public class OpenAiLLM_Caller {
 
-	public static final String llm_model = "gpt-4o-mini";
+	public static final String llm_model = "gpt-4.1-mini";
 	private static String api_key;
-	private static boolean initialized = false;
 	private static SimpleOpenAI openAI;
 	private static ChatCompletions chatCompletions;
+	private static SynchronizedSeriarizableHashMap<String, String> cachedRawPhrases = new SynchronizedSeriarizableHashMap<>("cachedRawPhrases.dat", 10);
+	private static SynchronizedSeriarizableHashMap<String, String> cachedVP_to_NP = new SynchronizedSeriarizableHashMap<>("cachedVP_to_NP.dat", 10);
+	private static SynchronizedSeriarizableHashMap<String, String> cachedNP_to_VP = new SynchronizedSeriarizableHashMap<>("cachedNP_to_VP.dat", 10);
+	private static Set<String> nounPhrases_fromFile;
+	private static final String NP_FILENAME = "D:\\My Source Code\\Java - PhD\\UnoLibrary\\data\\noun_phrases.txt";
 
-	private static void init() {
-		if (initialized)
-			return;
+	private static final String PROMPT_INTRO = """
+			You are a knowledge base that answers to a single question made by an expert system.
+			Your answers will be interpreted by an english expert system and stored in a knowledge graph.
+			Your knowledge base is in American English.
+			You have a comprehensive ontology and knowledge that spans the basic concepts and rules about how the world works.
+			You answer to the question with multiple factual possibilities in non-formatted text. Do not fancy or pretty format your answer.
+			Do not explain your reason or your answer. Do not enumerate your answer.
+			Reply each possible answer in its own line, one possibility per line.
+
+			""";
+
+	static {
 		try {
 			api_key = VariousUtils.readFile("data/openai_api_key.txt");
+
+			nounPhrases_fromFile = new HashSet<String>();
+			if (VariousUtils.checkIfFileExists(NP_FILENAME)) {
+				ArrayList<String> rows = VariousUtils.readFileRows(NP_FILENAME);
+				nounPhrases_fromFile.addAll(rows);
+			}
+			// set read only
+			nounPhrases_fromFile = Collections.unmodifiableSet(nounPhrases_fromFile);
+
 		} catch (IOException e) {
 			// no api key, forget it
 			e.printStackTrace();
@@ -55,7 +80,16 @@ public class OpenAiLLM_Caller {
 		}
 		openAI = SimpleOpenAI.builder().apiKey(api_key).build();
 		chatCompletions = openAI.chatCompletions();
-		initialized = true;
+	}
+
+	public static void saveCaches() {
+		try {
+			cachedRawPhrases.save();
+			cachedVP_to_NP.save();
+			cachedNP_to_VP.save();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 	/**
@@ -67,27 +101,26 @@ public class OpenAiLLM_Caller {
 	 * @throws URISyntaxException
 	 */
 	public static String doRequest(String prompt) {
-		init();
 		while (true) {
 			try {
 				InvocationsPerMinuteTracker.printInvocationsPerMinute("OpenAI call");
-				ChatRequest chatRequest = ChatRequest.builder().model(llm_model).message(UserMessage.of(prompt)).temperature(0.000).maxCompletionTokens(512)
-						.frequencyPenalty(0.05).presencePenalty(0.05).build();
+				ChatRequest chatRequest = ChatRequest.builder().model(llm_model).message(UserMessage.of(prompt)).temperature(0.000).maxCompletionTokens(512).frequencyPenalty(0.05)
+						.presencePenalty(0.05).build();
 				CompletableFuture<Chat> futureChat = chatCompletions.create(chatRequest);
 				Chat chatResponse = futureChat.join();
 				String firstContent = chatResponse.firstContent();
-//		System.out.println(firstContent);
 				return firstContent;
 			} catch (CompletionException e) {
-				System.err.println(e.getMessage());
+				System.err.println("doRequest: " + e.getMessage());
 				// HTTP interaction failed: server returned a 429 response status.
 				// 429 error means that query rate limit has been Exceeded
 				if (e.getMessage().contains("429")) {
 				}
 			} catch (Exception e) {
-				System.err.println(e.getMessage());
+				System.err.println("doRequest: " + e.getMessage());
 				e.printStackTrace();
 			}
+			// do a pause and retry again
 			try {
 				Thread.sleep(2000);
 			} catch (InterruptedException e) {
@@ -97,26 +130,45 @@ public class OpenAiLLM_Caller {
 	}
 
 	public static String cleanLine(String line) {
-		line = line.trim();
-		line = line.replaceAll("[^a-zA-Z \\-'0-9\\r\\n]+", " "); // remove all non text characters (excluding hyphen "-" )
-		line = line.replaceAll("[\\s]+", " "); // multiple whitespace -> space
+		String initial_line = line;
+		line = line.strip();
+//		line = line.replaceAll("\\s*\\(.+\\).*$", ""); // remove text between parentheses and text that follows until the end of string
+		// required because of relation context
+		line = line.replaceAll("\\(\\s+", "(");
+		line = line.replaceAll("\\s+\\)", ")");
+
+//		line = line.replaceAll("[^a-zA-Z \\-'0-9\\r\\n]+", " "); // remove all non text characters (excluding hyphen "-" )
 		line = line.replaceFirst("^[0-9]+[ -.:;,*]+", ""); // remove enumeration ie 12. something OR 1 something
-		// number followed by text
-		String test = line.replaceAll("^[\\d]+[ \\t]+[\\w ]+", "");
+		String test = line.replaceAll("^[\\d]+[ \\t]+[\\w ]+", ""); // number followed by text
 		if (test.isEmpty()) {
 			line = line.substring(line.indexOf(' ') + 1);
 		}
-		line = line.replaceAll("\\s*\\(.+\\).*$", ""); // remove text between parentheses and text that follows until the end of string
-		String target = null;
+		// corrigi isto em 19/5/2025 para tentar retirar mais do que um espaço nos
+		// conceitos
+		line = line.replaceAll("[ \t]+", " "); // multiple whitespace -> space
+
+		//
+//		int size = line.length();
+//		if (size >= 64) {
+//			System.err.printf("cleanLine() large concept with size\t%d\ttext\t%s\n", size, line);
+//			line = line.substring(0, 64);
+//			int lastSpace_i = line.lastIndexOf(' ');
+//			if (lastSpace_i != -1) {
+//				line = line.substring(0, lastSpace_i);
+//			}
+//		}
 		// simplify sentence
-		try {
-			target = PythonNLP_RestServiceInterface.stripDeterminantsAndSingularize(line);
-		} catch (IOException e) {
-			e.printStackTrace();
-			System.exit(0);
-		}
+		String target = line;
+//		try {
+//			target = PythonNLP_RestServiceInterface.stripDeterminantsAndSingularize(line);
+//		} catch (Exception e) {
+//			e.printStackTrace();
+//			target = "35408228dbbc03585527412fb9065853e85c2e7f2be2f38bab88ca20458423021dac4f52b5e73279411e74d7ae34b2ae3760d54fef3057c0bca49a34d761478c";
+//			System.err.printf("cleanLine() remote NLP call failed, concept %s converted to %s\n", line, target);
+//		}
 		// GrammarUtilsCoreNLP.stripDeterminantsAndSingularize(line);
 		// target = target.replace("- ", "");
+		// System.out.printf("%s\t->\t%s\n", initial_line, target);
 		return target;
 	}
 
@@ -127,12 +179,14 @@ public class OpenAiLLM_Caller {
 	 * @return
 	 */
 	public static String cleanReply(String reply) {
-		reply = reply.trim();
-		reply = reply.replaceAll("\\s*[,:]+\\s*", " "); // ...,... -> ' ' no commas can go into here, because of the CSV format
+		reply = reply.strip();
+		reply = reply.replaceAll("\\s*[,:]+\\s*", " "); // ...,... -> ' ' no commas can go into here, because of the CSV
+														// format
 		reply = reply.replaceAll("[ \t]+", " ");// multiple whitespace -> one space
 		reply = reply.replace(".", ""); // remove dots
 		reply = reply.replace("\r\n", "\n"); // windows -> unix newline
 		reply = reply.replaceAll("[\n]+", "\n"); // empty lines
+		reply = reply.replaceAll("[\t ]+", " ");
 		return reply;
 	}
 
@@ -140,7 +194,7 @@ public class OpenAiLLM_Caller {
 		String prompt = """
 				Evaluate if the following question is logical or if the question makes sense. Do not explain your reasoning nor your answer. Answer strictly yes or no.
 				Did in the past or does in the present %s require anything or %s have pre-conditions?""";
-		String text = String.format(prompt.trim(), entity, entity);
+		String text = String.format(prompt.strip(), entity, entity);
 		String reply = "";
 		reply = doRequest(text).toLowerCase().strip();
 
@@ -157,7 +211,7 @@ public class OpenAiLLM_Caller {
 		String prompt = """
 				Evaluate if the following question is logical or if the question makes sense. Do not explain your reasoning nor your answer. Answer strictly yes or no.
 				Did in the past or does in the present %s have desires?""";
-		String text = String.format(prompt.trim(), entity);
+		String text = String.format(prompt.strip(), entity);
 		String reply = "";
 		reply = doRequest(text).toLowerCase().strip();
 
@@ -174,7 +228,7 @@ public class OpenAiLLM_Caller {
 		String prompt = """
 				Evaluate if the following question is logical or if the question makes sense. Do not explain your reasoning nor your answer. Answer strictly yes or no.
 				Did in the past or does in the present %s have goals to achieve?""";
-		String text = String.format(prompt.trim(), entity);
+		String text = String.format(prompt.strip(), entity);
 		String reply = "";
 		reply = doRequest(text).toLowerCase().strip();
 
@@ -191,7 +245,7 @@ public class OpenAiLLM_Caller {
 		String prompt = """
 				Evaluate if the following question is logical or if the question makes sense. Do not explain your reasoning nor your answer. Answer strictly yes or no.
 				Is %s known to have notable ideas?""";
-		String text = String.format(prompt.trim(), entity);
+		String text = String.format(prompt.strip(), entity);
 		String reply = "";
 		reply = doRequest(text).toLowerCase().strip();
 
@@ -208,7 +262,7 @@ public class OpenAiLLM_Caller {
 		String prompt = """
 				Evaluate if the following question is logical or if the question makes sense. Do not explain your reasoning nor your answer. Answer strictly yes or no.
 				Is in the present or was in the past %s made of something?""";
-		String text = String.format(prompt.trim(), entity);
+		String text = String.format(prompt.strip(), entity);
 		String reply = "";
 		reply = doRequest(text).toLowerCase().strip();
 
@@ -225,7 +279,7 @@ public class OpenAiLLM_Caller {
 		String prompt = """
 				Evaluate if the following question is logical or if the question makes sense. Do not explain your reasoning nor your answer. Answer strictly yes or no.
 				Did in the past or does in the present %s have abilities?""";
-		String text = String.format(prompt.trim(), entity);
+		String text = String.format(prompt.strip(), entity);
 		String reply = "";
 		reply = doRequest(text).toLowerCase().strip();
 
@@ -242,7 +296,7 @@ public class OpenAiLLM_Caller {
 		String prompt = """
 				Evaluate if the following question is logical or if the question makes sense. Do not explain your reasoning nor your answer. Answer strictly yes or no.
 				Does %s have any parts or components?""";
-		String text = String.format(prompt.trim(), entity);
+		String text = String.format(prompt.strip(), entity);
 		String reply = "";
 		reply = doRequest(text).toLowerCase().strip();
 
@@ -259,7 +313,7 @@ public class OpenAiLLM_Caller {
 		String prompt = """
 				Evaluate if the following question is logical or if the question makes sense. Do not explain your reasoning nor your answer. Answer strictly yes or no.
 				Does %s have a creator, parents or an origin?""";
-		String text = String.format(prompt.trim(), entity);
+		String text = String.format(prompt.strip(), entity);
 		String reply = "";
 		reply = doRequest(text).toLowerCase().strip();
 
@@ -276,7 +330,7 @@ public class OpenAiLLM_Caller {
 		String prompt = """
 				Evaluate if the following question is logical or if the question makes sense. Do not explain your reasoning nor your answer. Answer strictly yes or no.
 				Did in the past or does in the present %s create anything?""";
-		String text = String.format(prompt.trim(), entity);
+		String text = String.format(prompt.strip(), entity);
 		String reply = "";
 		reply = doRequest(text).toLowerCase().strip();
 
@@ -300,11 +354,17 @@ public class OpenAiLLM_Caller {
 		//
 		//
 		//
-		String prompt = """
-				Your answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reason or your answer. Do not enumerate your answer.
-				The question is about the desires that an entity elicits in other entities. A desire may be conscious impulses towards something that promises enjoyment or satisfaction in its attainment, longing or craving or a sudden spontaneous inclination or incitement to some usually unpremeditated action. You list the most important desires. You only list the desires that all entities of that type elicit on other entities. You list each elicited desire with a verb phrase. You list one elicited desire per line. Do not fancy format your answer.
-				What desires does %s elicit in someone?""";
-		String text = String.format(prompt.trim(), entity);
+		String prompt = PROMPT_INTRO + """
+				The question is about the desires that an entity elicits in other entities.
+				A desire may be conscious impulses towards something that promises enjoyment or satisfaction in its attainment, longing or craving
+				or a sudden spontaneous inclination or incitement to some usually unpremeditated action.
+				You list the most important desires.
+				You only list the desires that all entities of that type elicit on other entities.
+				You list each elicited desire as an infinite verb form that starts with the to particle.
+				List one elicited desire per line.
+
+				What desires does %s elicit in another?""";
+		String text = String.format(prompt.strip(), entity);
 		String reply = "";
 
 		reply = cleanReply(doRequest(text).toLowerCase().strip());
@@ -330,11 +390,17 @@ public class OpenAiLLM_Caller {
 //		if (!checkIfEntityHasRequirements(entity)) {
 //			return facts;
 //		}
-		String prompt = """
-				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
-				The questions are about an entity and its requirements. You answer the most important requirements. You only answer the requirements that you are certain to be required by all entities of that type. A requirement may be something required for the entity’s functioning, something required for its existence, or something required for its purposes. You give one requirement per line. You answer a requirement as a noun phrase.
+		String prompt = PROMPT_INTRO + """
+				The question are about an entity and its requirements.
+				You answer the most important requirements.
+				You only answer the requirements that you are certain to be required by all entities of that type.
+				A requirement may be something needed for the entity’s functioning, something essential for its existence,
+				or something mandatory for its purposes.
+				You give one requirement per line.
+				You answer each requirement as a noun phrase.
+
 				What does %s require?""";
-		String text = String.format(prompt.trim(), entity);
+		String text = String.format(prompt.strip(), entity);
 		String reply = "";
 
 		reply = cleanReply(doRequest(text).toLowerCase().strip());
@@ -360,11 +426,19 @@ public class OpenAiLLM_Caller {
 		//
 		//
 		//
-		String prompt = """
-				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
-				The question is about the impact that the given entity has on other entities, as well as its consequences or what effects the entity has on other entities. You list the most consequences of that entity. You only answer the consequences that you are certain to be caused by all entities of that type. A consequence may be something that the entity causes either by existing or by interacting with something, such as occasions or events. Do not answer the purposes, do not list its objectives nor the goals of that entity. The purpose of an entity is not the same as its consequences nor the same as its impacts. Answer each consequence of the entity as a noun phrase.
-				What consequences does %s cause?""";
-		String text = String.format(prompt.trim(), entity);
+		String prompt = PROMPT_INTRO + """
+				The question is about the impact that the given entity has on other entities, as well as its consequences or what effects the
+				entity has on other entities.
+				You list the most impacts or consequences of that entity.
+				You only answer the impacts or consequences that you are certain to be caused by all entities of that type.
+				An impact or consequence may be something that the entity causes either by existing or by
+				interacting with something, such as occasions or events.
+				Do not answer the purposes, do not list its objectives nor the goals of	that entity.
+				The purpose of an entity is not the same as its consequences nor the same as its impacts.
+				Answer each consequence of the entity as a noun phrase.
+
+				What consequences or impacts does %s cause?""";
+		String text = String.format(prompt.strip(), entity);
 		String reply = "";
 
 		String strip = doRequest(text).toLowerCase().strip();
@@ -373,14 +447,6 @@ public class OpenAiLLM_Caller {
 		String[] lines = reply.split("\n");
 		for (String line : lines) {
 			String target = cleanLine(line);
-			// remove redundant words
-			// remove entity self reference
-
-			// rever isto
-//				int ix = target.indexOf(entity);
-//				if (ix >= 0) {
-//					target = target.substring(ix + entity.length() + 1);
-//				}
 
 			int ix = target.indexOf("cause ");
 			if (ix >= 0) {
@@ -404,11 +470,14 @@ public class OpenAiLLM_Caller {
 //		if (!checkIfEntityIsMadeOfSomething(entity)) {
 //			return facts;
 //		}
-		String prompt = """
-				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
-				The question is about what a given entity is made of. You list the most important materials. An entity can be made of a physical material, from a form of matter, made from a substance, from a solid or the given entity can be made of a chemical constitution. Answer each material as a noun phrase
+		String prompt = PROMPT_INTRO + """
+				The question is about what a given entity is made of. You list the most important materials.
+				An entity can be made of a physical material, a form of matter, a substance, a solid,
+				a chemical constitution or any other constituent that you may find correct.
+				Answer each constituent of the entity as a noun phrase.
+
 				What is %s made of?""";
-		String text = String.format(prompt.trim(), entity);
+		String text = String.format(prompt.strip(), entity);
 		String reply = "";
 
 		reply = cleanReply(doRequest(text).toLowerCase().strip());
@@ -433,11 +502,15 @@ public class OpenAiLLM_Caller {
 //		if (!checkIfEntityHasDesires(entity)) { // dislikes ~ desires
 //			return facts;
 //		}
-		String prompt = """
-				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
-				The questions are about an entity and what that entity dislikes, what it has repulsion of, it loathes or it averts. You answer the most important dislikes by that entity. You only answer the dislikes that you are certain to be disliked by all entities of that type. You answer a dislike as a noun phrase.
+		String prompt = PROMPT_INTRO + """
+				The question is about what an entity dislikes, what an entity has repulsion of, loathes or averts.
+				You answer the most important dislikes of that entity.
+				You only answer the dislikes that you are certain to be disliked by all entities of that type.
+				You answer each dislike as an infinite verb form that starts with the to particle.
+
+
 				What does %s dislike?""";
-		String text = String.format(prompt.trim(), entity);
+		String text = String.format(prompt.strip(), entity);
 		String reply = "";
 
 		reply = cleanReply(doRequest(text).toLowerCase().strip());
@@ -463,11 +536,15 @@ public class OpenAiLLM_Caller {
 //		if (!checkIfEntityHasDesires(entity)) {
 //			return facts;
 //		}
-		String prompt = """
-				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
-				The questions are about an entity and what that entity desires, what that entity wishes, what that entity wants or what that entity hopes for. You answer the most important desires by that entity. You only answer the desires that you are certain to be desired by all entities of that type. You answer a desire as a noun phrase.
+		String prompt = PROMPT_INTRO + """
+				The question is about an entity and what that entity desires, what that entity wishes, what that entity wants
+				or what that entity hopes for.
+				You answer the most important desires by that entity.
+				You only answer the desires that you are certain to be desired by all entities of that type.
+				You answer each desire as an infinite verb form that starts with the to particle.
+
 				What does %s desire?""";
-		String text = String.format(prompt.trim(), entity);
+		String text = String.format(prompt.strip(), entity);
 		String reply = "";
 
 		reply = cleanReply(doRequest(text).toLowerCase().strip());
@@ -483,7 +560,7 @@ public class OpenAiLLM_Caller {
 	}
 
 	/**
-	 * obtains the capabilities of the given entity
+	 * obtains the capabilities of the given entity. correct form is NP capableof NP.
 	 * 
 	 * @param entity
 	 * @return
@@ -493,11 +570,13 @@ public class OpenAiLLM_Caller {
 //		if (!checkIfEntityHasCapabilities(entity)) {
 //			return facts;
 //		}
-		String prompt = """
-				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
-				The question is about what an entity is capable of or able to. You answer the most important and specific entity’s capabilities. You answer each capability of that entity as an action verb. Do not format your answer. You list one capability per line. Do not enumerate your answer.
+		String prompt = PROMPT_INTRO + """
+				The question is about what an entity is capable of or what an entity is able to.
+				You answer the most important and specific entity’s capabilities.
+				You answer each capability as an infinite verb form that starts with the to particle.
+
 				What is %s capable of?""";
-		String text = String.format(prompt.trim(), entity);
+		String text = String.format(prompt.strip(), entity);
 		String reply = "";
 
 		String request = doRequest(text);
@@ -532,11 +611,13 @@ public class OpenAiLLM_Caller {
 		//
 		//
 		//
-		String prompt = """
-				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
-				The questions are about an entity and the greater whole that the entity is part of. Answer each whole as a noun phrase. You list one greater whole per line. Do not enumerate your answer.
+		String prompt = PROMPT_INTRO + """
+				The question is about an entity and the greater whole that that entity is part of.
+				Answer each whole as a noun phrase.
+				You list one greater whole per line.
+
 				What is %s part of?""";
-		String text = String.format(prompt.trim(), entity);
+		String text = String.format(prompt.strip(), entity);
 		String reply = "";
 
 		reply = cleanReply(doRequest(text).toLowerCase().strip());
@@ -562,11 +643,16 @@ public class OpenAiLLM_Caller {
 //		if (!checkIfEntityHasParts(entity)) {
 //			return facts;
 //		}
-		String prompt = """
-				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
-				The question is about an entity and its constituent parts. List the most well-known parts exclusive to that entity. Name only the parts that you are certain that belong to all entities of that type. Most importantly, a part is answered as a noun phrase. You list one part per line. If the entity is a person, answer with the parts of the human being. If the entity is an animal, answer with the parts of an animal of its species.
+		String prompt = PROMPT_INTRO + """
+				The question is about an entity and its constituent parts.
+				List the most well-known parts exclusive to that entity.
+				Name only the parts that you are certain that belong to all entities of that type.
+				If the entity is a person, answer with the specific parts of that human being.
+				If the entity is an animal, answer with the parts of an example animal of its species.
+				Most importantly, name each part as a noun phrase.
+
 				What are the parts of %s?""";
-		String text = String.format(prompt.trim(), entity);
+		String text = String.format(prompt.strip(), entity);
 		String reply = "";
 
 		reply = cleanReply(doRequest(text).toLowerCase().strip());
@@ -582,7 +668,7 @@ public class OpenAiLLM_Caller {
 		ArrayList<StringEdge> purposeFacts = new ArrayList<StringEdge>();
 		for (StringEdge fact : facts) {
 			String part = fact.getSource();
-			ArrayList<StringEdge> partPurposes = getUsedFor(entity, part);
+			ArrayList<StringEdge> partPurposes = getUsedTo(entity, part);
 			purposeFacts.addAll(partPurposes);
 		}
 		facts.addAll(purposeFacts);
@@ -596,16 +682,17 @@ public class OpenAiLLM_Caller {
 	 * @param part
 	 * @return
 	 */
-	public static ArrayList<StringEdge> getUsedFor(String whole, String part) {
+	public static ArrayList<StringEdge> getUsedTo(String whole, String part) {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
 		//
 		//
 		//
-		String prompt = """
-				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
-				The question is about an entity and the purposes or functions of one of its parts. Answer the purpose with a transitive verb. You list one purpose per line. Do not enumerate your answer.
-				What are the purposes of the part %s that belongs to %s?""";
-		String text = String.format(prompt.trim(), part, whole);
+		String prompt = PROMPT_INTRO + """
+				The question is about the purposes or functions of one of the parts of a containing entity.
+				Answer each purpose of the part as an infinite verb form that starts with the to particle.
+
+				What are the purposes of %s that is part of %s?""";
+		String text = String.format(prompt.strip(), part, whole);
 		String reply = "";
 
 		reply = cleanReply(doRequest(text).toLowerCase().strip());
@@ -613,7 +700,7 @@ public class OpenAiLLM_Caller {
 		String[] lines = reply.split("\n");
 		for (String line : lines) {
 			String target = cleanLine(line);
-			StringEdge edge = new StringEdge(part, target, "usedfor");
+			StringEdge edge = new StringEdge(part, target, "usedto");
 			facts.add(edge);
 		}
 
@@ -627,16 +714,18 @@ public class OpenAiLLM_Caller {
 	 * @param part
 	 * @return
 	 */
-	public static ArrayList<StringEdge> getUsedFor(String entity) {
+	public static ArrayList<StringEdge> getUsedTo(String entity) {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
 		//
 		//
 		//
-		String prompt = """
-				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
-				The question is about an entity and its specific purposes or its specific functions. You list the most specific purposes of the given entity. Answer each purpose with a transitive verb. List one purpose per line.
+		String prompt = PROMPT_INTRO + """
+				The question is about an entity and its specific purposes or its specific functions.
+				You answer with the most specific purposes of that entity.
+				Answer each purpose as an infinite verb form that starts with the to particle.
+
 				What are the purposes of %s?""";
-		String text = String.format(prompt.trim(), entity);
+		String text = String.format(prompt.strip(), entity);
 		String reply = "";
 
 		reply = cleanReply(doRequest(text).toLowerCase().strip());
@@ -644,7 +733,7 @@ public class OpenAiLLM_Caller {
 		String[] lines = reply.split("\n");
 		for (String line : lines) {
 			String target = cleanLine(line);
-			StringEdge edge = new StringEdge(entity, target, "usedfor");
+			StringEdge edge = new StringEdge(entity, target, "usedto");
 			facts.add(edge);
 		}
 
@@ -662,11 +751,13 @@ public class OpenAiLLM_Caller {
 		//
 		//
 		//
-		String prompt = """
-				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
-				The questions are about an entity and what it is known for. Answer what it is known for in the form of a verb phrase. A verb phrase is composed of a verb and a noun. Only answer the most likely or important subjects that entity is known for. List one known fact per line. Do not enumerate your answer.
+		String prompt = PROMPT_INTRO + """
+				The question is about what a given entity is known for.
+				Answer the most likely or important subjects, topics, issues, ideas or proposals that entity is known for.
+				Answer what the entity is known for in the form of an infinite verb that starts with the to particle.
+
 				What is %s known for?""";
-		String text = String.format(prompt.trim(), entity);
+		String text = String.format(prompt.strip(), entity);
 		String reply = "";
 
 		reply = cleanReply(doRequest(text).toLowerCase().strip());
@@ -691,11 +782,15 @@ public class OpenAiLLM_Caller {
 //		if (!checkIfEntityHasCreator(entity)) {
 //			return facts;
 //		}
-		String prompt = """
-				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
-				The question is about who or what created a given entity. You answer each creator as a noun phrase or with its name. A creator may be a person, a collective, a company or any another type of entity. If the asked entity is a person or an animal, you name its parents or progenitors. Answer all possible creators.
+		String prompt = PROMPT_INTRO + """
+				The question is about who or what created a given entity.
+				You answer each creator as a noun phrase or with its proper name, whichever is more specific.
+				A creator may be a person, a collective, a company or any another type of entity.
+				If the asked entity is a person or an animal, you name its parents or progenitors.
+				Answer all possible creators.
+
 				Who or what created %s?""";
-		String text = String.format(prompt.trim(), entity);
+		String text = String.format(prompt.strip(), entity);
 		String reply = "";
 
 		reply = cleanReply(doRequest(text).toLowerCase().strip());
@@ -719,12 +814,15 @@ public class OpenAiLLM_Caller {
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
 		//
 		//
-		String prompt = """
-				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
+		String prompt = PROMPT_INTRO + """
 				The question is about a hierarchical relationship indicating a superclass or a generalization.
-				The question asks which types or super classes the given entity is. You answer each type as a noun phrase. you list one type per line. You answer all possible types that entity is. Be careful between generalization and specialization. The question asks about types that generalize the asked entity. Do not enumerate your answer.
+				The question asks which types or super classes the given entity is. You answer each type as a noun phrase.
+				You list one type per line. You answer all possible types that entity is.
+				Be careful between generalization and specialization.
+				The question asks about types that generalize the asked entity, not the specialization of the asked entity.
+
 				What is %s?""";
-		String text = String.format(prompt.trim(), entity);
+		String text = String.format(prompt.strip(), entity);
 		String reply = "";
 
 		reply = cleanReply(doRequest(text).toLowerCase().strip());
@@ -749,11 +847,15 @@ public class OpenAiLLM_Caller {
 //		if (!checkIfEntityCreates(entity)) {
 //			return facts;
 //		}
-		String prompt = """
-				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
-				The question is about what a given entity can create or originate. You answer each creation as a noun phrase or with its name. A creation may be a person, a collective, a single entity, a company or any another type of entity. If the asked entity is a person or an animal, you name its successors or children. Answer all possible creations.
+		String prompt = PROMPT_INTRO + """
+				The question is about what a given entity can create or originate.
+				You answer each creation as a noun phrase or with its name.
+				A creation may be a person, a collective, a single entity, a company or any another type of entity.
+				If the asked entity is a person or an animal, you name its successors or children.
+				Answer all possible creations.
+
 				Who or what does %s create?""";
-		String text = String.format(prompt.trim(), entity);
+		String text = String.format(prompt.strip(), entity);
 		String reply = "";
 
 		reply = cleanReply(doRequest(text).toLowerCase().strip());
@@ -769,7 +871,7 @@ public class OpenAiLLM_Caller {
 	}
 
 	/**
-	 * obtains the places where the entity is located at
+	 * obtains the places where the entity is located at. Correct form is NP atlocation NP.
 	 * 
 	 * @param entity
 	 * @return
@@ -779,11 +881,14 @@ public class OpenAiLLM_Caller {
 		//
 		//
 		//
-		String prompt = """
-				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
-				The question is about the locations or places that a given entity is usually at or located at. You list the most important locations. A location can be a common noun or a proper noun, such as a city, village, country, etc. Answer each location as a noun phrase.
+		String prompt = PROMPT_INTRO + """
+				The question is about the locations or places that a given entity is usually at or located at.
+				You list the most important locations.
+				A location can be a common noun or a proper noun, such as a city, village, country, etc.
+				Answer each location as a noun phrase.
+
 				Where is %s located?""";
-		String text = String.format(prompt.trim(), entity);
+		String text = String.format(prompt.strip(), entity);
 		String reply = "";
 
 		reply = cleanReply(doRequest(text).toLowerCase().strip());
@@ -798,6 +903,33 @@ public class OpenAiLLM_Caller {
 		return facts;
 	}
 
+	public static ArrayList<StringEdge> getLimitationsOf(String entity) {
+		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
+		//
+		//
+		//
+		String prompt = PROMPT_INTRO + """
+				The question is about the physical, mental or any other type of limitations of an entity.
+				A limitation can also be a weakness, a lack of capacity, the inability or some restriction of the entity.
+				You answer the most important entity's limitations.
+				You answer each limitation of the entity as a noun phrase.
+
+				What are the limitations of %s?""";
+		String text = String.format(prompt.strip(), entity);
+		String reply = "";
+
+		reply = cleanReply(doRequest(text).toLowerCase().strip());
+
+		String[] lines = reply.split("\n");
+		for (String line : lines) {
+			String target = cleanLine(line);
+			StringEdge edge = new StringEdge(entity, target, "limitedby");
+			facts.add(edge);
+		}
+
+		return facts;
+	}
+
 	/**
 	 * Obtains an exhaustive list of well-known examples of the given class type, in the form of ISA relations. Also adds relations from the given class type.
 	 * 
@@ -805,27 +937,18 @@ public class OpenAiLLM_Caller {
 	 * @param kb
 	 * @return
 	 */
-	public static ArrayList<StringEdge> getExamplesOfClass(String classType, StringGraph kb) {
-		Set<StringEdge> edgesOfClass = kb.edgesOf(classType);
-		assert edgesOfClass.size() > 0;
+	public static ArrayList<StringEdge> getExamplesOfClass(String classType) {
+//		Set<StringEdge> edgesOfClass = kb.edgesOf(classType);
+//		assert edgesOfClass.size() > 0;
 		//
-		String prompt = """
-				All your knowledge is in English. You do not explain your answer nor your reasoning. You answer all possibilities. You are as specific as possible. You do not generalize. You answer in simple, unformatted text. Do not fancy format your output. When there are multiple possibilities, you give one answer per line. Do not enumerate your answer.
-				Give an exhaustive list of well-known %s. Do not explain those %s, only list their names. Answer each name as a noun phrase.""";
-		String text = String.format(prompt.trim(), classType, classType);
+		String prompt = PROMPT_INTRO + """
+				Give an exhaustive list of well-known examples of %s.
+				Do not explain those examples, only list their names.
+				Answer each example as a noun phrase.""";
+		String text = String.format(prompt.strip(), classType, classType);
 
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
-		String reply = "";
-		String response = doRequest(text).toLowerCase().strip();
-		reply = cleanReply(response);
-		reply = reply.replace(", ", ","); // you never know...
-		reply = reply.replace(".", "");
-		reply = reply.replace("\t", " "); // tabs -> spaces
-		reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
-		reply = reply.replace("\r\n", "\n"); // windows -> unix newline
-		reply = reply.replaceAll("[\n]+", "\n"); // empty lines
-		reply = reply.replace(" \n", "\n"); // empty lines
-		reply = reply.replaceAll("\\([\\w ]+\\)", ""); // text between parentheses
+		String reply = cleanReply(doRequest(text).toLowerCase().strip());
 
 		String[] lines = reply.split("\n");
 		for (String line : lines) {
@@ -837,77 +960,252 @@ public class OpenAiLLM_Caller {
 	}
 
 	/**
-	 * Obtains concept examples of the given class type and related knowledge (additional relations) using the given base class. The prompt must be in
-	 * accordance. Called by populateKB_withExamples()
+	 * Obtains ISA relations relating the given class type and examples given by the LLM. The prompt must be in accordance. Called by populateKB_withExamples()
 	 * 
 	 * @param prompt
 	 * @param classType
 	 * @return
 	 */
-	public static ArrayList<StringEdge> getExamplesOf(String prompt, String classType, StringGraph kb) {
-		System.out.printf("getting examples of %s\n",classType);
+	public static ArrayList<StringEdge> getExamplesOf(String prompt, String classType) {
+		System.out.printf("getting examples of %s\n", classType);
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
 
-		Set<StringEdge> baseClassFacts = kb.edgesOf(classType);
-		// if insufficient amount of base class facts, get more
-		if (baseClassFacts.size() < 3) {
-			baseClassFacts.addAll(getLLM_AllRelationsForConcept(classType));
-			facts.addAll(baseClassFacts); // duplicating edges should not create problems in the KB
-		}
-
-		String reply = "";
-//		reply = cleanReply(doRequest(prompt).toLowerCase().strip());
-//		reply = reply.replace(", ", ","); // you never know...
-//		reply = reply.replace(".", "");
-//		reply = reply.replace("\t", " "); // tabs -> spaces
-//		reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
-//		reply = reply.replace("\r\n", "\n"); // windows -> unix newline
-//		reply = reply.replaceAll("[\n]+", "\n"); // empty lines
-//		reply = reply.replace(" \n", "\n"); // empty lines
-//		reply = reply.replaceAll("\\([\\w ]+\\)", ""); // text between parentheses
+		String reply = cleanReply(doRequest(prompt).toLowerCase().strip());
 
 		String[] lines = reply.split("\n");
 		for (String line : lines) {
 			String newConcept = cleanLine(line);
 			facts.add(new StringEdge(newConcept, classType, "isa"));
-
-			// propagate existing relations in classType to the new target
-			// if there are none, use the LLM to get new relations about classType (done above)
-			// propagate existing relations in classType to the examples
-			ArrayList<StringEdge> inheritedRelations = GraphAlgorithms.propagateInheritance(newConcept, baseClassFacts, classType);
-			facts.addAll(inheritedRelations);
 		}
 
 		return facts;
 	}
 
 	public static String getPhraseType(String phrase) {
-		//
-//		String prompt = """
-//				Do not explain your reasoning. Ignore case sensitivity. Is the following text a noun phrase or a verb phrase?
-//				%s""";
-		String prompt = """
-				You classify the type of phrase structure for a given sentence.
-				There are various types of phrase structures: Sentence, Noun phrase,
-				Adverb phrase, Adjective phrase and Verb phrase.
-				Do not explain your classification or your answer.
-				What is the type of phrase of the following text?
-				%s""";
-		String text = String.format(prompt.trim(), phrase, phrase);
-
-		String reply = "";
-		reply = doRequest(text).toLowerCase().strip();
-		reply = reply.replace("\t", " "); // tabs -> spaces
-		reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
-		if (reply.startsWith("noun phrase")) {
+		if (nounPhrases_fromFile.contains(phrase))
 			return "NP";
-		} else if (reply.startsWith("verb phrase")) {
-			return "VP";
-		} else if (reply.startsWith("sentence")) {
-			return "S";
+
+		String reply = cachedRawPhrases.get(phrase);
+		if (reply == null) {
+			String prompt = """
+					You are a grammar classification program.
+					You categorize the type of phrase structure of text given at the end.
+					You do not explain your answer nor your reasoning.
+					You only answer the phrase structure of the given text.
+					If the given text is a single word, answer the part of speech of the text.
+					This is the given text:
+					- %s
+					""";
+//		String prompt = """
+//				You classify the type of phrase structure for a given sentence.
+//				There are various types of phrase structures: Sentence, Noun phrase,
+//				Adverb phrase, Adjective phrase and Verb phrase.
+//				Do not explain your classification or your answer.
+//				What is the type of phrase of the following text?
+//				%s""";
+			String text = String.format(prompt.strip(), phrase);
+
+			reply = doRequest(text).toLowerCase().strip();
+			cachedRawPhrases.put(phrase, reply);
 		}
 
-		return "UNKNOWN";
+		reply = reply.replaceAll("[\r\n]+", " "); // newlines
+		reply = reply.replace("\t", " "); // tabs -> spaces
+		reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
+//		reply = reply.replaceAll("[\\[\\]]+", ""); // remove square brackets
+//		reply = reply.replaceAll("[\\d]+", ""); // remove numbers
+//		reply = reply.replaceAll("\\(([\\w]+)\\)", ""); // remove (vp) and similar tags
+
+		if (reply.contains("verb") // --
+				|| reply.contains("infinitive")// --
+				|| reply.contains("particip")// --
+				|| reply.contains("prepositional")// --
+				|| reply.contains("imperative")// --
+		)
+			return "VP";
+
+		if (reply.contains("noun") // --
+				|| reply.contains("adjective")// --
+				|| reply.contains("gerund")// --
+				|| reply.contains("prepositional")// --
+		)
+			return "NP";
+
+		// uncaught, return original
+		// System.err.printf("UNPROCESSED PHRASE TYPE\t%s\t%s\n", phrase, reply);
+		return reply;
+	}
+
+	public static String convertNP_to_VP(String phrase) {
+		String reply = cachedNP_to_VP.get(phrase);
+		if (reply == null) {
+			String prompt = """
+					Do not explain your reasoning. Answer only what is asked. Convert the following text to
+					the semantically equivalent infinite verb form with the to particle:
+
+					%s
+					""";
+			String text = String.format(prompt.strip(), phrase);
+
+			reply = doRequest(text).toLowerCase().strip();
+			cachedNP_to_VP.put(phrase, reply);
+		}
+
+		reply = reply.replaceAll("[\r\n]+", " "); // newlines
+		reply = reply.replace("\t", " "); // tabs -> spaces
+		reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
+
+		reply = correctVP_NP_reply(reply);
+
+		if (reply.contains("phrase") || reply.contains("equivalent")) {
+			System.out.printf("NP2VP\t%s\t%d\t%s\n", phrase, phrase.length(), reply);
+			// System.lineSeparator();
+		}
+
+		// System.out.printf("convertNP_to_VP\t%s\n", reply);
+		return reply;
+	}
+
+	public static String convertVP_to_NP(String phrase) {
+		String reply = cachedVP_to_NP.get(phrase);
+		if (reply == null) {
+			String prompt = """
+					Do not explain your reasoning. Answer only what is asked. Convert the following text to
+					the semantically equivalent noun phrase. Remove all the verbs, particles and articles:
+
+					%s
+					""";
+			String text = String.format(prompt.strip(), phrase);
+
+			reply = doRequest(text).toLowerCase().strip();
+			cachedVP_to_NP.put(phrase, reply);
+		}
+
+		reply = reply.replaceAll("[\r\n]+", " "); // newlines
+		reply = reply.replace("\t", " "); // tabs -> spaces
+		reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
+
+		reply = correctVP_NP_reply(reply);
+
+		if (reply.contains("phrase") || reply.contains("equivalent")) {
+			System.out.printf("VP2NP\t%s\t%d\t%s\n", phrase, phrase.length(), reply);
+			// System.lineSeparator();
+		}
+
+		// System.out.printf("convertVP_to_NP\t%s\n", reply);
+		return reply;
+	}
+
+	/**
+	 * corrects text replied by the llm in the functions convertVP_to_NP and convertNP_to_VP
+	 * 
+	 * @param text
+	 * @return
+	 */
+	public static String correctVP_NP_reply(String reply) {
+//		String org_reply = reply;
+		if (reply.startsWith("-")) {
+			reply = reply.substring(1).trim();
+		} else if (reply.contains("→")) {
+			reply = reply.substring(reply.indexOf('→') + 1).trim();
+		}
+//		if (!reply.equals(org_reply)) {
+//			System.err.printf("WARNING\t%s\t%s\n", org_reply, reply);
+//		}
+		return reply;
+	}
+
+	public static boolean isRelationValid(StringEdge edge) throws IOException, URISyntaxException {
+		/**
+		 * relations to verify: atlocation capableof causes causesdesire createdby desires isa knownfor madeof notdesires partof requires usedto
+		 */
+		String source = edge.getSource();
+		String target = edge.getTarget();
+		String label = edge.getLabel();
+		String cons_source = getPhraseType(source);
+		String cons_target = getPhraseType(target);
+		switch (label) {
+		case "atlocation": // checked
+			// name atlocation name
+			if (cons_source.equals("NP") && cons_target.equals("NP"))
+				return true;
+			break;
+
+		case "capableof": // checked
+			// <> capableof VP
+			if (cons_target.equals("VP"))
+				return true;
+			break;
+
+		case "causes": // checked
+			// <> causes name
+			if (cons_target.equals("NP"))
+				return true;
+			break;
+
+		case "causesdesire": // checked
+			// name causesdesire VP
+			if (cons_source.equals("NP") && cons_target.equals("VP"))
+				return true;
+			break;
+
+		case "createdby": // checked
+			// name createdby name
+			if (cons_source.equals("NP") && cons_target.equals("NP"))
+				return true;
+			break;
+
+		case "desires": // checked
+			// name desires VP
+			if (cons_source.equals("NP") && cons_target.equals("VP"))
+				return true;
+			break;
+
+		case "isa": // checked
+			// name isa name
+			if (cons_source.equals("NP") && cons_target.equals("NP"))
+				return true;
+			break;
+
+		case "knownfor": // checked
+			// noun knownfor VP
+			if (cons_source.equals("NP") && cons_target.equals("VP"))
+				return true;
+			break;
+
+		case "madeof": // checked
+			// name madeof name
+			if (cons_source.equals("NP") && cons_target.equals("NP"))
+				return true;
+			break;
+
+		case "notdesires": // checked
+			// name notdesires VP
+			if (cons_source.equals("NP") && cons_target.equals("VP"))
+				return true;
+			break;
+
+		case "partof": // checked
+			// name partof name
+			if (cons_source.equals("NP") && cons_target.equals("NP"))
+				return true;
+			break;
+
+		case "requires": // checked
+			// <> requires name
+			if (cons_target.equals("NP"))
+				return true;
+			break;
+
+		case "usedto": // checked
+			// <> usedto VP
+			if (cons_target.equals("VP"))
+				return true;
+			break;
+
+		}
+		System.out.printf("%s\t%s,%s,%s\n", edge, cons_source, label, cons_target);
+		return false;
 	}
 
 	public static ArrayList<StringEdge> old_getPartsAndPurpose(String entity) {
@@ -920,7 +1218,7 @@ public class OpenAiLLM_Caller {
 				The question is about an entity, that entity's parts and the function that those parts have in the whole entity. You answer as many parts as possible. For each part, you list all its purposes. A purpose is answered with a single verb followed by the receiving entity. Answer each part with a noun. For each line of your answer, list one part followed by all the purposes of that part.
 				What are the parts and their purpose of church?""";
 		String article = IndefiniteArticle.get(entity);
-		String text = String.format(prompt.trim(), article, entity);
+		String text = String.format(prompt.strip(), article, entity);
 		String reply = "";
 
 		reply = cleanReply(doRequest(text).toLowerCase().strip());
@@ -933,8 +1231,8 @@ public class OpenAiLLM_Caller {
 			facts.add(partof);
 			String[] purposes = tokens[1].split(",");
 			for (String purpose : purposes) {
-				purpose = purpose.trim();
-				StringEdge purposeFact = new StringEdge(part, purpose, "usedfor");
+				purpose = purpose.strip();
+				StringEdge purposeFact = new StringEdge(part, purpose, "usedto");
 				facts.add(purposeFact);
 			}
 			// System.lineSeparator();
@@ -1150,11 +1448,28 @@ public class OpenAiLLM_Caller {
 		graph.removeEdges(falseFacts);
 	}
 
-	public static void populateKB_withFacts(StringGraph kb) throws InterruptedException, IOException {
-		List<String> initialConcepts = VariousUtils.readFileRows("concept_classes.txt");
+	public static void populateKB_expandFromExistingConcepts(StringGraph kb) throws InterruptedException, IOException {
+		ArrayList<String> initialConcepts = new ArrayList<String>();
+		initialConcepts = VariousUtils.readFileRows("new_concepts.txt");
+//		HashSet<String> classes = new HashSet<>(GraphAlgorithms.getEdgesTargets(kb.edgeSet("isa")));
+//		for (String concept : classes) {
+//			
+//			// get concepts that are super classes
+//			Set<StringEdge> concept_isa = kb.outgoingEdgesOf(concept, "isa");
+//			int degree = kb.incomingEdgesOf(concept, "isa").size();
+//			if (concept_isa.isEmpty()) {
+//				initialConcepts.add(concept);
+//				System.out.printf("%s\t%d\n", concept, degree);
+//			}
+//
+//
+//			// System.lineSeparator();
+//		}
+//		
+//		System.exit(0);
 
-		int numThreads = 8;
-		final int blockSize = 1000;
+		int numThreads = 16;
+		final int blockSize = 50;
 		final boolean exploreNewConcepts = false;
 
 		int numConcepts = initialConcepts.size();
@@ -1194,16 +1509,21 @@ public class OpenAiLLM_Caller {
 
 					try {
 						ArrayList<StringEdge> localEdges = new ArrayList<StringEdge>();
-						localEdges.addAll(OpenAiLLM_Caller.getLLM_AllRelationsForConcept(concept));
+						localEdges.addAll(OpenAiLLM_Caller.getAllRelationsForConcept_Serial(concept));
 
-						// assuming the concept represents a class, otherwise this call might not make sense
-						ArrayList<StringEdge> examplesOfClass = OpenAiLLM_Caller.getExamplesOfClass(concept, kb);
-						// propagate existing relations in classType to the examples
-						ArrayList<String> newClasses = GraphAlgorithms.getEdgesSources(examplesOfClass);
-						ArrayList<StringEdge> inheritedRelations = GraphAlgorithms.propagateInheritance(newClasses, localEdges, concept);
+//						// assuming the concept represents a class, otherwise this call might not make sense
+//						ArrayList<StringEdge> examplesOfClass = OpenAiLLM_Caller.getExamplesOfClass(concept, kb);
+//						// propagate existing relations in classType to the examples
+//						ArrayList<String> newClasses = GraphAlgorithms.getEdgesSources(examplesOfClass);
+//						ArrayList<StringEdge> inheritedRelations = GraphAlgorithms.propagateInheritance(newClasses, localEdges, concept);
+//						localEdges.addAll(examplesOfClass);
+//						localEdges.addAll(inheritedRelations);
 
-						localEdges.addAll(examplesOfClass);
-						localEdges.addAll(inheritedRelations);
+						// get data for each example of each class
+						ArrayList<StringEdge> isaEdges = getExamplesOfClass(concept);
+						localEdges.addAll(isaEdges);
+						ArrayList<StringEdge> childrenData = getAllRelationsContextualized(isaEdges);
+						localEdges.addAll(childrenData);
 
 						lock.lock();
 						{
@@ -1232,7 +1552,8 @@ public class OpenAiLLM_Caller {
 			GraphReadWrite.writeCSV("newfacts" + counter + ".csv", facts);
 			System.err.println("iteration " + counter + " done doing LLM calls, processing CoreNLP...");
 
-			// collect into openConcepts the concepts from facts that are NP and not in the closed set
+			// collect into openConcepts the concepts from facts that are NP and not in the
+			// closed set
 			if (exploreNewConcepts) {
 				HashSet<String> conceptsToAdd = new HashSet<String>();
 				for (StringEdge fact : facts) {
@@ -1246,7 +1567,8 @@ public class OpenAiLLM_Caller {
 							// only explore concepts that are NP
 							try {
 								String phraseType = PythonNLP_RestServiceInterface.getConstituencyLocalHostSpacy(concept);
-								// String phraseType = GrammarUtilsCoreNLP.getClassificationFromCoreNLP_raw(concept);
+								// String phraseType =
+								// GrammarUtilsCoreNLP.getClassificationFromCoreNLP_raw(concept);
 								if (phraseType.equals("NP")) {
 									lock.lock();
 									{
@@ -1254,7 +1576,7 @@ public class OpenAiLLM_Caller {
 									}
 									lock.unlock();
 								}
-							} catch (IOException e) {
+							} catch (Exception e) {
 								if (lock.isHeldByCurrentThread())
 									lock.unlock();
 								e.printStackTrace();
@@ -1266,256 +1588,90 @@ public class OpenAiLLM_Caller {
 				});
 			}
 
-			System.err.printf("expanded %d concepts, %d new facts discovered, %d new concepts, %d total explored concepts\n", previousSize, facts.size(),
-					openSet.size(), closedSet.size());
-			VariousUtils.writeFile("newconcepts" + counter + ".txt", openSet);
+			System.err.printf("expanded %d concepts, %d new facts discovered, %d new concepts, %d total explored concepts\n", previousSize, facts.size(), openSet.size(),
+					closedSet.size());
+			VariousUtils.writeFileRows("newconcepts" + counter + ".txt", openSet);
 
 			counter++;
 		}
 	}
 
-	public static void populateKB_withExamples(StringGraph kb) {
-		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						Give an exhaustive list of well-known comic characters. Do not explain those comic characters, only list their names. Answer each name as a noun phrase.
-						""",
-				"comic character", kb)));
+	public static void populateKB_withClassExamplesUsingPrompts(StringGraph kb) throws IOException, InterruptedException {
+		HashSet<String> closedConcepts = new HashSet<String>();
 
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						Give an exhaustive list of well-known jobs or occupations. Do not explain those jobs, only list their names. Answer each name as a noun phrase.
-						""",
-				"occupation", kb)));
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						List all proven and demonstrated elementary particles in physics. Do not explain those particles, only list their names. Answer each elementary particle as a noun phrase. Do not list hypothetical or unproven particles.
-						""",
-				"elementary particle", kb)));
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						List the thirty most important and well-known electronic components used in electronics. Do not explain those components, only list their names. Answer each name as a noun phrase. Do not list hypothetical or unproven components.
-						""",
-				"electronic component", kb)));
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						List all types of audio equipment used in audio or in music. Do not explain those equipments , only list their names. Answer each audio equipment as a noun phrase.
-						""",
-				"audio equipment", kb)));
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						Give an exhaustive list of organs present in vertebrate animals. Do not explain those organs, only list their names. Answer each organ as a noun phrase.
-						""",
-				"organ", kb)));
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						Give an exhaustive list of tools used by tradesperson in their daily work. Do not explain those tools , only list their names. Answer each tool as a noun phrase.
-						""",
-				"tool", kb)));
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						Give an exhaustive list of medication types. Do not explain those medications, only list their names. Answer each medication as a noun phrase.
-						""",
-				"drug", kb)));
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						Give a list of cosmetic types. Do not explain those types, only list their names. Answer each cosmetic type type as a noun phrase.
-						""",
-				"cosmetic", kb)));
-		// --------------
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						Given a comprehensive list of musical instruments. Do not explain those instruments, only list their names. Answer each musical instrument as a noun phrase.
-						""",
-				"musical instrument", kb)));
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						Give an comprehensive list of items or products sold in a supermarket. Do not explain those products , only list their names. Answer each product as a noun phrase.
-						""",
-				"merchandise", kb)));
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						List all types of weapons usable by a single person. Do not explain those weapons, only list their names. Answer each weapon as a noun phrase.
-						""",
-				"weapon", kb)));
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						List common furniture that is present in a home or in a building. Do not explain those furniture, only list their names. Answer each furniture as a noun phrase.
-						""",
-				"furniture", kb)));
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						List common hardware components of a computer. Do not explain those component, only list their names. Answer each hardware component as a noun phrase.
-						""",
-				"hardware component", kb)));
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						List 30 types of celestial objects of the universe. Do not explain those celestial objects, only list their names. Do not answer hypothetical or unproven celestial objects. Answer each celestial object as a noun phrase.
-						""",
-				"celestial object", kb)));
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						List 50 celestial objects that can be seen with a telescope. Do not explain those celestial objects, only list their names. Answer each celestial object as a noun phrase.
-						""",
-				"celestial object", kb)));
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						List 30 of the most popular sports. Include group sports and individual sports. Do not explain those sports, only list their names. Answer each sport as a noun phrase.
-						""",
-				"sport", kb)));
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						List 30 of the most popular video games of all time. Include console and computer games. Do not explain those video games, only list their names. Answer each video game as a noun phrase.
-						""",
-				"video game", kb)));
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						List 30 of the most popular table games. Do not explain those table games, only list their names. Answer each table game as a noun phrase.
-						""",
-				"table game", kb)));
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						List 30 of the most common illnesses. Do not explain those illnesses, only list their names. Answer each illness as a noun phrase.
-						""",
-				"illness", kb)));
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						List 30 of the most common diseases. Do not explain those diseases, only list their names. Answer each disease as a noun phrase.
-						""",
-				"disease", kb)));
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						List 30 of the most common viruses. Do not explain those viruses, only list their names. Answer each virus as a noun phrase.
-						""",
-				"virus", kb)));
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						List 30 of the most common bacteria. Do not explain those bacteria, only list their names. Answer each bacteria as a noun phrase.
-						""",
-				"bacteria", kb)));
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						List 30 of the most common mushrooms. Do not explain those mushrooms, only list their names. Answer each mushroom as a noun phrase.
-						""",
-				"mushroom", kb)));
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						List 30 of the most common plants in a garden. Do not explain those plants , only list their names. Answer each plant as a noun phrase.
-						""",
-				"plant", kb)));
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						List the 20 most common mental disorders. Do not explain those mental disorders, only list their names. Answer each mental disorder as a noun phrase.
-						""",
-				"mental disorder", kb)));
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						List the 30 most common atomic elements. Do not explain those atomic elements, only list their names. Answer each atomic element as a noun phrase.
-						""",
-				"atomic element", kb)));
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						List the 30 most common chemical molecules present in the earth. Do not explain those chemical molecules, only list their names. Answer each chemical molecule as a noun phrase.
-						""",
-				"cosmetic", kb)));
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						List body parts of complex animals. Do not explain those body parts, only list their names. Answer each body part as a noun phrase.
-						""",
-				"body part", kb)));
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						List the 50 most famous inventions. Do not explain those inventions, only list their names. Answer each invention as a noun phrase.
-						""",
-				"invention", kb)));
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						List the 30 most famous stories or epic poems. Focus on classical or ancient stories. Do not explain those stories, only list their names. Do not include the story's author. Answer each story as a noun phrase.
-						""",
-				"novel", kb)));
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						List the 30 most famous novels. List novels of the last century. Do not explain those novels, only list their names. Do not include the novel's author. Answer each novel as a noun phrase.
-						""",
-				"novel", kb)));
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						List the 50 most famous fictional characters of classical novels and poems. Focus on classical or ancient characters. Do not explain those fictional characters, only list their names. Answer each fictional character as a noun phrase.
-						""",
-				"fictional character", kb)));
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						List 30 of the most well-known characters of star trek. Do not explain those characters, only list their names. Answer each character as a noun phrase.
-						""",
-				"fictional character", kb)));
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						List 30 of the most well-known characters of star wars. Do not explain those characters, only list their names. Answer each character as a noun phrase.
-						""",
-				"fictional character", kb)));
-		facts.addAll(getAllRelationsContextualized(getExamplesOf(
-				"""
-						You answer to a single question in non-formatted text. You answer with simple words that will be interpreted by an expert system and stored in a knowledge graph. When there are multiple answer possibilities, you give one answer per line. You do not explain your reasoning or your answer. Do not enumerate your answer.
-						List 30 of the most common home appliances. Do not explain those home appliances, only list their names. Answer each home appliance as a noun phrase.
-						""",
-				"home appliance", kb)));
+		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
+		ArrayList<String> fileRows = VariousUtils.readFileRows("data/classes_and_prompts.txt");
+		Iterator<String> it = fileRows.iterator();
+		ArrayList<StringEdge> allIsaEdges = new ArrayList<StringEdge>();
+		// first get data for each example of each class
+		while (it.hasNext()) {
+			String prompt = it.next().strip();
+			String classname = it.next().strip();
+
+			// get data for each class
+			ArrayList<StringEdge> baseClassFacts = getAllRelationsForConcept_Concurrent(classname);
+			facts.addAll(baseClassFacts);
+
+			// get data for each example of each class
+			ArrayList<StringEdge> isaEdges = getExamplesOf(prompt, classname);
+			allIsaEdges.addAll(allIsaEdges);
+			ArrayList<StringEdge> fullRelations = getAllRelationsContextualized(isaEdges);
+			facts.addAll(fullRelations);
+
+			closedConcepts.add(classname);
+			for (StringEdge edge : isaEdges) {
+				closedConcepts.add(edge.getSource());
+			}
+		}
+		VariousUtils.writeFileRows("data/closed concepts.txt", closedConcepts);
+
+		// second get data for each class and propagate for each class example
+//		for (StringEdge isaEdge : allIsaEdges) {
+//			Set<StringEdge> baseClassFacts = kb.edgesOf(classname);
+//			// if insufficient amount of base class facts, get more
+//			if (baseClassFacts.size() < 3) {
+//				// get all types of relations for the base class
+//				baseClassFacts.addAll(getLLM_AllRelationsForConcept(classname));
+//				facts.addAll(baseClassFacts); // duplicating edges should not create problems in the KB
+//			}
+//			// propagate existing relations in classType to the new concept
+//			ArrayList<StringEdge> inheritedRelations = GraphAlgorithms.propagateInheritance(newConcept, baseClassFacts, classname);
+//			facts.addAll(inheritedRelations);
+//
+//		}
+
+		// add back the new facts to the kb
+		kb.addEdges(facts);
 	}
 
 	/**
 	 * Receives a list of ISA facts and populates each fact source with relations from a LLM. (Parallelized)
 	 * 
-	 * @param examples
+	 * @param isaEdges
 	 * @return
+	 * @throws InterruptedException
 	 */
-	private static ArrayList<StringEdge> getAllRelationsContextualized(ArrayList<StringEdge> examples) {
+	public static ArrayList<StringEdge> getAllRelationsContextualized(Collection<StringEdge> isaEdges) throws InterruptedException {
 
-		ReentrantLock lock = new ReentrantLock();
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
-		ParallelConsumer<StringEdge> pc = new ParallelConsumer<>(8);
+
+//		// serial version
+//		for (StringEdge isaEdge : isaEdges) {
+//			facts.addAll(getAllRelationsContextualized(isaEdge));
+//		}
+
+		// parallel version
+		ReentrantLock lock = new ReentrantLock();
+		ParallelConsumer<StringEdge> pc = new ParallelConsumer<>();
 		try {
-			pc.parallelForEach(examples, example -> {
-				ArrayList<StringEdge> allRelations = getAllRelationsContextualized(example);
+			pc.parallelForEach(isaEdges, isaEdge -> {
+
+				ArrayList<StringEdge> allRelations = getAllRelationsContextualized(isaEdge);
 				lock.lock();
 				{
 					facts.addAll(allRelations);
 				}
 				lock.unlock();
-				System.out.println(example);
 			});
 			pc.shutdown();
 		} catch (InterruptedException e) {
@@ -1524,14 +1680,16 @@ public class OpenAiLLM_Caller {
 		return facts;
 	}
 
-	private static ArrayList<StringEdge> getAllRelationsContextualized(StringEdge edge) {
-		assert edge.getLabel().equals("isa");
+	public static ArrayList<StringEdge> getAllRelationsContextualized(StringEdge isaEdge) {
+		System.out.println(isaEdge);
+		// edge must be an ISA relation for this function call to be correct
+		assert isaEdge.getLabel().equals("isa");
 
 		// formats as concept (type)
-		String concept = edge.getSource();
-		String type = edge.getTarget();
+		String concept = isaEdge.getSource();
+		String type = isaEdge.getTarget();
 		String conceptWithContext = String.format("%s (%s)", concept, type);
-		ArrayList<StringEdge> localEdges = getLLM_AllRelationsForConcept(conceptWithContext);
+		ArrayList<StringEdge> localEdges = getAllRelationsForConcept_Serial(conceptWithContext);
 
 		ArrayList<StringEdge> tempEdges = new ArrayList<StringEdge>();
 		for (StringEdge t_edge : localEdges) {
@@ -1541,39 +1699,400 @@ public class OpenAiLLM_Caller {
 		return tempEdges;
 	}
 
-	private static ArrayList<StringEdge> getLLM_AllRelationsForConcept(String concept) {
-		System.out.printf("getting all relations for %s\n",concept);
+	public static ArrayList<StringEdge> getAllRelationsForConcept_Serial(String concept) {
+		System.out.printf("getting all relations for %s\n", concept);
 		ArrayList<StringEdge> localEdges = new ArrayList<StringEdge>();
+		System.out.printf("getCapableOf %s\n", concept);
 		localEdges.addAll(OpenAiLLM_Caller.getCapableOf(concept));
-		System.out.printf("getCapableOf %s\n",concept);
+		System.out.printf("getCauses %s\n", concept);
 		localEdges.addAll(OpenAiLLM_Caller.getCauses(concept));
-		System.out.printf("getCauses %s\n",concept);
-		localEdges.addAll(OpenAiLLM_Caller.getCausesDesire(concept));
-		System.out.printf("getCausesDesire %s\n",concept);
+//		System.out.printf("getCausesDesire %s\n", concept);
+//		localEdges.addAll(OpenAiLLM_Caller.getCausesDesire(concept));
+		System.out.printf("getCreatedBy %s\n", concept);
 		localEdges.addAll(OpenAiLLM_Caller.getCreatedBy(concept));
-		System.out.printf("getCreatedBy %s\n",concept);
+		System.out.printf("getCreates %s\n", concept);
 		localEdges.addAll(OpenAiLLM_Caller.getCreates(concept));
-		System.out.printf("getCreates %s\n",concept);
+		System.out.printf("getDesires %s\n", concept);
 		localEdges.addAll(OpenAiLLM_Caller.getDesires(concept));
-		System.out.printf("getDesires %s\n",concept);
+		System.out.printf("getIsaClass %s\n", concept);
 		localEdges.addAll(OpenAiLLM_Caller.getIsaClass(concept));
-		System.out.printf("getIsaClass %s\n",concept);
+		System.out.printf("getKnownFor %s\n", concept);
 		localEdges.addAll(OpenAiLLM_Caller.getKnownFor(concept));
-		System.out.printf("getKnownFor %s\n",concept);
+		System.out.printf("getMadeOf %s\n", concept);
 		localEdges.addAll(OpenAiLLM_Caller.getMadeOf(concept));
-		System.out.printf("getMadeOf %s\n",concept);
+		System.out.printf("getNotDesires %s\n", concept);
 		localEdges.addAll(OpenAiLLM_Caller.getNotDesires(concept));
-		System.out.printf("getNotDesires %s\n",concept);
+		System.out.printf("getPartOf %s\n", concept);
 		localEdges.addAll(OpenAiLLM_Caller.getPartOf(concept));
-		System.out.printf("getPartOf %s\n",concept);
+		System.out.printf("getRequires %s\n", concept);
 		localEdges.addAll(OpenAiLLM_Caller.getRequires(concept));
-		System.out.printf("getRequires %s\n",concept);
-		localEdges.addAll(OpenAiLLM_Caller.getUsedFor(concept));
-		System.out.printf("getUsedFor %s\n",concept);
+		System.out.printf("getUsedTo %s\n", concept);
+		localEdges.addAll(OpenAiLLM_Caller.getUsedTo(concept));
+		System.out.printf("getWhatIsPartOf %s\n", concept);
 		localEdges.addAll(OpenAiLLM_Caller.getWhatIsPartOf(concept));
-		System.out.printf("getWhatIsPartOf %s\n",concept);
+		System.out.printf("getAtLocation %s\n", concept);
 		localEdges.addAll(OpenAiLLM_Caller.getAtLocation(concept));
-		System.out.printf("getAtLocation %s\n",concept);
+		System.out.printf("getLimitationsOf %s\n", concept);
+		localEdges.addAll(OpenAiLLM_Caller.getLimitationsOf(concept));
 		return localEdges;
+	}
+
+	public static ArrayList<StringEdge> getAllRelationsForConcept_Concurrent(String concept) throws InterruptedException {
+		ArrayList<StringEdge> localEdges = new ArrayList<StringEdge>();
+		ReentrantLock lock = new ReentrantLock();
+
+		System.out.printf("getting all relations for %s\n", concept);
+
+		ExecutorService executor = Executors.newFixedThreadPool(24);
+
+		executor.submit(() -> {
+			System.out.printf("getCapableOf %s\n", concept);
+			lock.lock();
+			localEdges.addAll(OpenAiLLM_Caller.getCapableOf(concept));
+			lock.unlock();
+		});
+		executor.submit(() -> {
+			System.out.printf("getCauses %s\n", concept);
+			lock.lock();
+			localEdges.addAll(OpenAiLLM_Caller.getCauses(concept));
+			lock.unlock();
+		});
+//		executor.submit(() -> {
+//			System.out.printf("getCausesDesire %s\n", concept);
+//			lock.lock();
+//			localEdges.addAll(OpenAiLLM_Caller.getCausesDesire(concept));
+//			lock.unlock();
+//		});
+		executor.submit(() -> {
+			System.out.printf("getCreatedBy %s\n", concept);
+			lock.lock();
+			localEdges.addAll(OpenAiLLM_Caller.getCreatedBy(concept));
+			lock.unlock();
+		});
+		executor.submit(() -> {
+			System.out.printf("getCreates %s\n", concept);
+			lock.lock();
+			localEdges.addAll(OpenAiLLM_Caller.getCreates(concept));
+			lock.unlock();
+		});
+		executor.submit(() -> {
+			System.out.printf("getDesires %s\n", concept);
+			lock.lock();
+			localEdges.addAll(OpenAiLLM_Caller.getDesires(concept));
+			lock.unlock();
+		});
+		executor.submit(() -> {
+			System.out.printf("getIsaClass %s\n", concept);
+			lock.lock();
+			localEdges.addAll(OpenAiLLM_Caller.getIsaClass(concept));
+			lock.unlock();
+		});
+		executor.submit(() -> {
+			System.out.printf("getKnownFor %s\n", concept);
+			lock.lock();
+			localEdges.addAll(OpenAiLLM_Caller.getKnownFor(concept));
+			lock.unlock();
+		});
+		executor.submit(() -> {
+			System.out.printf("getMadeOf %s\n", concept);
+			lock.lock();
+			localEdges.addAll(OpenAiLLM_Caller.getMadeOf(concept));
+			lock.unlock();
+		});
+		executor.submit(() -> {
+			System.out.printf("getNotDesires %s\n", concept);
+			lock.lock();
+			localEdges.addAll(OpenAiLLM_Caller.getNotDesires(concept));
+			lock.unlock();
+		});
+		executor.submit(() -> {
+			System.out.printf("getPartOf %s\n", concept);
+			lock.lock();
+			localEdges.addAll(OpenAiLLM_Caller.getPartOf(concept));
+			lock.unlock();
+		});
+		executor.submit(() -> {
+			System.out.printf("getRequires %s\n", concept);
+			lock.lock();
+			localEdges.addAll(OpenAiLLM_Caller.getRequires(concept));
+			lock.unlock();
+		});
+		executor.submit(() -> {
+			System.out.printf("getUsedTo %s\n", concept);
+			lock.lock();
+			localEdges.addAll(OpenAiLLM_Caller.getUsedTo(concept));
+			lock.unlock();
+		});
+		executor.submit(() -> {
+			System.out.printf("getWhatIsPartOf %s\n", concept);
+			lock.lock();
+			localEdges.addAll(OpenAiLLM_Caller.getWhatIsPartOf(concept));
+			lock.unlock();
+		});
+		executor.submit(() -> {
+			System.out.printf("getAtLocation %s\n", concept);
+			lock.lock();
+			localEdges.addAll(OpenAiLLM_Caller.getAtLocation(concept));
+			lock.unlock();
+		});
+		executor.submit(() -> {
+			System.out.printf("getLimitationsOf %s\n", concept);
+			lock.lock();
+			localEdges.addAll(OpenAiLLM_Caller.getLimitationsOf(concept));
+			lock.unlock();
+		});
+
+		executor.shutdown();
+		executor.awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS);
+
+		return localEdges;
+	}
+
+	/**
+	 * if the given edge can be corrected, returns the corrected edge, otherwise returns null
+	 * 
+	 * @param edge
+	 * @return
+	 */
+	public static StringEdge correctRelation(StringEdge edge) {
+		/**
+		 * relations to verify: atlocation capableof causes causesdesire createdby desires isa knownfor madeof notdesires partof requires usedto
+		 */
+		String source = edge.getSource().toLowerCase();
+		String target = edge.getTarget().toLowerCase();
+		String label = edge.getLabel().toLowerCase();
+
+		String cons_source = getPhraseType(source);
+		String cons_target = getPhraseType(target);
+
+		boolean source_np = cons_source.equals("NP");
+		boolean target_np = cons_target.equals("NP");
+		boolean target_vp = cons_target.equals("VP") && target.startsWith("to ");
+
+		boolean toCorrect = false;
+		String newSource = source;
+		String newTarget = target;
+
+		switch (label) {
+		case "atlocation": // DONE 1
+			// NP atlocation NP
+			if (!source_np) {
+				// correct source
+				newSource = convertVP_to_NP(source);
+				toCorrect = true;
+			}
+			if (!target_np) {
+				// correct target
+				newTarget = convertVP_to_NP(target);
+				toCorrect = true;
+			}
+			if (toCorrect) {
+				StringEdge newEdge = new StringEdge(newSource, newTarget, label);
+				return newEdge;
+			}
+			break;
+
+		case "capableof": // DONE 2
+			// NP capableof NP
+			if (!source_np) {
+				// correct source
+				newSource = convertVP_to_NP(source);
+				toCorrect = true;
+			}
+			if (!target_np) {
+				// correct target
+				newTarget = convertVP_to_NP(target);
+				toCorrect = true;
+			}
+			if (toCorrect) {
+				StringEdge newEdge = new StringEdge(newSource, newTarget, label);
+				return newEdge;
+			}
+			break;
+
+		case "causes": // DONE 1
+			// NP causes NP
+			if (!source_np) {
+				// correct source
+				newSource = convertVP_to_NP(source);
+				toCorrect = true;
+			}
+			if (!target_np) {
+				// correct target
+				newTarget = convertVP_to_NP(target);
+				toCorrect = true;
+			}
+			if (toCorrect) {
+				StringEdge newEdge = new StringEdge(newSource, newTarget, label);
+				return newEdge;
+			}
+			break;
+
+		case "causesdesire": // DONE 1
+			// NP causesdesire VP
+			if (!source_np) {
+				// correct source
+				newSource = convertVP_to_NP(source);
+				toCorrect = true;
+			}
+			if (!target_vp) {
+				// correct target
+				newTarget = convertNP_to_VP(target);
+				toCorrect = true;
+			}
+			if (toCorrect) {
+				StringEdge newEdge = new StringEdge(newSource, newTarget, label);
+				return newEdge;
+			}
+			break;
+
+		case "createdby": // DONE 1
+			// NP createdby NP
+			if (!source_np) {
+				// correct source
+				newSource = convertVP_to_NP(source);
+				toCorrect = true;
+			}
+			if (!target_np) {
+				// correct target
+				newTarget = convertVP_to_NP(target);
+				toCorrect = true;
+			}
+			if (toCorrect) {
+				StringEdge newEdge = new StringEdge(newSource, newTarget, label);
+				return newEdge;
+			}
+			break;
+
+		case "isa": // DONE
+			// NP isa NP
+			if (!source_np) {
+				// correct source
+				newSource = convertVP_to_NP(source);
+				toCorrect = true;
+			}
+			if (!target_np) {
+				// correct target
+				newTarget = convertVP_to_NP(target);
+				toCorrect = true;
+			}
+			if (toCorrect) {
+				StringEdge newEdge = new StringEdge(newSource, newTarget, label);
+				return newEdge;
+			}
+			break;
+
+		case "knownfor": // DONE
+			// NP knownfor NP
+			if (!source_np) {
+				// correct source
+				newSource = convertVP_to_NP(source);
+				toCorrect = true;
+			}
+			if (!target_np) {
+				// correct target
+				newTarget = convertVP_to_NP(target);
+				toCorrect = true;
+			}
+			if (toCorrect) {
+				StringEdge newEdge = new StringEdge(newSource, newTarget, label);
+				return newEdge;
+			}
+			break;
+
+		case "madeof": // DONE
+			// NP madeof NP
+			if (!source_np) {
+				// correct source
+				newSource = convertVP_to_NP(source);
+				toCorrect = true;
+			}
+			if (!target_np) {
+				// correct target
+				newTarget = convertVP_to_NP(target);
+				toCorrect = true;
+			}
+			if (toCorrect) {
+				StringEdge newEdge = new StringEdge(newSource, newTarget, label);
+				return newEdge;
+			}
+			break;
+
+		case "desires": // DONE 1
+		case "notdesires": // DONE
+			// NP desires <>
+			if (!source_np) {
+				// correct source
+				newSource = convertVP_to_NP(source);
+				toCorrect = true;
+			}
+			if (toCorrect) {
+				StringEdge newEdge = new StringEdge(newSource, newTarget, label);
+				return newEdge;
+			}
+			break;
+
+		case "partof": // DONE
+			// NP partof NP
+			if (!source_np) {
+				// correct source
+				newSource = convertVP_to_NP(source);
+				toCorrect = true;
+			}
+			if (!target_np) {
+				// correct target
+				newTarget = convertVP_to_NP(target);
+				toCorrect = true;
+			}
+			if (toCorrect) {
+				StringEdge newEdge = new StringEdge(newSource, newTarget, label);
+				return newEdge;
+			}
+			break;
+
+		case "requires": // DONE
+			// NP requires NP
+			if (!source_np) {
+				// correct source
+				newSource = convertVP_to_NP(source);
+				toCorrect = true;
+			}
+			if (!target_np) {
+				// correct target
+				newTarget = convertVP_to_NP(target);
+				toCorrect = true;
+			}
+			if (toCorrect) {
+				StringEdge newEdge = new StringEdge(newSource, newTarget, label);
+				return newEdge;
+			}
+			break;
+
+		case "usedto": // DONE
+			// NP usedto VP
+			if (!source_np) {
+				// correct source
+				newSource = convertVP_to_NP(source);
+				toCorrect = true;
+			}
+			if (!target_vp) {
+				// correct target
+				newTarget = convertNP_to_VP(target);
+				toCorrect = true;
+			}
+			if (toCorrect) {
+				StringEdge newEdge = new StringEdge(newSource, newTarget, label);
+				return newEdge;
+			}
+			break;
+
+		}
+//		System.out.printf("%s\t%s,%s,%s\n", edge, cons_source, label, cons_target);
+		return null;
+	}
+
+	public static void debugCaches() {
+		OpenAiLLM_Caller.cachedNP_to_VP.debug();
+		OpenAiLLM_Caller.cachedVP_to_NP.debug();
 	}
 }

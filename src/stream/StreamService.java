@@ -18,7 +18,7 @@ public class StreamService {
 	}
 
 	public StreamService() {
-		this.numberOfThreads = OSTools.getNumberOfCores();
+		this.numberOfThreads = OSTools.getNumberOfLogicalProcessors();
 		this.es = Executors.newFixedThreadPool(numberOfThreads);
 	}
 

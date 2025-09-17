@@ -31,7 +31,7 @@ public class Ticker {
 	 * @return
 	 */
 	public double getElapsedTime() {
-		double dif = getTime() - reference;
+		double dif = Math.abs(getTime() - reference);
 		return dif;
 	}
 

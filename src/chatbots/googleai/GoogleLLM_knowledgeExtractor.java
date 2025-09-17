@@ -65,7 +65,7 @@ public class GoogleLLM_knowledgeExtractor {
 		String prompt = "Use american english. Answer yes or no. If there are typos or spelling errors in the question, answer no. This is the question: is %s a %s?";
 		String text = String.format(prompt, child, parent);
 		System.out.println(text);
-		String reply = GoogleLLM_Caller.doRequest(text).toLowerCase().trim();
+		String reply = GoogleLLM_Caller.doRequest(text).toLowerCase().strip();
 		System.out.println(": " + reply);
 		if (reply.startsWith("yes")) {
 			return true;
@@ -95,7 +95,7 @@ public class GoogleLLM_knowledgeExtractor {
 				""";
 		String text = prompt.replace("%concept%", concept);
 		String reply = GoogleLLM_Caller.doRequest(text);
-		reply = reply.trim();
+		reply = reply.strip();
 		if (reply.endsWith(".")) {
 			reply = reply.substring(0, reply.length() - 1);
 		}

@@ -7,14 +7,19 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import graph.GraphReadWrite;
+import graph.StringEdge;
 import graph.StringGraph;
 import structures.SynchronizedSeriarizableHashMap;
 import utils.VariousUtils;
@@ -23,14 +28,14 @@ public class PythonNLP_RestServiceInterface {
 	/**
 	 * cache of previously decoded POS for each concept
 	 */
-	private static SynchronizedSeriarizableHashMap<String, String> cachedConstituencies = new SynchronizedSeriarizableHashMap<>("constituencyCache.dat", 15);
-	private static SynchronizedSeriarizableHashMap<String, String> cachedCleaned = new SynchronizedSeriarizableHashMap<>("cleanedCache.dat", 15);
-	private static HashSet<String> nounPhrases_fromFile;
+	private static SynchronizedSeriarizableHashMap<String, String> cachedConstituencies = new SynchronizedSeriarizableHashMap<>("constituencyCache.dat", 10);
+	private static SynchronizedSeriarizableHashMap<String, String> cachedCleaned = new SynchronizedSeriarizableHashMap<>("cleanedCache.dat", 10);
+	private static Set<String> nounPhrases_fromFile;
 	private static boolean initialized = false;
-	private static final String SERVER_URL = "http://ckhp";
+	private static final String SERVER_URL = "http://localhost";
 	private static final String NP_FILENAME = "data/noun_phrases.txt";
 
-	public static String getConstituencyLocalHostSpacy(String concept) throws IOException {
+	public static String getConstituencyLocalHostSpacy(String concept) throws IOException, URISyntaxException {
 		initialize();
 
 		if (nounPhrases_fromFile.contains(concept))
@@ -42,6 +47,7 @@ public class PythonNLP_RestServiceInterface {
 		if (result == null) {
 			result = getResponseForConcept(concept, baseUrl);
 			cachedConstituencies.put(concept, result);
+//			System.out.println(result);
 		}
 
 		return calculatePhraseType(result);
@@ -55,8 +61,9 @@ public class PythonNLP_RestServiceInterface {
 	 * @throws IOException
 	 * @throws ProtocolException
 	 * @throws MalformedURLException
+	 * @throws URISyntaxException
 	 */
-	public static String stripDeterminantsAndSingularize(String concept) throws MalformedURLException, ProtocolException, IOException {
+	public static String stripDeterminantsAndSingularize(String concept) throws MalformedURLException, ProtocolException, IOException, URISyntaxException {
 		initialize();
 
 		final String baseUrl = SERVER_URL + "/api/clean";
@@ -69,19 +76,23 @@ public class PythonNLP_RestServiceInterface {
 		return result;
 	}
 
-	private static String getResponseForConcept(String concept, final String url) throws MalformedURLException, ProtocolException, IOException {
+	private static String getResponseForConcept(String concept, final String url)
+			throws MalformedURLException, ProtocolException, IOException, URISyntaxException {
 		initialize();
-		String concept_encoded = URLEncoder.encode(concept.toLowerCase().trim(), "UTF-8");
+		String concept_encoded = URLEncoder.encode(concept.toLowerCase().strip(), "UTF-8");
 		final String params = "concept=" + concept_encoded;
 		String output_encoded = getRemoteResponse(params, url);
-		//System.out.printf("%s->%s\n", concept_encoded, output_encoded);
+		// System.out.printf("%s->%s\n", concept_encoded, output_encoded);
 		String output_decoded = URLDecoder.decode(output_encoded, "UTF-8");
 		return output_decoded;
 	}
 
-	private static String getRemoteResponse(String params, final String baseUrl) throws MalformedURLException, IOException, ProtocolException {
+	private static String getRemoteResponse(String params, final String baseUrl)
+			throws MalformedURLException, IOException, ProtocolException, URISyntaxException {
 		String constituency;
-		URL url = new URL(baseUrl + "?" + params);
+		URL url = new URI(baseUrl + "?" + params).toURL();
+		;
+//		URL url = new URL(baseUrl + "?" + params);
 		HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 		connection.setRequestMethod("GET");
 		BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
@@ -92,7 +103,7 @@ public class PythonNLP_RestServiceInterface {
 		}
 		reader.close();
 		// System.out.println("Response Code: " + connection.getResponseCode());
-		constituency = response.toString().trim();
+		constituency = response.toString().strip();
 		return constituency;
 	}
 
@@ -103,6 +114,8 @@ public class PythonNLP_RestServiceInterface {
 				ArrayList<String> rows = VariousUtils.readFileRows(NP_FILENAME);
 				nounPhrases_fromFile.addAll(rows);
 			}
+			// set read only
+			nounPhrases_fromFile = Collections.unmodifiableSet(nounPhrases_fromFile);
 			initialized = true;
 		}
 	}
@@ -155,7 +168,101 @@ public class PythonNLP_RestServiceInterface {
 				e.printStackTrace();
 			}
 			// System.out.printf("%s\t%s\n", concept, getPhraseType(concept));
+			catch (URISyntaxException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		});
+	}
+
+	public static boolean isRelationValid(StringEdge edge) throws IOException, URISyntaxException {
+		/**
+		 * relations to verify: atlocation capableof causes causesdesire createdby desires isa knownfor madeof notdesires partof requires usedto
+		 */
+		String cons_source = getConstituencyLocalHostSpacy(edge.getSource());
+		String cons_target = getConstituencyLocalHostSpacy(edge.getTarget());
+		String label = edge.getLabel();
+		switch (label) {
+		case "atlocation": // checked
+			// name atlocation name
+			if (cons_source.equals("NP") && cons_target.equals("NP"))
+				return true;
+			break;
+
+		case "capableof": // checked
+			// <> capableof VP
+			if (cons_target.equals("VP"))
+				return true;
+			break;
+
+		case "causes": // checked
+			// <> causes name
+			if (cons_target.equals("NP"))
+				return true;
+			break;
+
+		case "causesdesire": // checked
+			// name causesdesire name
+			if (cons_source.equals("NP") && cons_target.equals("NP"))
+				return true;
+			break;
+
+		case "createdby": // checked
+			// name createdby name
+			if (cons_source.equals("NP") && cons_target.equals("NP"))
+				return true;
+			break;
+
+		case "desires": // checked
+			// name desires <>
+			if (cons_source.equals("NP"))
+				return true;
+			break;
+
+		case "isa": // checked
+			// name isa name
+			if (cons_source.equals("NP") && cons_target.equals("NP"))
+				return true;
+			break;
+
+		case "knownfor": // checked
+			// name knownfor <>
+			if (cons_source.equals("NP"))
+				return true;
+			break;
+
+		case "madeof": // checked
+			// name madeof name
+			if (cons_source.equals("NP") && cons_target.equals("NP"))
+				return true;
+			break;
+
+		case "notdesires": // checked
+			// name notdesires <>
+			if (cons_source.equals("NP"))
+				return true;
+			break;
+
+		case "partof": // checked
+			// name partof name
+			if (cons_source.equals("NP") && cons_target.equals("NP"))
+				return true;
+			break;
+
+		case "requires": // checked
+			// <> requires name
+			if (cons_target.equals("NP"))
+				return true;
+			break;
+
+		case "usedto": // checked
+			// <> usedto verb
+			if (cons_target.equals("VP"))
+				return true;
+			break;
+
+		}
+		return false;
 	}
 
 }

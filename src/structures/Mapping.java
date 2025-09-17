@@ -40,7 +40,7 @@ public class Mapping<T> implements Iterable<ConceptPair<T>> {
 		ArrayList<Mapping<String>> mappings = new ArrayList<Mapping<String>>();
 		BufferedReader br = new BufferedReader(new FileReader(f), 1 << 16);
 		while (br.ready()) { // break into lines
-			String line = br.readLine().trim();
+			String line = br.readLine().strip();
 			// parse lines into a mapping
 			Mapping<String> map = new Mapping<String>();
 			// split line into N pairs
@@ -74,7 +74,7 @@ public class Mapping<T> implements Iterable<ConceptPair<T>> {
 			String line = br.readLine();
 			if (line == null)
 				break;
-			line = line.trim();
+			line = line.strip();
 			// ignore empty lines
 			if (line.length() == 0)
 				continue;
@@ -85,8 +85,8 @@ public class Mapping<T> implements Iterable<ConceptPair<T>> {
 			String cleaned = line.substring(line.indexOf(",") + 1, line.lastIndexOf(")"));
 			StringTokenizer st = new StringTokenizer(cleaned, ",");
 
-			String leftConcept = st.nextToken().trim();
-			String rightConcept = st.nextToken().trim();
+			String leftConcept = st.nextToken().strip();
+			String rightConcept = st.nextToken().strip();
 
 			if (leftConcept.equals(rightConcept)) {
 				System.out.println("LOOP: " + line);
@@ -120,7 +120,7 @@ public class Mapping<T> implements Iterable<ConceptPair<T>> {
 		Mapping<String> mapping = new Mapping<>();
 		listOfMappings.add(mapping);
 		while (br.ready()) {
-			String line = br.readLine().trim();
+			String line = br.readLine().strip();
 			if (line.startsWith("-")) { // a line starting with - defines a new mapping
 				mapping = new Mapping<>();
 				listOfMappings.add(mapping);

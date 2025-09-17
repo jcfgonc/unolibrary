@@ -13,7 +13,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Custom version of BufferedReader which maintains the buffer full in background. Adapted from https://stackoverflow.com/a/32013595
+ * Custom version of UTF-8 BufferedReader which maintains the buffer full in background. Adapted from https://stackoverflow.com/a/32013595
  * 
  * @author jcfgonc@gmail.com
  *

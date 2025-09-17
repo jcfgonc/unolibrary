@@ -13,8 +13,11 @@ import java.util.Set;
 import it.unimi.dsi.fastutil.bytes.ByteArrayList;
 
 /**
- * A directed multigraph where both vertices and edges are String. A directed multigraph is a non-simple directed graph in which loops are permitted, as well as
- * multiple edges between any two vertices. Always use the graph's functions to add/remove/etc. edges, never edit directly one of the return functions/values.
+ * A directed multigraph where both vertices and edges are String. A directed
+ * multigraph is a non-simple directed graph in which loops are permitted, as
+ * well as multiple edges between any two vertices. Always use the graph's
+ * functions to add/remove/etc. edges, never edit directly one of the return
+ * functions/values.
  *
  * @author Joao Goncalves: jcfgonc@gmail.com
  *
@@ -79,7 +82,8 @@ public class StringGraph implements Serializable {
 	}
 
 	/**
-	 * Converts from generic DirectedMultiGraph to a StringGraph, using toString() on both vertices and edges.
+	 * Converts from generic DirectedMultiGraph to a StringGraph, using toString()
+	 * on both vertices and edges.
 	 * 
 	 * @param otherGraph
 	 */
@@ -161,7 +165,8 @@ public class StringGraph implements Serializable {
 	}
 
 	/**
-	 * adds a the given labeled edge between two vertices, returning true if successfully added it
+	 * adds a the given labeled edge between two vertices, returning true if
+	 * successfully added it
 	 *
 	 * @param source
 	 * @param target
@@ -300,7 +305,8 @@ public class StringGraph implements Serializable {
 	}
 
 	/**
-	 * Returns the set of all edges in this graph connecting both vertices, regardless of edge direction.
+	 * Returns the set of all edges in this graph connecting both vertices,
+	 * regardless of edge direction.
 	 *
 	 * @param source
 	 * @param target
@@ -442,12 +448,13 @@ public class StringGraph implements Serializable {
 	}
 
 	/**
-	 * Returns the set of vertices contained in this graph and which participate in edges.
+	 * SAFE, Returns the set of vertices contained in this graph and which
+	 * participate in edges.
 	 *
 	 * @return
 	 */
 	public Set<String> getVertexSet() {
-		Set<String> vertexSet = this.graph.vertexSet();
+		Set<String> vertexSet = new HashSet<String>(this.graph.vertexSet());
 		return vertexSet;
 	}
 
@@ -548,7 +555,8 @@ public class StringGraph implements Serializable {
 	}
 
 	/**
-	 * Removes the specified vertex from this graph including all its touching edges if present.
+	 * Removes the specified vertex from this graph including all its touching edges
+	 * if present.
 	 *
 	 * @param vertex
 	 * @return true if the graph contained the specified vertex; false otherwise.
@@ -587,7 +595,8 @@ public class StringGraph implements Serializable {
 	public void renameVertex(String original, String replacement) {
 		if (original.equals(replacement))
 			return;
-		// remove old edges touching the old vertex while adding new edges with the replaced vertex
+		// remove old edges touching the old vertex while adding new edges with the
+		// replaced vertex
 		ArrayList<StringEdge> toAdd = new ArrayList<>();
 		ArrayList<StringEdge> toRemove = new ArrayList<>();
 		for (StringEdge edge : graph.edgesOf(original)) {
@@ -609,15 +618,17 @@ public class StringGraph implements Serializable {
 			buffer += edge.toString() + ";";
 			if (edgeCounter % edgesPerLine == 0 && edgeCounter > 0)
 				buffer += System.lineSeparator();
-			if (edgeCounter > edgeLimit)
+			if (edgeCounter > edgeLimit) {
+				buffer += "...";
 				break;
+			}
 			edgeCounter++;
 		}
 		return buffer;
 	}
 
 	public String toString() {
-		return toString(64, 2);
+		return toString(10, 2);
 	}
 
 	public void removeEdges(Collection<StringEdge> toRemove) {
@@ -775,7 +786,8 @@ public class StringGraph implements Serializable {
 	}
 
 	/**
-	 * returns true if there is an edge connecting the same vertices as the given edge or vice-versa UNTESTED
+	 * returns true if there is an edge connecting the same vertices as the given
+	 * edge or vice-versa UNTESTED
 	 */
 	public boolean anyEdgeConnectsUndirected(StringEdge e) {
 		return anyEdgeConnectsUndirected(e.getSource(), e.getTarget());
@@ -798,7 +810,8 @@ public class StringGraph implements Serializable {
 	}
 
 	/**
-	 * returns true if there is an edge connecting the same vertices as the given edge and in the same direction
+	 * returns true if there is an edge connecting the same vertices as the given
+	 * edge and in the same direction
 	 */
 	public boolean anyEdgeConnectsDirected(StringEdge e) {
 		return anyEdgeConnectsDirected(e.getSource(), e.getTarget());

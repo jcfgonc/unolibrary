@@ -23,7 +23,7 @@ public class ConcurrentTaskExecutor<T> {
 	}
 
 	public ConcurrentTaskExecutor() {
-		this(OSTools.getNumberOfCores());
+		this(OSTools.getNumberOfLogicalProcessors());
 	}
 
 	public void parallelForEach(Collection<T> col, Consumer<? super T> action) throws InterruptedException {

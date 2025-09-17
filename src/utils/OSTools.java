@@ -2,97 +2,22 @@ package utils;
 
 import java.awt.Dimension;
 import java.awt.Toolkit;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
 
 public class OSTools {
 	private static String OS = System.getProperty("os.name").toLowerCase();
-	private static int numberOfCores;
-	private static int numberOfSockets;
-	private static int numberOfLogicalProcessors;
-	private static boolean initialized = false;
-	
-	@SuppressWarnings("deprecation")
+
 	public static void setLowPriorityProcess() {
 		try {
 			// 16384 is Below Normal priority
 			Runtime.getRuntime().exec(String.format("wmic process where processid=%d CALL setpriority \"16384\"", ProcessHandle.current().pid()));
 		} catch (Exception e) {
-		//	e.printStackTrace();
+			// e.printStackTrace();
 		}
-	}
-	
-	/**
-	 * jcfgonc - This only works for Windowz... adapted from some post in stackoverflow, don't remember which
-	 * 
-	 * @return
-	 */
-	@SuppressWarnings("deprecation")
-	private static void getCPU_Info() {
-		if (initialized)
-			return;
-
-		if (!isWindows()) {
-			System.err.println("This can only be run on M$ Windows.");
-			System.exit(-1);
-		}
-		String command = "cmd /C WMIC CPU Get /Format:List";
-		Process process = null;
-		System.out.print("querying OS for CPU info...");
-		try {
-			process = Runtime.getRuntime().exec(command);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-
-		numberOfCores = 0;
-		numberOfSockets = 0;
-		numberOfLogicalProcessors = 0;
-
-		BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-		String line;
-
-		try {
-			while ((line = reader.readLine()) != null) {
-				// WINDOWZEEEEEEEE
-				if (line.contains("NumberOfCores")) {
-					numberOfCores += Integer.parseInt(line.split("=")[1]);
-				}
-				if (line.contains("SocketDesignation")) {
-					numberOfSockets++;
-				}
-				if (line.contains("NumberOfLogicalProcessors")) {
-					numberOfLogicalProcessors += Integer.parseInt(line.split("=")[1]);
-				}
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		initialized = true;
-		System.out.println(" done.");
-	}
-
-	public static int getNumberOfCores() {
-		return Runtime.getRuntime().availableProcessors(); // / 2;
-//		getCPU_Info();
-//		return numberOfCores;
-	}
-
-	public static int getNumberOfSockets() {
-		getCPU_Info();
-		return numberOfSockets;
 	}
 
 	public static int getNumberOfLogicalProcessors() {
-		getCPU_Info();
-		return numberOfLogicalProcessors;
-	}
-
-	public static boolean hasHyperThreading() throws NumberFormatException, IOException {
-		getCPU_Info();
-		boolean ht = numberOfLogicalProcessors > numberOfCores;
-		return ht;
+		int logicalCores = Runtime.getRuntime().availableProcessors();
+		return logicalCores;
 	}
 
 	public static boolean isMac() {

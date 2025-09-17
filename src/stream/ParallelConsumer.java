@@ -20,7 +20,7 @@ public class ParallelConsumer<T> {
 	}
 
 	public ParallelConsumer() {
-		this(OSTools.getNumberOfCores());
+		this(OSTools.getNumberOfLogicalProcessors());
 	}
 
 	public void parallelForEach(Collection<T> col, Consumer<? super T> action) throws InterruptedException {

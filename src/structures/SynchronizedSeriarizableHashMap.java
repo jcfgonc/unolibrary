@@ -4,7 +4,10 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.Enumeration;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import com.esotericsoftware.kryo.kryo5.Kryo;
@@ -19,23 +22,17 @@ public class SynchronizedSeriarizableHashMap<K, V> {
 	private int timeout;
 	private ReentrantReadWriteLock rrw;
 	private static Kryo kryo; // must be shared
-	private boolean fileSynch;
+	private Semaphore savingSemaphore = new Semaphore(1);
+	private Semaphore timeoutSemaphore = new Semaphore(1);
 
 	public SynchronizedSeriarizableHashMap(String filename, int timeout) {
 		this.filename = filename;
 		this.ticker = new Ticker();
 		this.timeout = timeout;
 		this.rrw = new ReentrantReadWriteLock();
-		fileSynch = true;
 		initializeKryo();
 		System.err.printf("%s: saving to %s with an interval of %ds\n", this.getClass().toString(), filename, timeout);
 		load();
-	}
-
-	public SynchronizedSeriarizableHashMap() {
-		this.ticker = new Ticker();
-		this.rrw = new ReentrantReadWriteLock();
-		fileSynch = false;
 	}
 
 	private synchronized void initializeKryo() {
@@ -46,37 +43,23 @@ public class SynchronizedSeriarizableHashMap<K, V> {
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public synchronized void load() {
-		if (!fileSynch)
-			return;
-
 		File fin = new File(filename);
 		if (fin.exists()) {
 			try {
 				ticker.getTimeDeltaLastCall();
 
 				Input input = new Input(new FileInputStream(filename));
+				rrw.writeLock().lock();
 				cache = (ConcurrentHashMap) kryo.readObject(input, ConcurrentHashMap.class);
+				rrw.writeLock().unlock();
 				input.close();
 
 				double dt = ticker.getTimeDeltaLastCall();
 				System.err.println(this.getClass().toString() + ": loaded cache from " + filename + " with " + size() + " entries in " + dt + "s");
 			} catch (Exception e) {
 				e.printStackTrace();
-				System.exit(-3);
+				System.exit(-1);
 			}
-		}
-	}
-
-	public synchronized void save() throws IOException {
-		if (!fileSynch)
-			return;
-
-		try {
-			Output output = new Output(new FileOutputStream(filename));
-			kryo.writeObject(output, cache);
-			output.close();
-		} catch (Exception e) {
-			e.printStackTrace();
 		}
 	}
 
@@ -101,29 +84,62 @@ public class SynchronizedSeriarizableHashMap<K, V> {
 		V p = (V) cache.put(key, value);
 		rrw.writeLock().unlock();
 
-		if (fileSynch) {
-			checkTimeout();
-		}
+		checkTimeout();
+
 		return p;
 	}
 
-	private synchronized void checkTimeout() {
-		if (ticker.getElapsedTime() > timeout) {
+	public void save() throws IOException {
+		// protect saving function
+		if (savingSemaphore.tryAcquire()) {
 			try {
-
-			//	ticker.getTimeDeltaLastCall();
-
 				// cache can not be updated while saving it (block writes)
-			//	rrw.readLock().lock();
-				save();
-			//	rrw.readLock().unlock();
-
-		//		double dt = ticker.getTimeDeltaLastCall();
-			//	System.err.println(this.getClass().toString() + ": saved cache to " + filename + " with " + size() + " entries in " + dt + "s");
-			} catch (IOException e) {
+				rrw.readLock().lock();
+				// do the save
+				{
+					Output output = new Output(new FileOutputStream(filename));
+					kryo.writeObject(output, cache);
+					output.flush();
+					output.close();
+				}
+			} catch (Exception e) {
 				e.printStackTrace();
+			} finally {
+				rrw.readLock().unlock();
 			}
-			ticker.resetTicker();
+		}
+		savingSemaphore.release();
+		System.err.printf("saved cache with %d entries to %s\n", cache.size(), filename);
+	}
+
+	private void checkTimeout() {
+		// prevent concurrent timeouts
+		try {
+			if (timeoutSemaphore.tryAcquire(0, TimeUnit.SECONDS)) {
+				if (ticker.getElapsedTime() > timeout) {
+					try {
+						save();
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+					ticker.resetTicker();
+				}
+			}
+			timeoutSemaphore.release();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public void debug() {
+		Enumeration<V> elements = cache.elements();
+		while (elements.hasMoreElements()) {
+			V nextElement = elements.nextElement();
+			String str = nextElement.toString();
+			System.out.println(str);
+//			if (str.contains("→")) {
+//				System.out.println(str);
+//			}
 		}
 	}
 }

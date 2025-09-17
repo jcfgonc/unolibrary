@@ -301,7 +301,7 @@ public class WordEmbeddingUtils {
 		BufferedReader br = new BufferedReader(new FileReader(filename));
 		String line;
 		while ((line = br.readLine()) != null) {
-			line = line.trim();
+			line = line.strip();
 			if (line.isEmpty())
 				continue;
 			String[] tokens = VariousUtils.fastSplitWhiteSpace(line);

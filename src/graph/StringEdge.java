@@ -14,16 +14,16 @@ public class StringEdge implements Comparable<StringEdge>, Serializable, Cloneab
 	private String label = null;
 	private int hashcode = 0;
 	private boolean hashcodeCached = false;
-	public static final int CSV_ORDER_SOURCE_TARGET_LABEL = 0;
+	public static final int CSV_ORDER_SOURCE_LABEL_TARGET = 0;
 	public static final int CSV_ORDER_LABEL_SOURCE_TARGET = 1;
-	public static final int CSV_ORDER_SOURCE_LABEL_TARGET = 2;
+	public static final int CSV_ORDER_SOURCE_TARGET_LABEL = 2;
 
 	public StringEdge(String source, String target, String label) {
 		this.source = source;
 		this.target = target;
 		this.label = label;
 
-		if (source.trim().isEmpty() || target.trim().isEmpty()) {
+		if (source.strip().isEmpty() || target.strip().isEmpty()) {
 			System.err.printf("ERROR:new StringEdge() %s,%s,%s\n", source, label, target);
 		}
 	}

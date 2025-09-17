@@ -104,7 +104,7 @@ public class CSVReader {
 		BufferedReader br = new BufferedReader(new FileReader(file, StandardCharsets.UTF_8), 1 << 24);
 		String line;
 		while ((line = br.readLine()) != null) {
-			line = line.trim();
+			line = line.strip();
 			String[] cells = VariousUtils.fastSplit(line, columnSeparator);
 			ArrayList<String> asList = VariousUtils.arrayToArrayList(cells);
 			if (fileHasHeader && !headRead) {

@@ -1445,7 +1445,7 @@ public class GraphAlgorithms {
 				parentEdges.addAll(graph.outgoingEdgesOf(parent, "causes"));
 				parentEdges.addAll(graph.outgoingEdgesOf(parent, "atlocation"));
 				parentEdges.addAll(graph.outgoingEdgesOf(parent, "desires"));
-				parentEdges.addAll(graph.outgoingEdgesOf(parent, "usedfor"));
+				parentEdges.addAll(graph.outgoingEdgesOf(parent, "usedto"));
 				parentEdges.addAll(graph.outgoingEdgesOf(parent, "partof"));
 				parentEdges.addAll(graph.outgoingEdgesOf(parent, "madeof"));
 				parentEdges.addAll(graph.outgoingEdgesOf(parent, "requires"));

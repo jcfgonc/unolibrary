@@ -1,0 +1,388 @@
+aberdeen
+abetimus
+abi hazm al qarashi ibn al nafis
+abu al qasim ibn al abbas al zahrawi
+abu bakr muhammad ibn zakariya al razi
+abu rayhan al biruni
+abu yusuf al kindi
+academic
+ada lovelace
+adele	
+adjective
+ain't mountain high enough
+aircraft
+airplane
+albert einstein
+ale
+alessandro volta
+alexander fleming
+alhazen ibn al haytham
+almandite
+amedeo avogadro
+amelie emmy noether
+andreas vesalius
+andrey kolmogorov
+andré marie ampère
+angelina jolie	
+animal
+antoine lavoisier
+antonie van leeuwenhoek
+archimedes
+aryabhata
+augustin louis cauchy
+avicenna of persia (ibn sina)
+baccano!
+backstreet boys
+bang
+ben affleck
+beyoncé	
+blaise pascal
+boat
+bon jovi
+bon jovi	
+boom
+brad pitt	
+brahmagupta
+britney spears	
+bruce springsteen	
+bruce willis	
+c#
+c++
+carl friedrich gauss
+carl linnaeus
+carousel
+carrousel
+celine dion	
+charles augustin de coulomb
+charles darwin
+charlie bit my finger
+cher	
+chordate
+christiaan huygens
+claude bernard
+claudius galen of pergamon
+coldplay
+conjunction
+cpp
+cristiano ronaldo
+crossbreed
+dan brown	writer
+daniel bernoulli
+david beckham
+devil is part-timer!
+dmitri mendeleev
+down
+dr phil mcgraw	
+drake	
+dwayne johnson	
+ed sheeran	
+edie falco
+edward jenner
+edwin hubble
+eleven
+ellen degeneres	
+elton john	
+eminem
+empty content
+enrico fermi
+ernest rutherford
+f#
+five
+floyd mayweather jr
+galen
+galileo galilei
+garth brooks	
+georg bernhard riemann
+georg simon ohm
+george clooney	
+george lucas
+george washington carver
+gerolamo cardano
+gottfried leibniz
+gregor mendel
+guess who?
+hallelujah
+halo
+hans christian oersted
+hans christian ørsted
+harrison ford	
+heinrich hertz
+hell
+hendrik antoon lorentz
+henri becquerel
+hermann von helmholtz
+hilt
+hippocrates of kos
+howard stern	
+humphry davy
+i am cat
+i gotta feeling
+i shot sheriff
+i want it way
+i will survive
+ibn al haytham
+ight imma head out
+infrasound
+input text
+inside
+interjection
+is this pigeon?
+isaac newton
+isambard kingdom brunel
+it's small world
+j j thomson
+j k rowling	
+james cameron	
+james chadwick
+james clerk maxwell
+james gandolfini
+james joseph sylvester
+james patterson	
+james prescott joule
+james watt
+jane goodall
+java
+javascript
+jay z	
+jean baptiste joseph fourier
+jennifer aniston	
+jennifer lopez
+jerry seinfeld	
+jesse ernest wilkins jr
+johann heinrich lambert
+johannes kepler
+john bardeen
+john dalton
+john von neumann
+johnny depp	
+joseph louis gay lussac
+joseph louis lagrange
+judge judy sheindlin	
+jules henri poincaré
+julia roberts	
+justin bieber	
+kanye west	
+katherine coleman johnson
+katy perry	
+kevin hart	
+kim kardashian	
+kobe bryant	
+ksvk
+kylie jenner	
+lady gaga	
+lebron james	
+leonardo dicaprio	
+leonhard euler
+lg
+li shizhen
+linus pauling
+lionel messi
+lise meitner
+liu hui
+lorraine bracco
+louis pasteur
+lucifer
+luigi galvani
+luis walter alvarez
+lullaby
+madhava of sangamagrama
+madonna	
+mamma mia!
+mammal
+manny pacquiao
+mariah carey
+marie curie
+max planck
+mel gibson	
+merry-go-round
+michael faraday
+michael jordan	
+mit
+muhammad ibn musa al khwarizmi
+muppet
+naboo
+nasir al din al tusi
+neymar
+nicolaus copernicus
+niels bohr
+nikola tesla
+nothing compares 2 u
+noun
+noun phrase
+oklahoma!
+omar al khayyam
+omar khayyam
+oprah winfrey	
+otto hahn
+overachiever
+meow
+ola
+poff poff
+puff puff
+puff-puff
+overbooking
+overcharging
+overclock
+overcurrent
+overdesign
+overdevelopment
+overfeeding
+overfishing
+overfitting
+overhang
+overloading
+overpressure
+overpricing
+overprocessing
+overstock
+overtraining
+overuse
+overvoltage
+overwatering
+overwork
+overworking
+paul ehrlich
+paul mccartney	
+paula deen
+person
+phil mcgraw	
+phrase
+pierre simon laplace
+pour
+preposition
+privet
+pronoun
+pythagoras
+python
+qin jiushao
+quark
+rachel carson
+rebecca howe
+reed
+reptile
+rihanna	
+robert boyle
+robert bunsen
+robert downey jr	
+robert hooke
+robert koch
+robin williams	
+roger
+roger federer
+rosalind franklin
+rose has its thorn
+rush limbaugh
+sandra bullock	
+saul canelo alvarez
+sean diddy combs	
+sega sammy holding
+seki kowa takakazu
+self-replicating machine
+self-replicating molecule
+sentence
+sergei pavlovich korolev
+shakespeare
+shaquille o'neal	
+shazam
+shen kuo
+ship
+simon cowell	
+siméon denis poisson
+sin
+species
+spice girls
+srinivasa ramanujan
+ssto
+steven spielberg
+su song
+submarine
+sushi go!
+taylor swift	
+text content
+text segment
+sorry!
+swoosh!
+tachi
+yowl
+yip
+x2
+huff
+hum
+hal
+hail
+eta
+daw
+den
+dari
+como
+clank!
+clang
+c
+boo
+bo
+bc
+au
+asadora!
+argei
+ante
+ah wilderness!
+agar
+adp
+atp
+vga
+aga
+the beatles
+the police
+the rolling stones
+the weeknd	
+theremin
+thing
+this is fine dog
+this is us
+tiger woods
+tom cruise	
+tom hanks	
+toradora!
+toto
+tu-4
+tweet
+tyler perry	
+uber
+understock
+underwire
+united russia party coalition
+unix
+uno
+up
+user input
+van
+vca
+vcf
+vco
+verb
+verb phrase
+via
+vivien theodore thomas
+walther hermann nernst
+wasp
+we are champion
+well
+wernher von braun
+wham!
+wham-o
+what makes you beautiful
+wilhelm conrad roentgen
+william thomson kelvin
+ww1
+ww2
+yann lecun
+you are badass
+you are my sunshine
+you are not alone
+you make my dream
+you're my best friend
+you've got mail
+you've lost lovin' feelin'
+zhang heng
+zhang zhongjing
+zu chongzhi

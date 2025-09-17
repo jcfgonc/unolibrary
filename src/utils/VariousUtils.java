@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -49,6 +50,12 @@ import structures.ObjectCounter;
 
 public class VariousUtils {
 	public static final Set<StringEdge> unmodifiableEmptySet = Collections.unmodifiableSet(new HashSet<StringEdge>(0));
+
+	public static int countWords(String concept) {
+		concept = concept.replaceAll("[\t ]+", " ").trim();
+		int spaces = VariousUtils.countCharOccurences(concept, ' ');
+		return spaces + 1;
+	}
 
 	public static int countCharOccurences(String str, char c) {
 		int count = 0;
@@ -91,6 +98,8 @@ public class VariousUtils {
 					NonblockingBufferedReader br = new NonblockingBufferedReader(filename);
 					String line;
 					while ((line = br.readLine()) != null) {
+						if (line.isBlank())
+							continue;
 						rows.add(line);
 					}
 					br.close();
@@ -141,7 +150,8 @@ public class VariousUtils {
 	}
 
 	/**
-	 * from https://stackoverflow.com/questions/3585053/how-to-check-if-a-string-contains-only-ascii
+	 * from
+	 * https://stackoverflow.com/questions/3585053/how-to-check-if-a-string-contains-only-ascii
 	 * 
 	 * @param v
 	 * @return
@@ -160,7 +170,8 @@ public class VariousUtils {
 	}
 
 	/**
-	 * adapt this code to whatever you need, from https://stackoverflow.com/a/30443276
+	 * adapt this code to whatever you need, from
+	 * https://stackoverflow.com/a/30443276
 	 * 
 	 * @param filePath
 	 * @return
@@ -341,7 +352,8 @@ public class VariousUtils {
 	}
 
 	/**
-	 * returns the subtraction of the set {@code b} from the set {@code a} as a new set<br>
+	 * returns the subtraction of the set {@code b} from the set {@code a} as a new
+	 * set<br>
 	 * := a-b <br>
 	 * or in another words, the elements of {@code a} NOT IN {@code b}
 	 * 
@@ -373,7 +385,8 @@ public class VariousUtils {
 	}
 
 	/**
-	 * returns the subtraction of the set {@code b} from the set {@code a} as a new set<br>
+	 * returns the subtraction of the set {@code b} from the set {@code a} as a new
+	 * set<br>
 	 * := a-b <br>
 	 * or in another words, the elements of {@code a} NOT IN {@code b}
 	 * 
@@ -419,7 +432,8 @@ public class VariousUtils {
 			if (edgeInA.containsBlendedConcept()) {
 				// TODO test this
 				System.err.println("TODO test this: search code for 36a86b0f187e4045");
-				// in reality this should not happen, otherwise it implies that the input space has blended concepts
+				// in reality this should not happen, otherwise it implies that the input space
+				// has blended concepts
 				ArrayList<StringEdge> split = edgeInA.splitBlend();
 				boolean disjoint = Collections.disjoint(split, processedB);
 				if (disjoint) {
@@ -450,7 +464,8 @@ public class VariousUtils {
 	}
 
 	/**
-	 * adapted from https://codereview.stackexchange.com/a/111257 to support multiple separators
+	 * adapted from https://codereview.stackexchange.com/a/111257 to support
+	 * multiple separators
 	 * 
 	 * @param text
 	 * @return
@@ -492,7 +507,8 @@ public class VariousUtils {
 	}
 
 	/**
-	 * adapted from https://codereview.stackexchange.com/a/111257 to support multiple separators
+	 * adapted from https://codereview.stackexchange.com/a/111257 to support
+	 * multiple separators
 	 * 
 	 * @param text
 	 * @return
@@ -577,7 +593,8 @@ public class VariousUtils {
 	}
 
 	/**
-	 * returns an ascending sequence of integers from the range min (inclusive) to max (exclusive)
+	 * returns an ascending sequence of integers from the range min (inclusive) to
+	 * max (exclusive)
 	 * 
 	 * @param minInclusive
 	 * @param maxExclusive
@@ -647,7 +664,8 @@ public class VariousUtils {
 	}
 
 	/**
-	 * Returns the (approx) logarithm to the base 2 of the given BigInteger. This function calculates base 2 log because finding the number of occupied bits is
+	 * Returns the (approx) logarithm to the base 2 of the given BigInteger. This
+	 * function calculates base 2 log because finding the number of occupied bits is
 	 * trivial.
 	 * 
 	 * @param val
@@ -785,7 +803,7 @@ public class VariousUtils {
 		// <=0 = all EUs
 		// [1...+oo[ = specific whole number of EUs
 
-		int maxThreadNum = OSTools.getNumberOfCores();
+		int maxThreadNum = OSTools.getNumberOfLogicalProcessors();
 
 		double asDouble = Double.valueOf(text).doubleValue();
 		if (asDouble <= 1e-20) {
@@ -813,7 +831,8 @@ public class VariousUtils {
 	}
 
 	/**
-	 * removes a bunch of elements from the given deque, up to a maximum of n or the size of the deque, whatever is smaller
+	 * removes a bunch of elements from the given deque, up to a maximum of n or the
+	 * size of the deque, whatever is smaller
 	 * 
 	 * @param <E>
 	 * @param deque
@@ -844,7 +863,7 @@ public class VariousUtils {
 		return targetCounter;
 	}
 
-	public static void writeFile(String filename, Collection<String> strings) throws IOException {
+	public static void writeFileRows(String filename, Collection<String> strings) throws IOException {
 		FileWriter fw = new FileWriter(filename);
 		BufferedWriter bw = new BufferedWriter(fw, 1 << 16);
 		for (String str : strings) {
@@ -856,7 +875,8 @@ public class VariousUtils {
 	}
 
 	/**
-	 * returns a sublist starting at start and ending at end or at its tail, whichever is smaller
+	 * returns a sublist starting at start and ending at end or at its tail,
+	 * whichever is smaller
 	 * 
 	 * @param <T>
 	 * @param list
@@ -905,5 +925,38 @@ public class VariousUtils {
 			}
 		}
 		return false;
+	}
+
+	public static int ORedIndexOf(String main, String str0, String str1) {
+		int i0 = main.indexOf(str0);
+		if (i0 != -1)
+			return i0;
+		int i1 = main.indexOf(str1);
+		return i1;
+	}
+
+	public static <T> void printList(List<T> list) {
+		Iterator<T> iterator = list.iterator();
+		while (iterator.hasNext()) {
+			T next = iterator.next();
+			System.out.println(next);
+		}
+	}
+
+	public static HashMap<String, String> readTwoColumnFile(String filePath) {
+		HashMap<String, String> templates = new HashMap<String, String>();
+		try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+			String line;
+			while ((line = br.readLine()) != null) {
+				String[] tokens = line.split("\t");
+				assert tokens.length == 2;
+				String relation = tokens[0];
+				String template = tokens[1];
+				templates.put(relation, template);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return templates;
 	}
 }

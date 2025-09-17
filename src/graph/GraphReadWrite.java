@@ -68,7 +68,7 @@ public class GraphReadWrite {
 		ArrayList<String> concepts = new ArrayList<>();
 		BufferedReader br = new BufferedReader(new FileReader(filename, StandardCharsets.UTF_8));
 		while (br.ready()) {
-			String line = br.readLine().trim();
+			String line = br.readLine().strip();
 			if (!line.isEmpty()) {
 				concepts.add(line);
 			}
@@ -91,10 +91,10 @@ public class GraphReadWrite {
 			if (line.length() == 0)
 				continue;
 
-			byte ptext[] = line.getBytes(CHARSET_Windows_1252);
-			String lineConverted = new String(ptext, CHARSET_UTF_8);
+			// byte ptext[] = line.getBytes(CHARSET_Windows_1252);
+			// String lineConverted = new String(ptext, CHARSET_UTF_8);
 
-			String[] tokens = VariousUtils.fastSplit(lineConverted, ',');
+			String[] tokens = VariousUtils.fastSplit(line, ',');
 			int ntokens = tokens.length;
 			if (ntokens < 3)
 				continue;
@@ -136,7 +136,7 @@ public class GraphReadWrite {
 
 	public static StringGraph readCSV(String filename, StringGraph graph) throws IOException, NoSuchFileException {
 		System.out.print("reading " + filename + " ...");
-		BufferedReader br = Files.newBufferedReader(Paths.get(filename));
+		BufferedReader br = Files.newBufferedReader(Paths.get(filename), StandardCharsets.UTF_8);
 		readCSV(br, graph);
 		br.close();
 		System.out.println("done.");
@@ -147,7 +147,7 @@ public class GraphReadWrite {
 		String line;
 		while ((line = br.readLine()) != null) {
 //			// ignore empty lines
-//			line = line.trim();
+//			line = line.strip();
 //			if (line.length() == 0)
 //				continue;
 //			// comment lines start with #
@@ -169,11 +169,11 @@ public class GraphReadWrite {
 
 	public static StringGraph readCSV(BufferedReader br, StringGraph graph) throws IOException, NoSuchFileException {
 		while (br.ready()) {
-			String line = br.readLine().trim();
+			String line = br.readLine().strip();
 //			if (line == null)
 //				break;
 //			// ignore empty lines
-//			line = line.trim();
+//			line = line.strip();
 //			if (line.length() == 0)
 //				continue;
 //			// comment lines start with #
@@ -221,7 +221,7 @@ public class GraphReadWrite {
 
 	public static void readCSV(String filename, IntDirectedMultiGraph graph, ObjectIndex<String> vertexLabels, ObjectIndex<String> relationLabels)
 			throws IOException {
-		BufferedReader br = Files.newBufferedReader(Paths.get(filename));
+		BufferedReader br = Files.newBufferedReader(Paths.get(filename), StandardCharsets.UTF_8);
 		readCSV(br, graph, vertexLabels, relationLabels);
 		br.close();
 	}
@@ -335,7 +335,7 @@ public class GraphReadWrite {
 			String line = br.readLine();
 			if (line == null)
 				break;
-			line = line.trim();
+			line = line.strip();
 			// ignore empty lines
 			if (line.length() == 0)
 				continue;
@@ -346,9 +346,9 @@ public class GraphReadWrite {
 			String cleaned = line.substring(line.indexOf(",") + 1, line.lastIndexOf(")"));
 			StringTokenizer st = new StringTokenizer(cleaned, ",");
 
-			String sourceLabel = st.nextToken().trim();
-			String edgeLabel = st.nextToken().trim();
-			String targetLabel = st.nextToken().trim();
+			String sourceLabel = st.nextToken().strip();
+			String edgeLabel = st.nextToken().strip();
+			String targetLabel = st.nextToken().strip();
 
 			graph.addEdge(sourceLabel, targetLabel, edgeLabel);
 		}
@@ -381,11 +381,11 @@ public class GraphReadWrite {
 			sc.useDelimiter(factSeparator);
 			// while there are facts
 			while (sc.hasNext()) {
-				String fact = sc.next().trim(); // of the form p(a,b)
+				String fact = sc.next().strip(); // of the form p(a,b)
 
-				String relation = fact.substring(0, fact.indexOf('(')).trim();
-				String source = fact.substring(fact.indexOf('(') + 1, fact.indexOf(',')).trim();
-				String target = fact.substring(fact.indexOf(',') + 1, fact.indexOf(')')).trim();
+				String relation = fact.substring(0, fact.indexOf('(')).strip();
+				String source = fact.substring(fact.indexOf('(') + 1, fact.indexOf(',')).strip();
+				String target = fact.substring(fact.indexOf(',') + 1, fact.indexOf(')')).strip();
 
 				graph.addEdge(source, target, relation);
 			}
@@ -417,7 +417,7 @@ public class GraphReadWrite {
 			String line = br.readLine();
 			if (line == null)
 				break;
-			line = line.trim();
+			line = line.strip();
 			// ignore empty lines
 			if (line.length() == 0)
 				continue;
@@ -490,13 +490,13 @@ public class GraphReadWrite {
 	}
 
 	public static <V, E> void writeCSV(String filename, DirectedMultiGraph<V, E> graph) throws IOException {
-		BufferedWriter out = Files.newBufferedWriter(Paths.get(filename));
+		BufferedWriter out = Files.newBufferedWriter(Paths.get(filename), StandardCharsets.UTF_8);
 		writeCSV(out, graph);
 		out.close();
 	}
 
 	public static <V, E> void writeCSV(String filename, Collection<StringEdge> edges) throws IOException {
-		BufferedWriter out = Files.newBufferedWriter(Paths.get(filename));
+		BufferedWriter out = Files.newBufferedWriter(Paths.get(filename), StandardCharsets.UTF_8);
 		writeCSV(out, edges);
 		out.close();
 	}
@@ -522,7 +522,7 @@ public class GraphReadWrite {
 	}
 
 	public static void writeCSV(String filename, StringGraph graph) throws IOException {
-		BufferedWriter out = Files.newBufferedWriter(Paths.get(filename));
+		BufferedWriter out = Files.newBufferedWriter(Paths.get(filename), StandardCharsets.UTF_8);
 		writeCSV(out, graph);
 		out.close();
 	}

@@ -15,12 +15,6 @@
 			<plugin>
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.8.1</version>
-				<!-- <configuration> <release>15</release> </configuration> -->
-				<configuration>
-					<excludes>
-						<exclude>frames/GraalUtils.java</exclude>
-					</excludes>
-				</configuration>
 			</plugin>
 		</plugins>
 	</build>

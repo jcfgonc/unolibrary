@@ -104,7 +104,7 @@ public class FrameReadWrite {
 		while ((line = br.readLine()) != null) {
 			if (line.isBlank())
 				continue;
-			line = line.trim();
+			line = line.strip();
 			String[] cells = VariousUtils.fastSplitWhiteSpace(line);
 
 			if (!readFirstLine) {
