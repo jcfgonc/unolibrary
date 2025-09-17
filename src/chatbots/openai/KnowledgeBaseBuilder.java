@@ -25,9 +25,10 @@ public class KnowledgeBaseBuilder {
 		// ------------
 		// ------------
 		// first KB building phase
-		//	OpenAiLLM_Caller.populateKB_withClassExamplesUsingPrompts(inputSpace);
+		OpenAiLLM_Caller.populateKB_withClassExamplesUsingPrompts(inputSpace);
+		
 		// use contextualized concepts from a file
-		HashMap<String, String> mapp = VariousUtils.readTwoColumnFile("mais conceitos.txt");
+		HashMap<String, String> mapp = VariousUtils.readTwoColumnFile("data/mais conceitos.txt");
 		ArrayList<StringEdge> toAdd = new ArrayList<>();
 		Iterator<Entry<String, String>> iterator = mapp.entrySet().iterator();
 		ArrayList<StringEdge> isaedges = new ArrayList<>();
@@ -38,7 +39,7 @@ public class KnowledgeBaseBuilder {
 			StringEdge edge = new StringEdge(key, value, "isa");
 			isaedges.add(edge);
 		}
-		ArrayList<StringEdge> outedges = OpenAiLLM_Caller.getAllRelationsContextualized(isaedges);
+		ArrayList<StringEdge> outedges = OpenAiLLM_Caller.getAllRelationsContextualized_Concurrent(isaedges);
 		toAdd.addAll(outedges);
 
 		// ------------

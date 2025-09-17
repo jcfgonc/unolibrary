@@ -130,7 +130,7 @@ public class OpenAiLLM_Caller {
 	}
 
 	public static String cleanLine(String line) {
-		String initial_line = line;
+//		String initial_line = line;
 		line = line.strip();
 //		line = line.replaceAll("\\s*\\(.+\\).*$", ""); // remove text between parentheses and text that follows until the end of string
 		// required because of relation context
@@ -1359,7 +1359,7 @@ public class OpenAiLLM_Caller {
 	public static void checkISA_concurrent(StringGraph graph) throws IOException, URISyntaxException {
 		final int batchSize = 10;
 		final int queryLimit = 6000;
-		final int numThreads = 2;
+		final int numThreads = OSTools.getNumberOfLogicalProcessors();
 
 		ArrayList<StringEdge> trueFacts = new ArrayList<StringEdge>();
 		ArrayList<StringEdge> falseFacts = new ArrayList<StringEdge>();
@@ -1522,7 +1522,8 @@ public class OpenAiLLM_Caller {
 						// get data for each example of each class
 						ArrayList<StringEdge> isaEdges = getExamplesOfClass(concept);
 						localEdges.addAll(isaEdges);
-						ArrayList<StringEdge> childrenData = getAllRelationsContextualized(isaEdges);
+						//TODO convert to serial!
+						ArrayList<StringEdge> childrenData = getAllRelationsContextualized_Concurrent(isaEdges);
 						localEdges.addAll(childrenData);
 
 						lock.lock();
@@ -1615,7 +1616,7 @@ public class OpenAiLLM_Caller {
 			// get data for each example of each class
 			ArrayList<StringEdge> isaEdges = getExamplesOf(prompt, classname);
 			allIsaEdges.addAll(allIsaEdges);
-			ArrayList<StringEdge> fullRelations = getAllRelationsContextualized(isaEdges);
+			ArrayList<StringEdge> fullRelations = getAllRelationsContextualized_Concurrent(isaEdges);
 			facts.addAll(fullRelations);
 
 			closedConcepts.add(classname);
@@ -1651,7 +1652,7 @@ public class OpenAiLLM_Caller {
 	 * @return
 	 * @throws InterruptedException
 	 */
-	public static ArrayList<StringEdge> getAllRelationsContextualized(Collection<StringEdge> isaEdges) throws InterruptedException {
+	public static ArrayList<StringEdge> getAllRelationsContextualized_Concurrent(Collection<StringEdge> isaEdges) throws InterruptedException {
 
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
 
@@ -1666,7 +1667,7 @@ public class OpenAiLLM_Caller {
 		try {
 			pc.parallelForEach(isaEdges, isaEdge -> {
 
-				ArrayList<StringEdge> allRelations = getAllRelationsContextualized(isaEdge);
+				ArrayList<StringEdge> allRelations = getAllRelationsContextualized_Serial(isaEdge);
 				lock.lock();
 				{
 					facts.addAll(allRelations);
@@ -1680,7 +1681,7 @@ public class OpenAiLLM_Caller {
 		return facts;
 	}
 
-	public static ArrayList<StringEdge> getAllRelationsContextualized(StringEdge isaEdge) {
+	public static ArrayList<StringEdge> getAllRelationsContextualized_Serial(StringEdge isaEdge) {
 		System.out.println(isaEdge);
 		// edge must be an ISA relation for this function call to be correct
 		assert isaEdge.getLabel().equals("isa");
@@ -1743,7 +1744,7 @@ public class OpenAiLLM_Caller {
 
 		System.out.printf("getting all relations for %s\n", concept);
 
-		ExecutorService executor = Executors.newFixedThreadPool(24);
+		ExecutorService executor = Executors.newFixedThreadPool(OSTools.getNumberOfLogicalProcessors());
 
 		executor.submit(() -> {
 			System.out.printf("getCapableOf %s\n", concept);
