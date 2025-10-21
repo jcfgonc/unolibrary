@@ -4,67 +4,285 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map.Entry;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 
 import graph.GraphReadWrite;
 import graph.StringEdge;
 import graph.StringGraph;
 import stream.ParallelConsumer;
-import utils.VariousUtils;
 
 public class KnowledgeBaseBuilder {
 	public static void main(String[] args) throws IOException, InterruptedException {
 
 		// read input space
 		StringGraph inputSpace = new StringGraph();
-//	GraphReadWrite.readCSV("newfacts.csv", inputSpace);
-//	GraphReadWrite.readCSV(MOEA_Config.inputSpacePath, inputSpace);
+		GraphReadWrite.readCSV("new facts v3.csv", inputSpace);
+
+		// TODO use this
+		// OpenAiLLM_Caller.correctPluralConcepts(inputSpace);
+
+		// correctCreatedByConcepts(inputSpace);
+		// GraphReadWrite.writeCSV("new facts v3.csv", inputSpace);
+
+		// System.exit(0);
+
+		correctConceptsWithIS(inputSpace);
+		System.exit(0);
+
+		Set<String> concepts = inputSpace.getVertexSet();
+		for (String concept : concepts) {
+			if (concept.startsWith("to "))
+				continue;
+			if (concept.indexOf('(') != -1 || concept.indexOf(')') != -1) {
+				String insidep = concept.substring(concept.indexOf('(') + 1, concept.indexOf(')'));
+				// System.out.println(concept+"\t"+insidep);
+//				
+				String remaining = concept.substring(concept.indexOf(")") + 1).strip();
+				if (remaining.isBlank())
+					continue;
+//				System.out.println(concept);
+				Set<StringEdge> edgesOf = inputSpace.edgesOf(concept);
+				System.out.printf("%s\t-%s-\t%s\n", concept, insidep, remaining);
+//				Set<StringEdge> edgesOf = inputSpace.edgesOf(concept);
+//				System.out.println(edgesOf.size() + "\t" + edgesOf);
+//			String newConcept = concept.replaceAll("\\s*\\(.+\\).*$", "");
+//			conceptMap.put(concept, newConcept);
+			}
+		}
 
 		// ------------
 		// ------------
 		// first KB building phase
-		OpenAiLLM_Caller.populateKB_withClassExamplesUsingPrompts(inputSpace);
-		
-		// use contextualized concepts from a file
-		HashMap<String, String> mapp = VariousUtils.readTwoColumnFile("data/mais conceitos.txt");
-		ArrayList<StringEdge> toAdd = new ArrayList<>();
-		Iterator<Entry<String, String>> iterator = mapp.entrySet().iterator();
-		ArrayList<StringEdge> isaedges = new ArrayList<>();
-		while (iterator.hasNext()) {
-			Entry<String, String> next = iterator.next();
-			String value = next.getValue();
-			String key = next.getKey();
-			StringEdge edge = new StringEdge(key, value, "isa");
-			isaedges.add(edge);
-		}
-		ArrayList<StringEdge> outedges = OpenAiLLM_Caller.getAllRelationsContextualized_Concurrent(isaedges);
-		toAdd.addAll(outedges);
+//		OpenAiLLM_Caller.populateKB_withClassExamplesUsingPrompts(inputSpace, "data/classes_and_prompts.txt");
+
+//		// process invalid concepts in the KB
+//		ArrayList<String> concepts = new ArrayList<>(inputSpace.getVertexSet());
+//		ConcurrentHashMap<String, String> conceptMap = new ConcurrentHashMap<>();
+//		concepts.parallelStream().forEach(concept -> {
+//			if (concept.indexOf('(') != -1 || concept.indexOf(')') != -1) {
+//				Set<StringEdge> edgesOf = inputSpace.edgesOf(concept);
+//				System.out.println(edgesOf.size() + "\t" + edgesOf);
+////				String newConcept = concept.replaceAll("\\s*\\(.+\\).*$", "");
+////				conceptMap.put(concept, newConcept);
+//			}
+//		});
+//		conceptMap.entrySet().forEach(entry -> System.out.printf("%s\t%s\n", entry.getKey(), entry.getValue()));
+
+//		// use contextualized concepts from a file
+//		HashMap<String, String> mapp = VariousUtils.readTwoColumnFile("data/mais conceitos.txt");
+//		ArrayList<StringEdge> toAdd = new ArrayList<>();
+//		Iterator<Entry<String, String>> iterator = mapp.entrySet().iterator();
+//		ArrayList<StringEdge> isaedges = new ArrayList<>();
+//		while (iterator.hasNext()) {
+//			Entry<String, String> next = iterator.next();
+//			String value = next.getValue();
+//			String key = next.getKey();
+//			StringEdge edge = new StringEdge(key, value, "isa");
+//			isaedges.add(edge);
+//		}
+//		ArrayList<StringEdge> outedges = OpenAiLLM_Caller.getAllRelationsContextualized_Concurrent(isaedges);
+//		toAdd.addAll(outedges);
 
 		// ------------
 		// ------------
 		// second KB building phase, use populateKB_expandFromExistingConcepts and
 		// generic classes in concept_classes.txt
-//	OpenAiLLM_Caller.populateKB_expandFromExistingConcepts(inputSpace);
+		// OpenAiLLM_Caller.populateKB_expandFromExistingConcepts(inputSpace);
 
 		// ------------
 		// ------------
 		// individual KB treatments
 
-//	ArrayList<String> toDelete = VariousUtils.readFileRows("concepts to delete.txt"); 
-//	inputSpace.removeVertices(toDelete);
-//	inputSpace.getVertexSet().parallelStream().forEach(vertex -> {
-//		if (vertex.length() < 4) {
-//			Set<StringEdge> edgesOf = inputSpace.edgesOf(vertex);
-//			System.out.printf("%s\t%d\t%s\n", vertex, edgesOf.size(), edgesOf);
-//		}
-//	});
+		// ArrayList<String> toDelete = VariousUtils.readFileRows("concepts to delete.txt");
+		// inputSpace.removeVertices(toDelete);
+		// inputSpace.getVertexSet().parallelStream().forEach(vertex -> {
+		// if (vertex.length() < 4) {
+		// Set<StringEdge> edgesOf = inputSpace.edgesOf(vertex);
+		// System.out.printf("%s\t%d\t%s\n", vertex, edgesOf.size(), edgesOf);
+		// }
+		// });
 		// doStudy(inputSpace);
 
-		GraphReadWrite.writeCSV("new facts v3.csv", inputSpace);
+//		GraphReadWrite.writeCSV("new facts v3.csv", inputSpace);
 
-		System.exit(0);
+//		System.exit(0);
+	}
+
+	private static void correctConceptsWithIS(StringGraph inputSpace) {
+		// corrects stuff like:
+		// spawn (comic character) is part of the hellspawn group
+		// conduct disorder is described in diagnostic manuals like the dsm
+		// water (cosmetic) is made of deionized water
+		// the simian immunodeficiency virus (siv) from chimpanzees and sooty mangabey monkeys is the
+		Set<String> concepts = inputSpace.getVertexSet();
+		for (String concept : concepts) {
+			if (concept.startsWith("to "))
+				continue; // do nothing for now
+			Set<StringEdge> concept_edges = inputSpace.edgesOf(concept);
+			int num_edges = concept_edges.size();
+			if (num_edges == 1) {
+				boolean updateEdge = false;
+				StringEdge new_edge = null;
+				StringEdge edge = concept_edges.iterator().next();
+				String source = edge.getSource();
+				String target = edge.getTarget();
+				// -------------------------------------------------------------------------
+				if (concept.contains(" is part ")) {
+					if (num_edges > 1) {
+						System.err.println(concept + " has " + num_edges + " edges");
+					}
+					// is part of
+					if (target.equals(concept)) {
+						// DONE
+						String substring = concept.substring(concept.indexOf(" is part of ") + 12);
+						ArrayList<String> extracted_concepts = checkSuchAs(substring);
+						if (extracted_concepts.isEmpty()) {
+							new_edge = new StringEdge(source, substring, "partof");
+						} else {
+							for (String new_target : extracted_concepts) {
+								new_edge = new StringEdge(source, new_target, "partof");
+							}
+						}
+						updateEdge = true;
+					}
+				} else if (concept.contains(" is described ")) {
+					if (num_edges > 1) {
+						System.err.println(concept + " has " + num_edges + " edges");
+					}
+					System.lineSeparator();
+				} else // -------------------------------------------------------------------------
+				if (concept.contains(" is made ")) {
+					if (num_edges > 1) {
+						System.err.println(concept + " has " + num_edges + " edges");
+					}
+					if (target.equals(concept)) {
+						// DONE
+						String substring = concept.substring(concept.indexOf(" made of ") + 9);
+						ArrayList<String> extracted_concepts = checkSuchAs(substring);
+						if (extracted_concepts.isEmpty()) {
+							new_edge = new StringEdge(source, substring, "madeof");
+						} else {
+							for (String new_target : extracted_concepts) {
+								new_edge = new StringEdge(source, new_target, "madeof");
+							}
+						}
+						updateEdge = true;
+					}
+				} else // -------------------------------------------------------------------------
+				if (concept.contains(" is the ")) {
+					if (num_edges > 1) {
+						System.err.println(concept + " has " + num_edges + " edges");
+					}
+					System.lineSeparator();
+				}
+				if (updateEdge) {
+					System.out.printf("%s\t->\t%s\n", edge, new_edge);
+					inputSpace.removeEdge(edge);
+					assert new_edge != null;
+					inputSpace.addEdge(new_edge);
+				}
+			}
+		}
+	}
+
+	/**
+	 * checks for text " such as " and extracts the related text
+	 * 
+	 * @param concept
+	 * @return
+	 */
+	public static ArrayList<String> checkSuchAs(String concept) {
+		// TODO complete to support text having commas, ie
+		// TODO muon is made of intrinsic properties such as electric charge; mass; and spin
+		ArrayList<String> concepts = new ArrayList<String>();
+		int i = concept.indexOf(" such as ");
+		if (i != -1) {
+			String start = concept.substring(0, i);
+			concepts.add(start);
+			String end = concept.substring(i + 9);
+			// can have and, or OR nothing
+			int or = end.indexOf(" or ");
+			int and = end.indexOf(" and ");
+			if (or != -1) {
+				// not adding first because c0 might contain multiple concepts
+				// String c0 = end.substring(0, or);
+				String c1 = end.substring(or + 4);
+				// concepts.add(c0);
+				concepts.add(c1);
+			} else if (and != -1) {
+				// OK
+				// not adding first because c0 might contain multiple concepts
+				// String c0 = end.substring(0, and);
+				String c1 = end.substring(and + 5);
+				// concepts.add(c0);
+				concepts.add(c1);
+			} else {
+				System.lineSeparator();
+
+			}
+		}
+		return concepts;
+	}
+
+	public static void correctCreatedByConcepts(StringGraph inputSpace) {
+		// corrects stuff like
+		// meteorite can create meteorite fragments,createdby,meteorite
+		// comic character can create fan art,createdby,comic character
+		HashMap<String, String> conversion = new HashMap<String, String>();
+		HashSet<String> toDelete = new HashSet<String>();
+		for (StringEdge edge : inputSpace.edgeSet("createdby")) {
+			// ---------
+			String source = edge.getSource();
+			if (source.contains(" not created by ")) {
+				System.err.println("TODO1");
+			}
+			if (source.contains(" does not ") || source.contains(" do not ")) {
+				// OK
+				toDelete.add(source);
+			}
+			if (source.contains(" create ")) {
+				// OK
+				String nsource = source.substring(source.indexOf(" create ") + 8);
+				conversion.put(source, nsource);
+				toDelete.add(source);
+			} else if (source.contains(" creates ")) {
+				// OK
+				String nsource = source.substring(source.indexOf(" creates ") + 9);
+				conversion.put(source, nsource);
+				toDelete.add(source);
+			} else if (source.contains(" created by ")) {
+				if (source.startsWith("no ") || source.contains(" not created by ")) {
+					// OK simply delete
+					toDelete.add(source);
+				}
+			} else if (source.contains(" created the ")) {
+				String nsource = source.substring(source.indexOf(" creates ") + 9);
+				conversion.put(source, nsource);
+				toDelete.add(source);
+			}
+			//
+			String target = edge.getTarget();
+			if (target.contains("not created by ") || target.contains("no single creator") || target.contains("no creator")) {
+				// OK
+				toDelete.add(target);
+			} else if (target.contains(" created by ")) {
+				// OK
+				String ntarget = target.substring(target.indexOf(" created by ") + 12);
+				conversion.put(target, ntarget);
+				toDelete.add(target);
+			} else if (target.contains(" create ")) {
+				// complicated
+			} else if (target.contains(" created ")) {
+				// OK
+				String ntarget = target.substring(0, target.indexOf(" created ") + 0);
+				conversion.put(target, ntarget);
+				toDelete.add(target);
+			}
+		}
+		conversion.entrySet().forEach(entry -> inputSpace.renameVertex(entry.getKey(), entry.getValue()));
+		toDelete.forEach(concept -> inputSpace.removeVertex(concept));
 	}
 
 	private static void doStudy(StringGraph inputSpace) throws IOException, URISyntaxException, InterruptedException {

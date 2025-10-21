@@ -7,9 +7,11 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.concurrent.CompletableFuture;
@@ -132,10 +134,12 @@ public class OpenAiLLM_Caller {
 	public static String cleanLine(String line) {
 //		String initial_line = line;
 		line = line.strip();
+
+		// commented because the (???) text is required for relation context
 //		line = line.replaceAll("\\s*\\(.+\\).*$", ""); // remove text between parentheses and text that follows until the end of string
-		// required because of relation context
-		line = line.replaceAll("\\(\\s+", "(");
-		line = line.replaceAll("\\s+\\)", ")");
+
+		line = line.replaceAll("\\(\\s+", "("); // space ( space
+		line = line.replaceAll("\\s+\\)", ")");// space ) space
 
 //		line = line.replaceAll("[^a-zA-Z \\-'0-9\\r\\n]+", " "); // remove all non text characters (excluding hyphen "-" )
 		line = line.replaceFirst("^[0-9]+[ -.:;,*]+", ""); // remove enumeration ie 12. something OR 1 something
@@ -180,10 +184,10 @@ public class OpenAiLLM_Caller {
 	 */
 	public static String cleanReply(String reply) {
 		reply = reply.strip();
-		reply = reply.replaceAll("\\s*[,:]+\\s*", " "); // ...,... -> ' ' no commas can go into here, because of the CSV
+		reply = reply.replaceAll("\\s*[,]+\\s*", ";"); // space*,space* -> ' ' no commas can go into here, because of the CSV
 														// format
 		reply = reply.replaceAll("[ \t]+", " ");// multiple whitespace -> one space
-		reply = reply.replace(".", ""); // remove dots
+		//reply = reply.replace(".", ""); // remove dots
 		reply = reply.replace("\r\n", "\n"); // windows -> unix newline
 		reply = reply.replaceAll("[\n]+", "\n"); // empty lines
 		reply = reply.replaceAll("[\t ]+", " ");
@@ -1522,7 +1526,7 @@ public class OpenAiLLM_Caller {
 						// get data for each example of each class
 						ArrayList<StringEdge> isaEdges = getExamplesOfClass(concept);
 						localEdges.addAll(isaEdges);
-						//TODO convert to serial!
+						// TODO convert to serial!
 						ArrayList<StringEdge> childrenData = getAllRelationsContextualized_Concurrent(isaEdges);
 						localEdges.addAll(childrenData);
 
@@ -1597,17 +1601,25 @@ public class OpenAiLLM_Caller {
 		}
 	}
 
-	public static void populateKB_withClassExamplesUsingPrompts(StringGraph kb) throws IOException, InterruptedException {
+	/**
+	 * Gets data about a given class and examples of that class.
+	 * 
+	 * @param kb
+	 * @param filename
+	 * @throws IOException
+	 * @throws InterruptedException
+	 */
+	public static void populateKB_withClassExamplesUsingPrompts(StringGraph kb, String filename) throws IOException, InterruptedException {
 		HashSet<String> closedConcepts = new HashSet<String>();
 
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
-		ArrayList<String> fileRows = VariousUtils.readFileRows("data/classes_and_prompts.txt");
+		ArrayList<String> fileRows = VariousUtils.readFileRows(filename);
 		Iterator<String> it = fileRows.iterator();
 		ArrayList<StringEdge> allIsaEdges = new ArrayList<StringEdge>();
 		// first get data for each example of each class
 		while (it.hasNext()) {
-			String prompt = it.next().strip();
-			String classname = it.next().strip();
+			String prompt = it.next().strip().toLowerCase();
+			String classname = it.next().strip().toLowerCase();
 
 			// get data for each class
 			ArrayList<StringEdge> baseClassFacts = getAllRelationsForConcept_Concurrent(classname);
@@ -2090,6 +2102,80 @@ public class OpenAiLLM_Caller {
 		}
 //		System.out.printf("%s\t%s,%s,%s\n", edge, cons_source, label, cons_target);
 		return null;
+	}
+
+	private static SynchronizedSeriarizableHashMap<String, String> cachedConceptIsPlural = new SynchronizedSeriarizableHashMap<>("cachedConceptIsPlural.dat", 10);
+
+	public static boolean checkIfConceptIsPlural(String entity) {
+		String reply = cachedConceptIsPlural.get(entity);
+		if (reply == null) {
+			String prompt = "Only answer singular or plural, what is the grammatical number of \"%s\"?";
+			String text = String.format(prompt.strip(), entity);
+			reply = doRequest(text).toLowerCase().strip();
+			cachedConceptIsPlural.put(entity, reply);
+		}
+		boolean singular = reply.contains("singular");
+		boolean plural = reply.contains("plural");
+		if (singular && plural) {
+			System.err.println("WTF:plural and singular!:::" + reply);
+		}
+		if (singular)
+			return false;
+		if (plural)
+			return true;
+		System.err.println("WTF:not plural nor singular!:::" + reply);
+		return false;
+	}
+
+	private static SynchronizedSeriarizableHashMap<String, String> cachedPlural2Singular = new SynchronizedSeriarizableHashMap<>("cachedPlural2Singular.dat", 10);
+
+	public static String convertPlural2Singular(String plural) {
+		String reply = cachedPlural2Singular.get(plural);
+		if (reply == null) {
+			String prompt = """
+					Do not elaborate your answer. Do not explain your answer. Answer only the converted text. Convert the following noun phrase to the singular form:
+					%s
+					""";
+			String text = String.format(prompt.strip(), plural);
+			reply = doRequest(text).toLowerCase().strip();
+			reply = reply.replaceAll("[\r\n]+", " "); // newlines
+			reply = reply.replace("\t", " "); // tabs -> spaces
+			reply = reply.replaceAll(" [ ]+", " "); // multiple spaces -> one space
+			cachedPlural2Singular.put(plural, reply);
+		}
+		return reply;
+	}
+
+	public static void correctPluralConcepts(StringGraph kb) throws IOException {
+		HashSet<String> concepts = new HashSet<String>();
+		for (StringEdge edge : kb.edgeSet("madeof")) {
+			concepts.add(edge.getTarget());
+		}
+		for (StringEdge edge : kb.edgeSet("partof")) {
+			concepts.add(edge.getSource());
+		}
+		HashMap<String, String> conversion = new HashMap<String, String>();
+		ReentrantLock lock = new ReentrantLock();
+		concepts.parallelStream().forEach(concept -> {
+			boolean plural = checkIfConceptIsPlural(concept);
+			if (plural) {
+				// get singular
+				String singular = convertPlural2Singular(concept);
+				{
+					lock.lock();
+					conversion.put(concept, singular);
+					lock.unlock();
+				}
+			}
+		});
+		cachedConceptIsPlural.save();
+		cachedPlural2Singular.save();
+		// single thread renaming
+		for (Entry<String, String> entry : conversion.entrySet()) {
+			String plural = entry.getKey();
+			String singular = entry.getValue();
+			kb.renameVertex(plural, singular);
+		}
 	}
 
 	public static void debugCaches() {
