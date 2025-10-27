@@ -42,7 +42,7 @@ import utils.VariousUtils;
 
 public class OpenAiLLM_Caller {
 
-	public static final String llm_model = "gpt-4.1-mini";
+	public static final String llm_model = "gpt-4.1";
 	private static String api_key;
 	private static SimpleOpenAI openAI;
 	private static ChatCompletions chatCompletions;
@@ -62,6 +62,7 @@ public class OpenAiLLM_Caller {
 			Reply each possible answer in its own line, one possibility per line.
 
 			""";
+	private static final int NUMBER_OF_THREADS = 4;
 
 	static {
 		try {
@@ -187,7 +188,7 @@ public class OpenAiLLM_Caller {
 		reply = reply.replaceAll("\\s*[,]+\\s*", ";"); // space*,space* -> ' ' no commas can go into here, because of the CSV
 														// format
 		reply = reply.replaceAll("[ \t]+", " ");// multiple whitespace -> one space
-		//reply = reply.replace(".", ""); // remove dots
+		// reply = reply.replace(".", ""); // remove dots
 		reply = reply.replace("\r\n", "\n"); // windows -> unix newline
 		reply = reply.replaceAll("[\n]+", "\n"); // empty lines
 		reply = reply.replaceAll("[\t ]+", " ");
@@ -653,7 +654,8 @@ public class OpenAiLLM_Caller {
 				Name only the parts that you are certain that belong to all entities of that type.
 				If the entity is a person, answer with the specific parts of that human being.
 				If the entity is an animal, answer with the parts of an example animal of its species.
-				Most importantly, name each part as a noun phrase.
+				Otherwise, answer the parts of that entity that are appropriated.
+				Most importantly, name each part as a noun phrase. Answer one part per line.
 
 				What are the parts of %s?""";
 		String text = String.format(prompt.strip(), entity);
@@ -1472,14 +1474,8 @@ public class OpenAiLLM_Caller {
 //		
 //		System.exit(0);
 
-		int numThreads = 16;
 		final int blockSize = 50;
 		final boolean exploreNewConcepts = false;
-
-		int numConcepts = initialConcepts.size();
-		if (numThreads > numConcepts) {
-			numThreads = numConcepts;
-		}
 
 		ArrayDeque<String> openSet = new ArrayDeque<String>();
 		HashSet<String> closedSet = new HashSet<String>();
@@ -1499,7 +1495,7 @@ public class OpenAiLLM_Caller {
 
 			ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
 
-			ParallelConsumer<String> pc = new ParallelConsumer<>(numThreads);
+			ParallelConsumer<String> pc = new ParallelConsumer<>(NUMBER_OF_THREADS);
 			pc.parallelForEach(openSetBatch, concept -> {
 				concept = cleanLine(concept);
 				boolean conceptClosed = true;
@@ -1675,7 +1671,7 @@ public class OpenAiLLM_Caller {
 
 		// parallel version
 		ReentrantLock lock = new ReentrantLock();
-		ParallelConsumer<StringEdge> pc = new ParallelConsumer<>();
+		ParallelConsumer<StringEdge> pc = new ParallelConsumer<>(NUMBER_OF_THREADS);
 		try {
 			pc.parallelForEach(isaEdges, isaEdge -> {
 
@@ -1725,16 +1721,20 @@ public class OpenAiLLM_Caller {
 		localEdges.addAll(OpenAiLLM_Caller.getCreatedBy(concept));
 		System.out.printf("getCreates %s\n", concept);
 		localEdges.addAll(OpenAiLLM_Caller.getCreates(concept));
-		System.out.printf("getDesires %s\n", concept);
-		localEdges.addAll(OpenAiLLM_Caller.getDesires(concept));
 		System.out.printf("getIsaClass %s\n", concept);
 		localEdges.addAll(OpenAiLLM_Caller.getIsaClass(concept));
 		System.out.printf("getKnownFor %s\n", concept);
 		localEdges.addAll(OpenAiLLM_Caller.getKnownFor(concept));
 		System.out.printf("getMadeOf %s\n", concept);
 		localEdges.addAll(OpenAiLLM_Caller.getMadeOf(concept));
-		System.out.printf("getNotDesires %s\n", concept);
-		localEdges.addAll(OpenAiLLM_Caller.getNotDesires(concept));
+
+		if (OpenAiLLM_Caller.checkIfConceptIsLifeForm(concept)) {
+			System.out.printf("getDesires %s\n", concept);
+			localEdges.addAll(OpenAiLLM_Caller.getDesires(concept));
+			System.out.printf("getNotDesires %s\n", concept);
+			localEdges.addAll(OpenAiLLM_Caller.getNotDesires(concept));
+		}
+
 		System.out.printf("getPartOf %s\n", concept);
 		localEdges.addAll(OpenAiLLM_Caller.getPartOf(concept));
 		System.out.printf("getRequires %s\n", concept);
@@ -1788,12 +1788,22 @@ public class OpenAiLLM_Caller {
 			localEdges.addAll(OpenAiLLM_Caller.getCreates(concept));
 			lock.unlock();
 		});
-		executor.submit(() -> {
-			System.out.printf("getDesires %s\n", concept);
-			lock.lock();
-			localEdges.addAll(OpenAiLLM_Caller.getDesires(concept));
-			lock.unlock();
-		});
+
+		if (OpenAiLLM_Caller.checkIfConceptIsLifeForm(concept)) {
+			executor.submit(() -> {
+				System.out.printf("getDesires %s\n", concept);
+				lock.lock();
+				localEdges.addAll(OpenAiLLM_Caller.getDesires(concept));
+				lock.unlock();
+			});
+			executor.submit(() -> {
+				System.out.printf("getNotDesires %s\n", concept);
+				lock.lock();
+				localEdges.addAll(OpenAiLLM_Caller.getNotDesires(concept));
+				lock.unlock();
+			});
+		}
+
 		executor.submit(() -> {
 			System.out.printf("getIsaClass %s\n", concept);
 			lock.lock();
@@ -1810,12 +1820,6 @@ public class OpenAiLLM_Caller {
 			System.out.printf("getMadeOf %s\n", concept);
 			lock.lock();
 			localEdges.addAll(OpenAiLLM_Caller.getMadeOf(concept));
-			lock.unlock();
-		});
-		executor.submit(() -> {
-			System.out.printf("getNotDesires %s\n", concept);
-			lock.lock();
-			localEdges.addAll(OpenAiLLM_Caller.getNotDesires(concept));
 			lock.unlock();
 		});
 		executor.submit(() -> {
@@ -2105,6 +2109,7 @@ public class OpenAiLLM_Caller {
 	}
 
 	private static SynchronizedSeriarizableHashMap<String, String> cachedConceptIsPlural = new SynchronizedSeriarizableHashMap<>("cachedConceptIsPlural.dat", 10);
+	private static SynchronizedSeriarizableHashMap<String, String> cachedConceptIsLifeform = new SynchronizedSeriarizableHashMap<>("cachedConceptIsLifeform.dat", 10);
 
 	public static boolean checkIfConceptIsPlural(String entity) {
 		String reply = cachedConceptIsPlural.get(entity);
@@ -2127,6 +2132,85 @@ public class OpenAiLLM_Caller {
 		return false;
 	}
 
+	public static boolean checkIfConceptIsLifeForm(String entity) {
+		String reply = cachedConceptIsLifeform.get(entity);
+		if (reply == null) {
+			String prompt = "Answer yes or no to the following question: is the text \"%s\" referring to a life form?";
+			String text = String.format(prompt.strip(), entity);
+			reply = doRequest(text).toLowerCase().strip();
+			cachedConceptIsLifeform.put(entity, reply);
+		}
+		boolean yes = reply.startsWith("yes");
+		boolean no = reply.contains("no");
+		if (yes && no) {
+			System.err.println("alive and dead!:::" + reply);
+		}
+		if (no)
+			return false;
+		if (yes)
+			return true;
+		System.err.println("WTF:not alive neither dead!:::" + reply);
+		return false;
+	}
+
+	public static void correctLifeFormConcept(StringGraph kb) throws InterruptedException {
+		HashSet<String> openSet = new HashSet<String>();
+		HashSet<String> closedSet = new HashSet<String>();
+		ArrayList<StringEdge> edges = new ArrayList<StringEdge>();
+		edges.addAll(kb.edgeSet("desires"));
+		edges.addAll(kb.edgeSet("notdesires"));
+
+		ReentrantLock kb_lock = new ReentrantLock();
+		ReentrantLock openset_lock = new ReentrantLock();
+		ReentrantReadWriteLock closedset_lock = new ReentrantReadWriteLock();
+
+		ParallelConsumer<StringEdge> pc = new ParallelConsumer<>(8);
+		pc.parallelForEach(edges, edge -> {
+			String source = edge.getSource();
+			boolean inClosedSet = false;
+			{
+				closedset_lock.readLock().lock();
+				inClosedSet = closedSet.contains(source);
+				closedset_lock.readLock().unlock();
+			}
+			if (!inClosedSet) {
+				{
+					closedset_lock.writeLock().lock();
+					closedSet.add(source);
+					closedset_lock.writeLock().unlock();
+				}
+				boolean is_life_form = checkIfConceptIsLifeForm(source);
+				if (is_life_form) {
+					{
+						openset_lock.lock();
+						openSet.add(source);
+						openset_lock.unlock();
+					}
+					StringEdge lifeform = new StringEdge(source, "life form", "isa");
+					{
+						kb_lock.lock();
+						kb.addEdge(lifeform);
+						kb_lock.unlock();
+					}
+					System.out.println("added " + lifeform);
+				}
+			}
+		});
+		System.out.println("removing desires/notdesires edges for " + openSet.size() + " concepts");
+
+		for (String concept : openSet) {
+			ArrayList<StringEdge> toRemove = new ArrayList<StringEdge>();
+			toRemove.addAll(kb.outgoingEdgesOf(concept, "desires"));
+			toRemove.addAll(kb.outgoingEdgesOf(concept, "notdesires"));
+			kb.removeEdges(toRemove);
+		}
+		try {
+			cachedConceptIsLifeform.save();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
 	private static SynchronizedSeriarizableHashMap<String, String> cachedPlural2Singular = new SynchronizedSeriarizableHashMap<>("cachedPlural2Singular.dat", 10);
 
 	public static String convertPlural2Singular(String plural) {
@@ -2146,7 +2230,7 @@ public class OpenAiLLM_Caller {
 		return reply;
 	}
 
-	public static void correctPluralConcepts(StringGraph kb) throws IOException {
+	public static void correctPluralConcepts(StringGraph kb) throws IOException, InterruptedException {
 		HashSet<String> concepts = new HashSet<String>();
 		for (StringEdge edge : kb.edgeSet("madeof")) {
 			concepts.add(edge.getTarget());
@@ -2156,7 +2240,9 @@ public class OpenAiLLM_Caller {
 		}
 		HashMap<String, String> conversion = new HashMap<String, String>();
 		ReentrantLock lock = new ReentrantLock();
-		concepts.parallelStream().forEach(concept -> {
+
+		ParallelConsumer<String> pc = new ParallelConsumer<>(NUMBER_OF_THREADS);
+		pc.parallelForEach(concepts, concept -> {
 			boolean plural = checkIfConceptIsPlural(concept);
 			if (plural) {
 				// get singular
@@ -2166,7 +2252,11 @@ public class OpenAiLLM_Caller {
 					conversion.put(concept, singular);
 					lock.unlock();
 				}
+				System.out.println(concept + "\t->\t" + singular);
 			}
+		});
+
+		concepts.parallelStream().forEach(concept -> {
 		});
 		cachedConceptIsPlural.save();
 		cachedPlural2Singular.save();

@@ -1,38 +1,38 @@
-un	united nations
-who	world health organization
-imf	international monetary fund
-wto	world trade organization
-unesco	united nations educational, scientific and cultural organization
-unicef	united nations international children's emergency fund
-nato	north atlantic treaty organization
-oecd	organisation for economic co-operation and development
+united nations	international organization
+world health organization	international organization
+international monetary fund	international organization
+world trade organization	trade organization
+unesco	international organization
+unicef	international organization
+nato	military alliance
+organisation for economic co-operation and development	international organization
 interpol	international criminal police organization
-cia	central intelligence agency
-fbi	federal bureau of investigation
-nasa	national aeronautics and space administration
-nsa	national security agency
-fda	food and drug administration
-cdc	centers for disease control and prevention
-doe	department of energy
-doj	department of justice
-epa	environmental protection agency
-dod	department of defense
-eu	european union
-europol	european union agency for law enforcement cooperation
-esa	european space agency
-jaxa	japan aerospace exploration agency
-jsdf	japan self-defense forces
+central intelligence agency	government organization
+federal bureau of investigation	government organization
+nasa	government organization
+national security agency	government organization
+food and drug administration	government organization
+centers for disease control and prevention	government organization
+department of energy	government organization
+department of justice	government organization
+environmental protection agency	government organization
+department of defense	government organization
+european union	international organization
+europol	international organization
+european space agency	international organization
+japan aerospace exploration agency	japan aerospace exploration agency
+japan self-defense forces	military organization
 mi5	security service
 mi6	secret intelligence service
-nhs	national health service
-al-qaeda	militant organization
-islamic state	militant organization
-taliban	militant organization
-hezbollah	militant organization
-euskadi ta askatasuna	militant organization
-revolutionary armed forces of colombia	militant organization
-kurdistan workers' party	militant organization
-irish republican army	militant organization	
+national health service	government organization
+al-qaeda	military organization
+islamic state	military organization
+taliban	military organization
+hezbollah	military organization
+euskadi ta askatasuna	military organization
+revolutionary armed forces of colombia	military organization
+kurdistan workers party	military organization
+irish republican army	military organization
 adobe photoshop	computer software
 adobe illustrator	computer software
 adobe premiere	computer software
@@ -89,7 +89,7 @@ microsoft msdos	operating system
 minix	operating system
 android	operating system
 ios	operating system
-google gmail	email service	
+google gmail	email service
 intel 80386	microprocessor
 motorola 6800	microprocessor
 mos technology 6502	microprocessor

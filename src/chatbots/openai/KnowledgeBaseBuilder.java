@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -12,57 +11,93 @@ import graph.GraphReadWrite;
 import graph.StringEdge;
 import graph.StringGraph;
 import stream.ParallelConsumer;
+import structures.ObjectCounter;
+import utils.VariousUtils;
 
 public class KnowledgeBaseBuilder {
 	public static void main(String[] args) throws IOException, InterruptedException {
 
 		// read input space
-		StringGraph inputSpace = new StringGraph();
-		GraphReadWrite.readCSV("new facts v3.csv", inputSpace);
+		StringGraph kb = new StringGraph();
+		GraphReadWrite.readCSV("new facts v3.csv", kb);
 
 		// TODO use this
-		// OpenAiLLM_Caller.correctPluralConcepts(inputSpace);
+//		OpenAiLLM_Caller.correctPluralConcepts(kb);
+//		correctCreatedByConcepts(kb);
+//		correctConceptsWithIS(kb);
+//		removeTextAfterParenthesis(kb);
+//		correctSuchAsConcepts(kb);
+//		correctConceptsWithPronouns(kb);
+		OpenAiLLM_Caller.correctLifeFormConcept(kb);
 
-		// correctCreatedByConcepts(inputSpace);
-		// GraphReadWrite.writeCSV("new facts v3.csv", inputSpace);
+		GraphReadWrite.writeCSV("new facts v3.csv", kb);
+		System.exit(0);
+
+//		for (String concept : kb.getVertexSet()) {
+//			if (concept.startsWith("to "))
+//				continue;
+//			if (!concept.contains(" such as "))
+//				continue;
+//			if (concept.contains(" or ") && concept.contains(" and ")) {
+//				System.out.println(concept);
+//			}
+//		}
+//		System.exit(0);
+
+
+//		System.exit(0);
+
+		for (String concept : kb.getVertexSet()) {
+			if (concept.startsWith("to "))
+				continue;
+			int word_count = VariousUtils.countWords(concept);
+			if (word_count > 10) {
+				ObjectCounter<String> relationCount = new ObjectCounter<String>();
+				Set<StringEdge> edgesOf = kb.edgesOf(concept);
+				for (StringEdge edge : edgesOf) {
+					relationCount.addObject(edge.getLabel());
+				}
+				System.out.println(word_count + "\t" + concept + "\t" + edgesOf.size() + "\t" + relationCount);
+			}
+
+		}
+
+		System.exit(0);
+
+		for (String concept : kb.getVertexSet()) {
+			if (concept.startsWith("to "))
+				continue;
+			int word_count = VariousUtils.countWords(concept);
+			if (word_count > 3)
+				continue;
+			if (concept.contains(" or ") || concept.contains(" and ")) {
+				Set<StringEdge> edgesOf = kb.edgesOf(concept);
+				int num_edges = edgesOf.size();
+				System.out.printf("%s\t%d\t%s\n", concept, num_edges, edgesOf);
+			}
+		}
+
+		// GraphReadWrite.writeCSV("new facts v3.csv", kb);
 
 		// System.exit(0);
 
-		correctConceptsWithIS(inputSpace);
-		System.exit(0);
-
-		Set<String> concepts = inputSpace.getVertexSet();
-		for (String concept : concepts) {
-			if (concept.startsWith("to "))
-				continue;
-			if (concept.indexOf('(') != -1 || concept.indexOf(')') != -1) {
-				String insidep = concept.substring(concept.indexOf('(') + 1, concept.indexOf(')'));
-				// System.out.println(concept+"\t"+insidep);
-//				
-				String remaining = concept.substring(concept.indexOf(")") + 1).strip();
-				if (remaining.isBlank())
-					continue;
-//				System.out.println(concept);
-				Set<StringEdge> edgesOf = inputSpace.edgesOf(concept);
-				System.out.printf("%s\t-%s-\t%s\n", concept, insidep, remaining);
-//				Set<StringEdge> edgesOf = inputSpace.edgesOf(concept);
-//				System.out.println(edgesOf.size() + "\t" + edgesOf);
-//			String newConcept = concept.replaceAll("\\s*\\(.+\\).*$", "");
-//			conceptMap.put(concept, newConcept);
-			}
-		}
+//		for(StringEdge edge:kb.edgeSet()) {
+//			String target = edge.getTarget();
+//			String source = edge.getSource();
+//			String label = edge.getLabel();
+//		}
 
 		// ------------
 		// ------------
 		// first KB building phase
-//		OpenAiLLM_Caller.populateKB_withClassExamplesUsingPrompts(inputSpace, "data/classes_and_prompts.txt");
+//		OpenAiLLM_Caller.populateKB_withClassExamplesUsingPrompts(kb, "data/classes_and_prompts.txt");
 
 //		// process invalid concepts in the KB
-//		ArrayList<String> concepts = new ArrayList<>(inputSpace.getVertexSet());
+//		ArrayList<String> concepts = new ArrayList<>(kb.getVertexSet());
 //		ConcurrentHashMap<String, String> conceptMap = new ConcurrentHashMap<>();
 //		concepts.parallelStream().forEach(concept -> {
 //			if (concept.indexOf('(') != -1 || concept.indexOf(')') != -1) {
-//				Set<StringEdge> edgesOf = inputSpace.edgesOf(concept);
+//				Set<StringEdge> edgesOf = kb.edgesOf(concept);
 //				System.out.println(edgesOf.size() + "\t" + edgesOf);
 ////				String newConcept = concept.replaceAll("\\s*\\(.+\\).*$", "");
 ////				conceptMap.put(concept, newConcept);
@@ -89,42 +124,151 @@ public class KnowledgeBaseBuilder {
 		// ------------
 		// second KB building phase, use populateKB_expandFromExistingConcepts and
 		// generic classes in concept_classes.txt
-		// OpenAiLLM_Caller.populateKB_expandFromExistingConcepts(inputSpace);
+		// OpenAiLLM_Caller.populateKB_expandFromExistingConcepts(kb);
 
 		// ------------
 		// ------------
 		// individual KB treatments
 
 		// ArrayList<String> toDelete = VariousUtils.readFileRows("concepts to delete.txt");
-		// inputSpace.removeVertices(toDelete);
-		// inputSpace.getVertexSet().parallelStream().forEach(vertex -> {
+		// kb.removeVertices(toDelete);
+		// kb.getVertexSet().parallelStream().forEach(vertex -> {
 		// if (vertex.length() < 4) {
-		// Set<StringEdge> edgesOf = inputSpace.edgesOf(vertex);
+		// Set<StringEdge> edgesOf = kb.edgesOf(vertex);
 		// System.out.printf("%s\t%d\t%s\n", vertex, edgesOf.size(), edgesOf);
 		// }
 		// });
-		// doStudy(inputSpace);
+		// doStudy(kb);
 
-//		GraphReadWrite.writeCSV("new facts v3.csv", inputSpace);
+//		GraphReadWrite.writeCSV("new facts v3.csv", kb);
 
 //		System.exit(0);
 	}
 
-	private static void correctConceptsWithIS(StringGraph inputSpace) {
+	private static void correctSuchAsConcepts(StringGraph kb) {
+		ArrayList<StringEdge> new_edges = new ArrayList<StringEdge>();
+		ArrayList<StringEdge> toRemove = new ArrayList<StringEdge>();
+		for (StringEdge edge : kb.edgeSet()) {
+			String source = edge.getSource();
+			// TODO este esta no TARGET
+			// TODO este esta no TARGET
+			// TODO este esta no TARGET
+			int suchAs_ix = source.indexOf(" such as ");
+			if (suchAs_ix != -1) {
+				ArrayList<String> new_concepts = new ArrayList<String>();
+				if (source.contains(" or ") || source.contains(" and ")) {
+					String start = source.substring(0, suchAs_ix);
+					// concepts.add(start);
+					String end = source.substring(suchAs_ix + 9);
+					// and, or OR nothing AFTER such as
+					int or = end.indexOf(" or ");
+					int and = end.indexOf(" and ");
+					// in general OR should be prioritized
+					if (or != -1) {
+						String c0 = end.substring(0, or);
+						String c1 = end.substring(or + 4);
+						new_concepts.add(c0);
+						new_concepts.add(c1);
+						new_concepts.add(start);
+					} else if (and != -1) {
+						String c0 = end.substring(0, and);
+						String c1 = end.substring(and + 5);
+						new_concepts.add(c0);
+						new_concepts.add(c1);
+						new_concepts.add(start);
+					} else {
+						// and/or is before "such as"
+						// and, or OR nothing AFTER such as
+						or = start.indexOf(" or ");
+						and = start.indexOf(" and ");
+						if (or != -1) {
+							String c0 = start.substring(0, or);
+							String c1 = start.substring(or + 4);
+							new_concepts.add(c0);
+							new_concepts.add(c1);
+							new_concepts.add(end);
+						} else if (and != -1) {
+							// UNCHECKED
+							String c0 = start.substring(0, and);
+							String c1 = start.substring(and + 5);
+							new_concepts.add(c0);
+							new_concepts.add(c1);
+							new_concepts.add(end);
+						} else {
+							// UNCHECKED
+						}
+					}
+				} else {
+					// contains one example (NO "such as")
+					String example = source.substring(suchAs_ix + 9);
+					String generalizer = source.substring(0, suchAs_ix);
+					System.out.println(source + "\t" + example + "\t" + generalizer);
+					new_concepts.add(generalizer);
+					new_concepts.add(example);
+				}
+				for (String new_concept : new_concepts) {
+					StringEdge new_edge = new StringEdge(new_concept, edge.getTarget(), edge.getLabel());
+					new_edges.add(new_edge);
+
+				}
+				toRemove.add(edge);
+			}
+		}
+		kb.addEdges(new_edges);
+		kb.removeEdges(toRemove);
+	}
+
+	public static void removeTextAfterParenthesis(StringGraph kb) {
+		Set<String> concepts = kb.getVertexSet();
+		for (String concept : concepts) {
+			// if (concept.startsWith("to "))
+			// continue;
+			int p0 = concept.indexOf("(");
+			int p1 = concept.indexOf(")");
+			if (p0 == -1 || p1 == -1)
+				continue;
+			String before = concept.substring(0, p0 - 1);
+			// String between = concept.substring(p0 + 1, p1);
+			// String after = concept.substring(p1 + 1);
+			// System.out.println(before + "\t" + between + "\t" + after);
+			System.out.printf("%s\t->\t%s\n", concept, before);
+			kb.renameVertex(concept, before);
+		}
+	}
+
+	public static void correctConceptsWithPronouns(StringGraph kb) {
+		Set<String> concepts = kb.getVertexSet();
+		for (String concept : concepts) {
+			String new_concept = null;
+			if (concept.startsWith("the ")) {
+				new_concept = concept.substring(4);
+			} else if (concept.startsWith("a ")) {
+				new_concept = concept.substring(2);
+			} else if (concept.startsWith("an ")) {
+				new_concept = concept.substring(3);
+			}
+			// do the replacement
+			if (new_concept != null) {
+				kb.renameVertex(concept, new_concept);
+			}
+		}
+	}
+
+	public static void correctConceptsWithIS(StringGraph kb) {
 		// corrects stuff like:
 		// spawn (comic character) is part of the hellspawn group
 		// conduct disorder is described in diagnostic manuals like the dsm
 		// water (cosmetic) is made of deionized water
 		// the simian immunodeficiency virus (siv) from chimpanzees and sooty mangabey monkeys is the
-		Set<String> concepts = inputSpace.getVertexSet();
+		Set<String> concepts = kb.getVertexSet();
 		for (String concept : concepts) {
 			if (concept.startsWith("to "))
 				continue; // do nothing for now
-			Set<StringEdge> concept_edges = inputSpace.edgesOf(concept);
+			Set<StringEdge> concept_edges = kb.edgesOf(concept);
 			int num_edges = concept_edges.size();
 			if (num_edges == 1) {
 				boolean updateEdge = false;
-				StringEdge new_edge = null;
+				ArrayList<StringEdge> new_edges = new ArrayList<StringEdge>();
 				StringEdge edge = concept_edges.iterator().next();
 				String source = edge.getSource();
 				String target = edge.getTarget();
@@ -139,10 +283,12 @@ public class KnowledgeBaseBuilder {
 						String substring = concept.substring(concept.indexOf(" is part of ") + 12);
 						ArrayList<String> extracted_concepts = checkSuchAs(substring);
 						if (extracted_concepts.isEmpty()) {
-							new_edge = new StringEdge(source, substring, "partof");
+							// TESTED
+							new_edges.add(new StringEdge(source, substring, "partof"));
 						} else {
+							// UNTESTED
 							for (String new_target : extracted_concepts) {
-								new_edge = new StringEdge(source, new_target, "partof");
+								new_edges.add(new StringEdge(source, new_target, "partof"));
 							}
 						}
 						updateEdge = true;
@@ -151,7 +297,8 @@ public class KnowledgeBaseBuilder {
 					if (num_edges > 1) {
 						System.err.println(concept + " has " + num_edges + " edges");
 					}
-					System.lineSeparator();
+					System.err.printf("TODO: %s\t%s\n", concept, concept_edges);
+					kb.removeEdges(concept_edges);
 				} else // -------------------------------------------------------------------------
 				if (concept.contains(" is made ")) {
 					if (num_edges > 1) {
@@ -162,10 +309,12 @@ public class KnowledgeBaseBuilder {
 						String substring = concept.substring(concept.indexOf(" made of ") + 9);
 						ArrayList<String> extracted_concepts = checkSuchAs(substring);
 						if (extracted_concepts.isEmpty()) {
-							new_edge = new StringEdge(source, substring, "madeof");
+							// TESTED
+							new_edges.add(new StringEdge(source, substring, "madeof"));
 						} else {
+							// TESTED
 							for (String new_target : extracted_concepts) {
-								new_edge = new StringEdge(source, new_target, "madeof");
+								new_edges.add(new StringEdge(source, new_target, "madeof"));
 							}
 						}
 						updateEdge = true;
@@ -175,13 +324,14 @@ public class KnowledgeBaseBuilder {
 					if (num_edges > 1) {
 						System.err.println(concept + " has " + num_edges + " edges");
 					}
-					System.lineSeparator();
+					System.err.printf("TODO: %s\t%s\n", concept, concept_edges);
+					kb.removeEdges(concept_edges);
 				}
 				if (updateEdge) {
-					System.out.printf("%s\t->\t%s\n", edge, new_edge);
-					inputSpace.removeEdge(edge);
-					assert new_edge != null;
-					inputSpace.addEdge(new_edge);
+					System.out.printf("%s\t->\t%s\n", edge, new_edges.toString());
+					kb.removeEdge(edge);
+					assert !new_edges.isEmpty();
+					kb.addEdges(new_edges);
 				}
 			}
 		}
@@ -219,24 +369,25 @@ public class KnowledgeBaseBuilder {
 				// concepts.add(c0);
 				concepts.add(c1);
 			} else {
-				System.lineSeparator();
-
+				System.err.println("checkSuchAs TODO: " + concept);
 			}
 		}
 		return concepts;
 	}
 
-	public static void correctCreatedByConcepts(StringGraph inputSpace) {
+	public static void correctCreatedByConcepts(StringGraph kb) {
 		// corrects stuff like
 		// meteorite can create meteorite fragments,createdby,meteorite
 		// comic character can create fan art,createdby,comic character
 		HashMap<String, String> conversion = new HashMap<String, String>();
-		HashSet<String> toDelete = new HashSet<String>();
-		for (StringEdge edge : inputSpace.edgeSet("createdby")) {
-			// ---------
+		ArrayList<String> toDelete = new ArrayList<String>();
+		for (StringEdge edge : kb.edgeSet("createdby")) {
+			// verify problems in either target or source concepts
+			// SOURCE
 			String source = edge.getSource();
 			if (source.contains(" not created by ")) {
-				System.err.println("TODO1");
+				// TODO
+				// System.err.println("TODO1 " + source);
 			}
 			if (source.contains(" does not ") || source.contains(" do not ")) {
 				// OK
@@ -262,7 +413,7 @@ public class KnowledgeBaseBuilder {
 				conversion.put(source, nsource);
 				toDelete.add(source);
 			}
-			//
+			// TARGET
 			String target = edge.getTarget();
 			if (target.contains("not created by ") || target.contains("no single creator") || target.contains("no creator")) {
 				// OK
@@ -273,26 +424,84 @@ public class KnowledgeBaseBuilder {
 				conversion.put(target, ntarget);
 				toDelete.add(target);
 			} else if (target.contains(" create ")) {
-				// complicated
+				// TODO complicated
+				// System.err.println("TODO2 " + target);
 			} else if (target.contains(" created ")) {
 				// OK
 				String ntarget = target.substring(0, target.indexOf(" created ") + 0);
 				conversion.put(target, ntarget);
 				toDelete.add(target);
+			} else if (target.contains(" who ")) {
+				int index = target.indexOf(" who ");
+				String before = target.substring(0, index + 0);
+//				String after = target.substring(who_ix + 5);
+				ArrayList<String> parts = getAndOrComponents(before);
+				for (String creator : parts) {
+					StringEdge new_edge = new StringEdge(source, creator, "createdby");
+					kb.addEdge(new_edge);
+				}
+				toDelete.add(target);
+				// System.err.println(parts + "\t" + target + "\t" + before + "\t" + after);
+			} else if (target.endsWith(" who")) {
+				if (target.equals("guess who"))
+					continue;
+				int index = target.indexOf(" who");
+				String before = target.substring(0, index + 0);
+				ArrayList<String> parts = getAndOrComponents(before);
+				for (String creator : parts) {
+					StringEdge new_edge = new StringEdge(source, creator, "createdby");
+					kb.addEdge(new_edge);
+				}
+				toDelete.add(target);
+			} else if (target.contains(" such as ")) {
+				// craftsmen in ancient civilizations such as mesopotamia and egypt
+				int index = target.indexOf(" such as ");
+				String before = target.substring(0, index + 0);
+				String after = target.substring(index + 9);
+				ArrayList<String> parts = getAndOrComponents(after);
+				parts.add(before);
+				for (String creator : parts) {
+					StringEdge new_edge = new StringEdge(source, creator, "createdby");
+					kb.addEdge(new_edge);
+				}
+				toDelete.add(target);
 			}
 		}
-		conversion.entrySet().forEach(entry -> inputSpace.renameVertex(entry.getKey(), entry.getValue()));
-		toDelete.forEach(concept -> inputSpace.removeVertex(concept));
+		conversion.entrySet().forEach(entry -> kb.renameVertex(entry.getKey(), entry.getValue()));
+		toDelete.forEach(concept -> kb.removeVertex(concept));
 	}
 
-	private static void doStudy(StringGraph inputSpace) throws IOException, URISyntaxException, InterruptedException {
+	private static ArrayList<String> getAndOrComponents(String concept) {
+		ArrayList<String> concepts = new ArrayList<String>();
+		int or = concept.indexOf(" or ");
+		int and = concept.indexOf(" and ");
+		if (or != -1) {
+			// not adding first because c0 might contain multiple concepts
+			String c0 = concept.substring(0, or);
+			String c1 = concept.substring(or + 4);
+			concepts.add(c0);
+			concepts.add(c1);
+		} else if (and != -1) {
+			// OK
+			// not adding first because c0 might contain multiple concepts
+			String c0 = concept.substring(0, and);
+			String c1 = concept.substring(and + 5);
+			concepts.add(c0);
+			concepts.add(c1);
+		} else {
+			concepts.add(concept);
+		}
+		return concepts;
+	}
+
+	public static void doStudy(StringGraph kb) throws IOException, URISyntaxException, InterruptedException {
 //		ArrayList<String> initialConcepts = VariousUtils.readFileRows("newconcepts.txt");
-//		HashSet<String> classes = new HashSet<>(GraphAlgorithms.getEdgesTargets(inputSpace.edgeSet("isa")));
+//		HashSet<String> classes = new HashSet<>(GraphAlgorithms.getEdgesTargets(kb.edgeSet("isa")));
 //		for (String concept : classes) {
 //			
 //			// get concepts that are super classes
-//			Set<StringEdge> concept_isa = inputSpace.outgoingEdgesOf(concept, "isa");
-//			int degree = inputSpace.incomingEdgesOf(concept, "isa").size();
+//			Set<StringEdge> concept_isa = kb.outgoingEdgesOf(concept, "isa");
+//			int degree = kb.incomingEdgesOf(concept, "isa").size();
 //			if (concept_isa.isEmpty()) {
 //				initialConcepts.add(concept);
 //				System.out.printf("%s\t%d\n", concept, degree);
@@ -302,7 +511,7 @@ public class KnowledgeBaseBuilder {
 
 		// -------------
 //		// update constituency info using a llm
-//		Set<String> concepts = inputSpace.getVertexSet();
+//		Set<String> concepts = kb.getVertexSet();
 //		ArrayList<String> concepts = VariousUtils.readFileRows("D:\\Desktop\\Untitled-1.txt");
 //		ParallelConsumer<String> pc = new ParallelConsumer<>();
 //		pc.parallelForEach(concepts, concept -> {
@@ -323,7 +532,7 @@ public class KnowledgeBaseBuilder {
 
 //		ArrayList<StringEdge> toRemove = new ArrayList<>();
 //		ArrayList<StringEdge> toAdd = new ArrayList<>();
-//		for (StringEdge edge : inputSpace.edgeSet()) {
+//		for (StringEdge edge : kb.edgeSet()) {
 //			String label = edge.getLabel();
 //			String source = edge.getSource();
 //			String target = edge.getTarget();
@@ -340,14 +549,14 @@ public class KnowledgeBaseBuilder {
 //				}
 //			}
 //		}
-//		inputSpace.removeEdges(toRemove);
-//		inputSpace.addEdges(toAdd);
+//		kb.removeEdges(toRemove);
+//		kb.addEdges(toAdd);
 
 //		System.exit(0);
 
 //		OpenAiLLM_Caller.debugCaches();
 //		System.exit(0);
-		System.out.println(inputSpace.edgesOf("c"));
+		System.out.println(kb.edgesOf("c"));
 
 		System.exit(0);
 
@@ -356,7 +565,7 @@ public class KnowledgeBaseBuilder {
 		ArrayList<StringEdge> toAdd = new ArrayList<>(1 << 24);
 		ReentrantLock rwlock = new ReentrantLock();
 		ParallelConsumer<StringEdge> pc = new ParallelConsumer<>();
-		pc.parallelForEach(inputSpace.edgeSet(), edge -> {
+		pc.parallelForEach(kb.edgeSet(), edge -> {
 //			if (edge.getSource().contains("→") || edge.getTarget().contains("→")) {
 //				System.out.println(edge);
 //			}
@@ -372,8 +581,8 @@ public class KnowledgeBaseBuilder {
 			}
 		});
 		pc.shutdown();
-		inputSpace.removeEdges(toRemove);
-		inputSpace.addEdges(toAdd);
+		kb.removeEdges(toRemove);
+		kb.addEdges(toAdd);
 		OpenAiLLM_Caller.saveCaches();
 		System.out.printf("corrected %d edges\n", toRemove.size());
 
@@ -384,7 +593,7 @@ public class KnowledgeBaseBuilder {
 //		ArrayList<StringEdge> toAdd = new ArrayList<>(1 << 24);
 //		ReentrantLock rwlock = new ReentrantLock();
 //		ParallelConsumer<StringEdge> pc = new ParallelConsumer<>();
-//		pc.parallelForEach(inputSpace.edgeSet(), edge -> {
+//		pc.parallelForEach(kb.edgeSet(), edge -> {
 //			String label = edge.getLabel();
 //			String source = edge.getSource();
 //			String target = edge.getTarget();
@@ -433,8 +642,8 @@ public class KnowledgeBaseBuilder {
 //			}
 //		});
 //		pc.shutdown();
-//		inputSpace.removeEdges(toRemove);
-//		inputSpace.addEdges(toAdd);
+//		kb.removeEdges(toRemove);
+//		kb.addEdges(toAdd);
 //		OpenAiLLM_Caller.saveCaches();
 //		System.out.printf("corrected %d edges\n", toRemove.size());
 

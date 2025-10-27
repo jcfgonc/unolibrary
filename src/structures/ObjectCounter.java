@@ -57,6 +57,10 @@ public class ObjectCounter<T> {
 		return counter.keySet();
 	}
 
+	public String toString() {
+		return counter.toString();
+	}
+
 	public void toSystemOut() {
 		toSystemOut(-Integer.MAX_VALUE);
 	}
