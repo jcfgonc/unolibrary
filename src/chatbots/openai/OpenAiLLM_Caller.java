@@ -178,7 +178,7 @@ public class OpenAiLLM_Caller {
 	}
 
 	/**
-	 * this function MUST maintain the presence of newlines \r \n
+	 * this function MUST maintain the presence of newlines \n; "\r" is removed
 	 * 
 	 * @param reply
 	 * @return
@@ -188,10 +188,9 @@ public class OpenAiLLM_Caller {
 		reply = reply.replaceAll("\\s*[,]+\\s*", ";"); // space*,space* -> ' ' no commas can go into here, because of the CSV
 														// format
 		reply = reply.replaceAll("[ \t]+", " ");// multiple whitespace -> one space
-		// reply = reply.replace(".", ""); // remove dots
 		reply = reply.replace("\r\n", "\n"); // windows -> unix newline
 		reply = reply.replaceAll("[\n]+", "\n"); // empty lines
-		reply = reply.replaceAll("[\t ]+", " ");
+		reply = reply.replaceAll("[\t ]+", " "); // multiple white space to space
 		return reply;
 	}
 
@@ -936,6 +935,39 @@ public class OpenAiLLM_Caller {
 		return facts;
 	}
 
+	public static ArrayList<StringEdge> getConceptHierarchy(String entity) {
+		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
+		//
+		//
+		//
+		String prompt = """
+				In terms of Ontological Classification, summarize the conceptual hierarchy of "%s" as an unformatted list.
+				""";
+		String text = String.format(prompt.strip(), entity);
+		String reply = "";
+
+		reply = cleanReply(doRequest(text).toLowerCase().strip());
+
+		String[] lines = reply.split("\n");
+		for (int i = 0; i < lines.length; i++) {
+			String clean = cleanLine(lines[i]);
+			// remove " --- "
+			clean = clean.replaceAll("^[\\s]*[-]*[\\s]*", "").strip();
+			lines[i] = clean;
+		}
+
+		for (int i = 1; i < lines.length; i++) {
+			String current = lines[i];
+			String previous = lines[i - 1];
+			StringEdge edge = new StringEdge(current, previous, "isa");
+			facts.add(edge);
+			// will add a duplicate edge at the last iteration but that should be a problem
+			edge = new StringEdge(entity, previous, "isa");
+			facts.add(edge);
+		}
+		return facts;
+	}
+
 	/**
 	 * Obtains an exhaustive list of well-known examples of the given class type, in the form of ISA relations. Also adds relations from the given class type.
 	 * 
@@ -1457,24 +1489,8 @@ public class OpenAiLLM_Caller {
 	public static void populateKB_expandFromExistingConcepts(StringGraph kb) throws InterruptedException, IOException {
 		ArrayList<String> initialConcepts = new ArrayList<String>();
 		initialConcepts = VariousUtils.readFileRows("new_concepts.txt");
-//		HashSet<String> classes = new HashSet<>(GraphAlgorithms.getEdgesTargets(kb.edgeSet("isa")));
-//		for (String concept : classes) {
-//			
-//			// get concepts that are super classes
-//			Set<StringEdge> concept_isa = kb.outgoingEdgesOf(concept, "isa");
-//			int degree = kb.incomingEdgesOf(concept, "isa").size();
-//			if (concept_isa.isEmpty()) {
-//				initialConcepts.add(concept);
-//				System.out.printf("%s\t%d\n", concept, degree);
-//			}
-//
-//
-//			// System.lineSeparator();
-//		}
-//		
-//		System.exit(0);
 
-		final int blockSize = 50;
+		final int blockSize = 32;
 		final boolean exploreNewConcepts = false;
 
 		ArrayDeque<String> openSet = new ArrayDeque<String>();
@@ -1505,7 +1521,13 @@ public class OpenAiLLM_Caller {
 					rwLock.readLock().unlock();
 				}
 				// do not expand large concepts, or with many words, word already explored
-				if (concept.length() <= 32 && (VariousUtils.countCharOccurences(concept, ' ') + 1) <= 2 && !conceptClosed) {
+				// TODO add option to be a target of an ISA edge and having a minimum amount of edges
+				Set<StringEdge> existing_isa = kb.outgoingEdgesOf(concept, "isa");
+				boolean minimum_ok = kb.edgesOf(concept).size() > 10;
+				boolean flag = !existing_isa.isEmpty() && minimum_ok;
+
+				if (flag && //
+						concept.length() <= 32 && (VariousUtils.countCharOccurences(concept, ' ') + 1) <= 2 && !conceptClosed) {
 
 					try {
 						ArrayList<StringEdge> localEdges = new ArrayList<StringEdge>();
@@ -1523,14 +1545,17 @@ public class OpenAiLLM_Caller {
 						ArrayList<StringEdge> isaEdges = getExamplesOfClass(concept);
 						localEdges.addAll(isaEdges);
 						// TODO convert to serial!
-						ArrayList<StringEdge> childrenData = getAllRelationsContextualized_Concurrent(isaEdges);
-						localEdges.addAll(childrenData);
-
-						lock.lock();
-						{
-							facts.addAll(localEdges);
+						for (StringEdge isa_edge : isaEdges) {
+							ArrayList<StringEdge> rel = getAllRelationsContextualized_Serial(isa_edge);
+							localEdges.addAll(rel);
 						}
-						lock.unlock();
+
+						{
+							lock.lock();
+							facts.addAll(localEdges);
+							lock.unlock();
+						}
+
 						System.out.println(concept);
 					} catch (Exception e) {
 						e.printStackTrace();
@@ -1600,10 +1625,6 @@ public class OpenAiLLM_Caller {
 	/**
 	 * Gets data about a given class and examples of that class.
 	 * 
-	 * @param kb
-	 * @param filename
-	 * @throws IOException
-	 * @throws InterruptedException
 	 */
 	public static void populateKB_withClassExamplesUsingPrompts(StringGraph kb, String filename) throws IOException, InterruptedException {
 		HashSet<String> closedConcepts = new HashSet<String>();
@@ -1634,20 +1655,45 @@ public class OpenAiLLM_Caller {
 		}
 		VariousUtils.writeFileRows("data/closed concepts.txt", closedConcepts);
 
-		// second get data for each class and propagate for each class example
-//		for (StringEdge isaEdge : allIsaEdges) {
-//			Set<StringEdge> baseClassFacts = kb.edgesOf(classname);
-//			// if insufficient amount of base class facts, get more
-//			if (baseClassFacts.size() < 3) {
-//				// get all types of relations for the base class
-//				baseClassFacts.addAll(getLLM_AllRelationsForConcept(classname));
-//				facts.addAll(baseClassFacts); // duplicating edges should not create problems in the KB
-//			}
-//			// propagate existing relations in classType to the new concept
-//			ArrayList<StringEdge> inheritedRelations = GraphAlgorithms.propagateInheritance(newConcept, baseClassFacts, classname);
-//			facts.addAll(inheritedRelations);
-//
-//		}
+		// add back the new facts to the kb
+		kb.addEdges(facts);
+	}
+
+	/**
+	 * Gets data about a given class and examples of that class.
+	 * 
+	 */
+	public static void populateKB_withFileExamples(StringGraph kb, String filename) throws IOException, InterruptedException {
+		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
+
+		// row file format is entity TAB class
+		HashMap<String, String> fileRows = VariousUtils.readTwoColumnFile(filename, "\t");
+
+		ArrayList<Entry<String, String>> row_list = new ArrayList<Entry<String, String>>();
+		Iterator<Entry<String, String>> it = fileRows.entrySet().iterator();
+
+		// first get data for each example of each class
+		while (it.hasNext()) {
+			Entry<String, String> next = it.next();
+			row_list.add(next);
+		}
+
+		ReentrantLock lock = new ReentrantLock();
+
+		ParallelConsumer<Entry<String, String>> pc = new ParallelConsumer<>(NUMBER_OF_THREADS);
+		pc.parallelForEach(row_list, row -> {
+			String name = row.getKey().strip().toLowerCase();
+			String clazz = row.getValue().strip().toLowerCase();
+
+			StringEdge context = new StringEdge(name, clazz, "isa");
+			ArrayList<StringEdge> fullRelations = getAllRelationsContextualized_Serial(context);
+			{
+				lock.lock();
+				facts.addAll(fullRelations);
+				lock.unlock();
+			}
+		});
+		pc.shutdown();
 
 		// add back the new facts to the kb
 		kb.addEdges(facts);

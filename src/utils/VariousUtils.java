@@ -959,4 +959,21 @@ public class VariousUtils {
 		}
 		return templates;
 	}
+	
+	public static HashMap<String, String> readTwoColumnFile(String filePath, String column_separator) {
+		HashMap<String, String> templates = new HashMap<String, String>();
+		try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+			String line;
+			while ((line = br.readLine()) != null) {
+				String[] tokens = line.split(column_separator);
+				assert tokens.length == 2;
+				String relation = tokens[0];
+				String template = tokens[1];
+				templates.put(relation, template);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return templates;
+	}
 }

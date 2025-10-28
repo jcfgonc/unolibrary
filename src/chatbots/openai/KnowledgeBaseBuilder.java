@@ -28,9 +28,10 @@ public class KnowledgeBaseBuilder {
 //		removeTextAfterParenthesis(kb);
 //		correctSuchAsConcepts(kb);
 //		correctConceptsWithPronouns(kb);
-		OpenAiLLM_Caller.correctLifeFormConcept(kb);
-
-		GraphReadWrite.writeCSV("new facts v3.csv", kb);
+//		OpenAiLLM_Caller.correctLifeFormConcept(kb);
+//		OpenAiLLM_Caller.populateKB_withFileExamples(kb, "data/mais conceitos.txt");
+		OpenAiLLM_Caller.getConceptHierarchy("intel 8086");
+//		GraphReadWrite.writeCSV("new facts v3.csv", kb);
 		System.exit(0);
 
 //		for (String concept : kb.getVertexSet()) {
@@ -43,7 +44,6 @@ public class KnowledgeBaseBuilder {
 //			}
 //		}
 //		System.exit(0);
-
 
 //		System.exit(0);
 
