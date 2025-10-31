@@ -42,6 +42,10 @@ import utils.VariousUtils;
 
 public class OpenAiLLM_Caller {
 
+	private static final int NUMBER_OF_THREADS = 4;
+	private static final int MAX_COMPLETION_TOKENS = 128;
+	private static final double TEMPERATURE = 0.000;
+	private static final double FREQUENCY_PENALTY = 0.25;
 	public static final String llm_model = "gpt-4.1";
 	private static String api_key;
 	private static SimpleOpenAI openAI;
@@ -62,7 +66,6 @@ public class OpenAiLLM_Caller {
 			Reply each possible answer in its own line, one possibility per line.
 
 			""";
-	private static final int NUMBER_OF_THREADS = 4;
 
 	static {
 		try {
@@ -107,8 +110,8 @@ public class OpenAiLLM_Caller {
 		while (true) {
 			try {
 				InvocationsPerMinuteTracker.printInvocationsPerMinute("OpenAI call");
-				ChatRequest chatRequest = ChatRequest.builder().model(llm_model).message(UserMessage.of(prompt)).temperature(0.000).maxCompletionTokens(512).frequencyPenalty(0.05)
-						.presencePenalty(0.05).build();
+				ChatRequest chatRequest = ChatRequest.builder().model(llm_model).message(UserMessage.of(prompt)).temperature(TEMPERATURE).maxCompletionTokens(MAX_COMPLETION_TOKENS)
+						.frequencyPenalty(FREQUENCY_PENALTY).presencePenalty(0.05).build();
 				CompletableFuture<Chat> futureChat = chatCompletions.create(chatRequest);
 				Chat chatResponse = futureChat.join();
 				String firstContent = chatResponse.firstContent();
@@ -936,23 +939,25 @@ public class OpenAiLLM_Caller {
 	}
 
 	public static ArrayList<StringEdge> getConceptHierarchy(String entity) {
+		entity = entity.toLowerCase();
 		ArrayList<StringEdge> facts = new ArrayList<StringEdge>();
 		//
 		//
 		//
 		String prompt = """
-				In terms of Ontological Classification, summarize the conceptual hierarchy of "%s" as an unformatted list.
+				In terms of Ontological Classification, summarize the conceptual hierarchy of "%s" as an unformatted list. Stop the list at %s and do not give examples of %s.
 				""";
-		String text = String.format(prompt.strip(), entity);
-		String reply = "";
+		String text = String.format(prompt.strip(), entity, entity, entity);
 
-		reply = cleanReply(doRequest(text).toLowerCase().strip());
+		String original_reply = doRequest(text);
+		String processed_reply = cleanReply(original_reply.toLowerCase().strip());
 
-		String[] lines = reply.split("\n");
+		String[] lines = processed_reply.split("\n");
 		for (int i = 0; i < lines.length; i++) {
 			String clean = cleanLine(lines[i]);
 			// remove " --- "
 			clean = clean.replaceAll("^[\\s]*[-]*[\\s]*", "").strip();
+			clean = removeTextAfterParentheses(clean);
 			lines[i] = clean;
 		}
 
@@ -961,11 +966,33 @@ public class OpenAiLLM_Caller {
 			String previous = lines[i - 1];
 			StringEdge edge = new StringEdge(current, previous, "isa");
 			facts.add(edge);
+			// prevent hallucination bug
+			if (current.equals(entity))
+				break;
 			// will add a duplicate edge at the last iteration but that should be a problem
-			edge = new StringEdge(entity, previous, "isa");
-			facts.add(edge);
+//			edge = new StringEdge(entity, previous, "isa");
+//			facts.add(edge);
 		}
+		Collections.reverse(facts);
+		System.out.println(entity + "\r\n->" + original_reply + "\n" + facts);
 		return facts;
+	}
+
+	private static String removeTextAfterParentheses(String concept) {
+		int p0 = concept.indexOf("(");
+		int p1 = concept.indexOf(")");
+		if (p0 == -1 || p1 == -1) {
+			return concept;
+		} else {
+//			String before = concept.substring(0, p0 - 1);
+//			String between = concept.substring(p0 + 1, p1);
+//			String after = concept.substring(p1 + 1);
+//			if(after.length()>1) {
+//				System.out.println(concept);
+//			}
+			return concept.substring(0, p1 + 1);
+
+		}
 	}
 
 	/**

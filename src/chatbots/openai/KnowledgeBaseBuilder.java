@@ -3,6 +3,7 @@ package chatbots.openai;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
@@ -23,27 +24,53 @@ public class KnowledgeBaseBuilder {
 
 		// TODO use this
 //		OpenAiLLM_Caller.correctPluralConcepts(kb);
+//		correctConceptsWithPronouns(kb);
 //		correctCreatedByConcepts(kb);
 //		correctConceptsWithIS(kb);
 //		removeTextAfterParenthesis(kb);
+//		correctText(kb);
 //		correctSuchAsConcepts(kb);
-//		correctConceptsWithPronouns(kb);
+
 //		OpenAiLLM_Caller.correctLifeFormConcept(kb);
 //		OpenAiLLM_Caller.populateKB_withFileExamples(kb, "data/mais conceitos.txt");
-		OpenAiLLM_Caller.getConceptHierarchy("intel 8086");
-//		GraphReadWrite.writeCSV("new facts v3.csv", kb);
+
+		// fazer histograma da primeira palavra de cada conceito
+//		getConceptPrefixHistogram(kb);
+//		System.exit(0);
+
+		for (String concept : kb.getVertexSet()) {
+			// forget hierarchy for a verb phrase
+			if (concept.startsWith("to "))
+				continue;
+			// not much information about the concept, likely to be useless
+			int num_edges = kb.edgesOf(concept).size();
+			if (num_edges < 10)
+				continue;
+			// aqueles que tiverem poucos/nenhums pais, completar
+			Set<StringEdge> out = kb.outgoingEdgesOf(concept, "isa");
+			Set<StringEdge> in = kb.incomingEdgesOf(concept, "isa");
+			if (out.size() < 3) {
+				ArrayList<StringEdge> hierarchy = OpenAiLLM_Caller.getConceptHierarchy(concept);
+				System.lineSeparator();
+			}
+		}
 		System.exit(0);
 
-//		for (String concept : kb.getVertexSet()) {
-//			if (concept.startsWith("to "))
-//				continue;
-//			if (!concept.contains(" such as "))
-//				continue;
-//			if (concept.contains(" or ") && concept.contains(" and ")) {
-//				System.out.println(concept);
-//			}
-//		}
-//		System.exit(0);
+		// testar hierarquia gerada pela LLM
+		ArrayList<String> concepts = new ArrayList<String>(kb.getVertexSet());
+		Collections.shuffle(concepts);
+		for (int i = 0; i < concepts.size(); i++) {
+			String concept = concepts.get(i);
+			if (concept.startsWith("to "))
+				continue;
+			int num_words = VariousUtils.countWords(concept);
+			if (num_words > 3)
+				continue;
+			OpenAiLLM_Caller.getConceptHierarchy(concept);
+			Thread.sleep(2000);
+		}
+//		GraphReadWrite.writeCSV("new facts v3.csv", kb);
+		System.exit(0);
 
 //		System.exit(0);
 
@@ -145,14 +172,39 @@ public class KnowledgeBaseBuilder {
 //		System.exit(0);
 	}
 
-	private static void correctSuchAsConcepts(StringGraph kb) {
+	public static void getConceptPrefixHistogram(StringGraph kb) {
+		ObjectCounter<String> prefix_counter = new ObjectCounter<String>();
+		for (String concept : kb.getVertexSet()) {
+			if (concept.startsWith(" ") || concept.startsWith("\t"))
+				System.err.println(concept + " starts with a white space!");
+			int is = concept.indexOf(" ");
+			if (is >= 0) {
+				String first_word = concept.substring(0, is);
+				prefix_counter.addObject(first_word);
+			}
+		}
+		prefix_counter.toSystemOut();
+	}
+
+	public static void correctText(StringGraph kb) {
+		Set<String> concepts = kb.getVertexSet();
+		for (String concept : concepts) {
+			String before = concept;
+			concept = concept.strip();
+			// tratar conceitos começados por "various "
+			if (concept.contains("/")) {
+//TODO
+			}
+			kb.renameVertex(concept, before);
+		}
+	}
+
+	public static void correctSuchAsConcepts(StringGraph kb) {
 		ArrayList<StringEdge> new_edges = new ArrayList<StringEdge>();
 		ArrayList<StringEdge> toRemove = new ArrayList<StringEdge>();
 		for (StringEdge edge : kb.edgeSet()) {
+			// TODO ver problemas no TARGET
 			String source = edge.getSource();
-			// TODO este esta no TARGET
-			// TODO este esta no TARGET
-			// TODO este esta no TARGET
 			int suchAs_ix = source.indexOf(" such as ");
 			if (suchAs_ix != -1) {
 				ArrayList<String> new_concepts = new ArrayList<String>();
