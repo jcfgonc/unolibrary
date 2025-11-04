@@ -46,7 +46,7 @@ public class OpenAiLLM_Caller {
 	private static final int MAX_COMPLETION_TOKENS = 128;
 	private static final double TEMPERATURE = 0.000;
 	private static final double FREQUENCY_PENALTY = 0.25;
-	public static final String llm_model = "gpt-4.1";
+	public static final String llm_model = "gpt-4o";
 	private static String api_key;
 	private static SimpleOpenAI openAI;
 	private static ChatCompletions chatCompletions;
@@ -154,6 +154,9 @@ public class OpenAiLLM_Caller {
 		// corrigi isto em 19/5/2025 para tentar retirar mais do que um espaço nos
 		// conceitos
 		line = line.replaceAll("[ \t]+", " "); // multiple whitespace -> space
+
+		line = line.replaceAll("[\\d]+[\\.\\-:]*[\\s]*", ""); // enumeration like 1. (space)
+		line = line.replaceAll("[\\d\\w]+:", ""); // class: OR kingdom:
 
 		//
 //		int size = line.length();
@@ -340,6 +343,41 @@ public class OpenAiLLM_Caller {
 		String text = String.format(prompt.strip(), entity);
 		String reply = "";
 		reply = doRequest(text).toLowerCase().strip();
+
+		if (reply.startsWith("yes")) {
+			return true;
+		} else if (reply.startsWith("no")) {
+			return false;
+		} else
+			System.err.println("unknown answer:" + reply + " for query\n" + text);
+		return false;
+	}
+
+	public static boolean checkIfEntityIsSuperClass(String entity) {
+		String prompt = """
+				Answer yes or no. Ontologically, is the concept "%s" a superclass?""";
+		String text = String.format(prompt.strip(), entity);
+		String reply = "";
+		reply = doRequest(text).toLowerCase().strip();
+		System.out.println("checkIfEntityIsSuperClass() " + entity + ": " + reply);
+
+		if (reply.startsWith("yes")) {
+			return true;
+		} else if (reply.startsWith("no")) {
+			return false;
+		} else
+			System.err.println("unknown answer:" + reply + " for query\n" + text);
+		return false;
+	}
+
+	public static boolean checkIfConceptIsEntity(String concept) {
+		String prompt = """
+				Answer yes or no if as a concept stored in a knowledge base,
+				the concept "%s" represents either an entity or a class of entities.""";
+		String text = String.format(prompt.strip(), concept);
+		String reply = "";
+		reply = doRequest(text).toLowerCase().strip();
+		System.out.println("checkIfConceptIsEntity() " + concept + ": " + reply);
 
 		if (reply.startsWith("yes")) {
 			return true;
@@ -957,7 +995,7 @@ public class OpenAiLLM_Caller {
 			String clean = cleanLine(lines[i]);
 			// remove " --- "
 			clean = clean.replaceAll("^[\\s]*[-]*[\\s]*", "").strip();
-			clean = removeTextAfterParentheses(clean);
+			clean = removeTextAfterParentheses(clean).strip();
 			lines[i] = clean;
 		}
 
@@ -973,7 +1011,7 @@ public class OpenAiLLM_Caller {
 //			edge = new StringEdge(entity, previous, "isa");
 //			facts.add(edge);
 		}
-		Collections.reverse(facts);
+//		Collections.reverse(facts);
 		System.out.println(entity + "\r\n->" + original_reply + "\n" + facts);
 		return facts;
 	}
@@ -990,8 +1028,7 @@ public class OpenAiLLM_Caller {
 //			if(after.length()>1) {
 //				System.out.println(concept);
 //			}
-			return concept.substring(0, p1 + 1);
-
+			return concept.substring(0, p0);
 		}
 	}
 

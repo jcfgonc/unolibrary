@@ -38,22 +38,11 @@ public class KnowledgeBaseBuilder {
 //		getConceptPrefixHistogram(kb);
 //		System.exit(0);
 
-		for (String concept : kb.getVertexSet()) {
-			// forget hierarchy for a verb phrase
-			if (concept.startsWith("to "))
-				continue;
-			// not much information about the concept, likely to be useless
-			int num_edges = kb.edgesOf(concept).size();
-			if (num_edges < 10)
-				continue;
-			// aqueles que tiverem poucos/nenhums pais, completar
-			Set<StringEdge> out = kb.outgoingEdgesOf(concept, "isa");
-			Set<StringEdge> in = kb.incomingEdgesOf(concept, "isa");
-			if (out.size() < 3) {
-				ArrayList<StringEdge> hierarchy = OpenAiLLM_Caller.getConceptHierarchy(concept);
-				System.lineSeparator();
-			}
-		}
+//		String conceptx = "preservative";
+//		OpenAiLLM_Caller.getConceptHierarchy(conceptx);
+//		System.out.println(OpenAiLLM_Caller.getIsaClass(conceptx));
+
+		populateKB_hierarchy(kb);
 		System.exit(0);
 
 		// testar hierarquia gerada pela LLM
@@ -172,6 +161,76 @@ public class KnowledgeBaseBuilder {
 //		System.exit(0);
 	}
 
+	public static void populateKB_hierarchy(StringGraph kb) throws InterruptedException {
+		ArrayList<String> concepts = new ArrayList<String>(kb.getVertexSet());
+		ParallelConsumer<String> pc = new ParallelConsumer<>(1);
+		ReentrantLock lock = new ReentrantLock();
+		pc.parallelForEach(concepts, concept -> {
+			// forget hierarchy for a verb phrase
+			if (!concept.startsWith("to ") && !concept.contains(" or ") && !concept.contains(" and ")) {
+				int num_words = VariousUtils.countWords(concept);
+				if (num_words <= 3) {
+					boolean is_entity = OpenAiLLM_Caller.checkIfConceptIsEntity(concept);
+					if (is_entity) {
+						// isa_out = concept,isa,X (concept is subclass of X)
+						Set<StringEdge> isa_source = kb.outgoingEdgesOf(concept, "isa");
+						// isa_in = X,isa,concept (concept is superclass of X)
+						Set<StringEdge> isa_target = kb.incomingEdgesOf(concept, "isa");
+						int num_isa_source = isa_source.size();
+						int num_isa_target = isa_target.size();
+						Set<StringEdge> edgesOf = kb.edgesOf(concept);
+						int num_edges = edgesOf.size();
+
+						// all relations that are not ISA
+						int remaining = num_edges - num_isa_target - num_isa_source;
+
+						// adicionar arestas se dif for significativo
+
+						// not much information about the concept, likely to be useless
+						if (remaining >= 100) {
+							// concept ISA almost OR nothing
+							if (num_isa_source < 3) {
+								// System.out.printf("%s\t%d\t%d\t%d\n", concept, num_isa_in, num_isa_out, remaining);
+//						OpenAiLLM_Caller.checkIfEntityIsSuperClass(concept);
+//						ArrayList<StringEdge> hierarchy = OpenAiLLM_Caller.getConceptHierarchy(concept);
+//						System.out.println(OpenAiLLM_Caller.getIsaClass(concept));
+//						lock.lock();
+//						kb.addEdges(hierarchy);
+//						lock.unlock();
+							} else {
+								// concept ISA many things
+								// do not need more
+								System.lineSeparator();
+							}
+							if (num_isa_target < 3) {
+								// get examples of things that ISA concept
+								// not for now
+								System.lineSeparator();
+							} else {
+								// many things ISA concept
+								// do not need more
+								System.lineSeparator();
+							}
+							// dont ask for things that ISA,concept yet
+							// few or no things ISA concept
+//					if (isa_in.size() < 3) {
+//						System.lineSeparator();
+//					}
+						} else {
+							// potentially add everything (common relations+hierarchy)
+							// only if number of words is less than 3
+							ArrayList<StringEdge> hierarchy = OpenAiLLM_Caller.getConceptHierarchy(concept);
+							System.lineSeparator();
+						}
+						// menos de 20 arestas e e origem de um ISA
+						// obter contexto (isa) e popular com relacoes
+					}
+				}
+			}
+		});
+		pc.shutdown();
+	}
+
 	public static void getConceptPrefixHistogram(StringGraph kb) {
 		ObjectCounter<String> prefix_counter = new ObjectCounter<String>();
 		for (String concept : kb.getVertexSet()) {
@@ -189,11 +248,15 @@ public class KnowledgeBaseBuilder {
 	public static void correctText(StringGraph kb) {
 		Set<String> concepts = kb.getVertexSet();
 		for (String concept : concepts) {
+			if (concept.startsWith("to "))
+				continue;
 			String before = concept;
 			concept = concept.strip();
 			// tratar conceitos começados por "various "
-			if (concept.contains("/")) {
-//TODO
+			int i = concept.indexOf("/");
+			if (i != -1) {
+				// get the first part
+				System.out.println(concept);
 			}
 			kb.renameVertex(concept, before);
 		}
