@@ -12,23 +12,15 @@ body of water
 higher education institution
 team member
 general aviation aircraft
-locality
-genus
-drama
-character
-fiction
 medium of exchange
-adaptation
 gravitationally bound system
 field of study
 local government area
 narrative
 accessory
-last name
 comic book character
 influencer
 employee
-model
 member of united nations
 passenger vehicle
 environment
@@ -37,7 +29,6 @@ professional
 innovator
 creator
 performance
-lineage
 adventure game
 institution of higher learning
 director
@@ -53,21 +44,13 @@ digital game
 territory
 stellar object
 action-adventure game
-clan
 interactive entertainment
-single
 textile product
 single-engine aircraft
-male
 group of star
-store of value
-unit of account
 astrophysical structure
 tribe
-shade
 strategist
-decomposer
-observance
 law-making body
 publicly traded company
 entertainment franchise
@@ -81,7 +64,6 @@ interior design element
 food item
 medium company
 software company
-elevation
 cartoon character
 musical group
 novel character
@@ -91,17 +73,14 @@ head of state
 geopolitical entity
 living being
 broadcaster
-patronymic
 degree-granting institution
 warrior
 binary star system
 cooked dish
 entertainment software
-ancestry
 sport facility
 perennial
 appetizer
-forward
 pop artist
 biodiversity hotspot
 american film
@@ -112,7 +91,6 @@ sedan
 city region
 territorial unit
 olympic sport
-matter
 cultural site
 archaeological site
 wide-body aircraft
@@ -121,7 +99,6 @@ ecological zone
 theatrical performance
 weapon system
 fermented beverage
-founder
 political subdivision
 military ship
 construction equipment
@@ -131,7 +108,6 @@ cultural symbol
 social commentary
 comedic character
 essayist
-peak
 traditional dish
 cocktail
 outdoor equipment
@@ -144,7 +120,6 @@ antihero
 manufacturing equipment
 audio recording
 nation-state
-district
 medical professional
 subnational entity
 marine ecosystem
@@ -169,7 +144,6 @@ geographic area
 puzzle game
 member of clergy
 manga
-band
 cognitive bias
 laboratory equipment
 water body
@@ -179,12 +153,10 @@ indie game
 combat ship
 theme park ride
 cultural region
-builder
 advocacy group
 business leader
 military vehicle
 entertainment production
-arranger
 world war ii aircraft
 civil aviation aircraft
 american literature
@@ -205,10 +177,8 @@ urban transit system
 contemporary art
 toxic substance
 vegetarian dish
-side dish
 natural environment
 ordnance
-member state
 sport personality
 action hero
 formal wear
@@ -219,12 +189,10 @@ outdoor space
 humanitarian
 four-wheeled vehicle
 astronomical structure
-executive
 natural landscape
 midfielder
 household appliance
 adventure film
-design
 rock artist
 decorative item
 american television series
@@ -237,7 +205,6 @@ seasonal event
 narrative-driven game
 competitive activity
 home decor item
-seating
 social gathering
 international organization
 institution
@@ -263,13 +230,11 @@ urban center
 monocotyledon
 charitable organization
 storytelling
-treat
 aquatic organism
 compact car
 teenager
 personal care product
 sign
-produce
 social gathering place
 public research university
 religious site
@@ -301,7 +266,6 @@ party game
 olympic medalist
 visionary
 military commander
-seasoning
 medium character
 cultural entity
 fantasy film
@@ -327,8 +291,8 @@ vegetation type
 visual perception
 systemic disease
 canine
+feline
 commemoration
-component
 visual storyteller
 sporting equipment
 landscape park
@@ -340,7 +304,6 @@ gram-negative bacterium
 red wine
 cultural hub
 work of fiction
-function
 kitchen appliance
 passenger airline
 world heritage site
@@ -357,7 +320,6 @@ genealogy
 performing artist
 sweet
 military technology
-advocate
 action series
 business owner
 political institution
@@ -365,11 +327,8 @@ administrative body
 social reformer
 prepared food
 public transport vehicle
-attire
-resource
 physical feature
-action
-hardware
+computer hardware
 alkaline earth metal
 four-door car
 clothing item
@@ -389,7 +348,6 @@ public service organization
 light sport aircraft
 competition
 mythical creature
-opening
 commander
 combat vessel
 exhibition venue
@@ -405,12 +363,9 @@ military conflict
 inflammatory disease
 theory
 transportation vessel
-order
 mobile application
-stew
 woman's wear
 biological tissue
-tone
 professional service firm
 planetary satellite
 rodent
@@ -427,11 +382,9 @@ saprotroph
 building component
 biopolymer
 astronomical event
-female
 culinary dish
 geological material
 historical ship
-entree
 antimicrobial agent
 singer-songwriter
 fictional narrative
@@ -441,7 +394,6 @@ automatic firearm
 cellular structure
 leader of diocese
 autotroph
-laborer
 aeronautical vehicle
 stage play
 science fiction series
@@ -464,7 +416,6 @@ instrumental music
 transportation facility
 deciduous tree
 serialized fiction
-specialist
 aquatic animal
 interdisciplinary field
 dc comic_strip character
@@ -523,7 +474,6 @@ costume
 commercial space
 access point
 state university
-tribal name
 martial artist
 food source
 judicial body
@@ -659,7 +609,6 @@ varietal wine
 medical science
 hydrocarbon
 japanese character
-feline
 metalworking tool
 material handling equipment
 retail employee
@@ -943,7 +892,6 @@ fantasy anime
 casual shoe
 energy source
 analytical instrument
-hereditary name
 therapeutic drug
 military firearm
 recipe
@@ -1367,7 +1315,6 @@ political assembly
 carpentry tool
 professional boxer
 public transportation vehicle
-heritage name
 branch of theology
 hazardous waste
 waterbody
@@ -1501,7 +1448,6 @@ natural attraction
 environmental control device
 nuclear specie
 musical genre
-personal name
 video camera
 art material
 turboprop aircraft
@@ -2017,7 +1963,6 @@ supervisor
 developer
 heavy-duty vehicle
 female scientist
-tribe name
 earth science
 military tactician
 medical doctor
@@ -3293,7 +3238,6 @@ cleaning agent
 romantic film
 nobel peace prize laureate
 anti-inflammatory agent
-given name origin
 severe weather event
 retail chain
 analytical method
@@ -3333,7 +3277,6 @@ automotive technology
 crimefighter
 stylistic device
 authoritarian leader
-given name
 geographic feature
 nationalist
 public health study
@@ -4088,7 +4031,6 @@ former soviet republic
 hereditary condition
 high-performance ssd
 humanity scholar
-first baseman
 public health agency
 e-commerce company
 governing authority
@@ -10041,7 +9983,6 @@ science and technology institution
 reusable launch vehicle
 theoretical approach
 sport symbol
-first lady
 western character
 quadricep muscle
 brand owner
@@ -10785,7 +10726,6 @@ diagnostic test
 military asset
 game dynamic
 sausage dish
-cultural name
 member of x-men
 cross-platform development tool
 elastic material
@@ -11174,7 +11114,6 @@ former heavyweight champion
 ceramic material
 church administrator
 frictional force
-house name
 nordic capital
 data transmission medium
 soil component
@@ -11240,7 +11179,6 @@ toy company
 mediterranean city
 victorian author
 infrastructure management
-occupation name
 medication for acid-related disorder
 muscle disease
 seafood restaurant
@@ -11707,7 +11645,6 @@ point of sale equipment
 traditional holiday
 moment
 theory of energy transfer
-trade name
 mark twain character
 media release
 magnesium silicate
@@ -12653,7 +12590,6 @@ astrophysical process
 communication aid
 financial regulatory authority
 scouting organization
-feline character
 voice recognition technology
 taxonomy
 murder mystery
@@ -15903,7 +15839,6 @@ synthezoid
 clinical apparatus
 reference work creation
 circumstance
-vietnamese name
 scarlett o'hara is character in american literature
 fashion design category
 american professional athlete
@@ -17739,7 +17674,6 @@ digital asset attribute
 oceanographic exploration
 institutional facility
 herb sauce
-sound associated with feline
 behavioral norm
 broadband service
 berry extract
@@ -19260,7 +19194,6 @@ marine conservation zone
 english literature character
 aerospike engine
 schoolgirl character
-ethnic name
 devil fruit user
 frosé drink
 flying mammal
@@ -24543,7 +24476,6 @@ dietary product
 natural earth pigment
 protagonist in story
 sequel to xcom enemy unknown
-study of proper name
 travel assistance tool
 chemical industry
 remote sensing platform
@@ -28915,7 +28847,6 @@ biological family
 employment termination notice
 star war franchise medium
 sterilization equipment
-genealogical name
 biguanide
 power electronic component
 linguistic variety
@@ -30119,7 +30050,6 @@ persian literature
 physical collection
 fatty liver
 life cycle
-male name
 historical novel
 domesticated species development
 food production
@@ -30435,7 +30365,6 @@ dense metal
 hohenstaufen ruler
 municipal government department
 road trip planner
-type of name
 upholstery material
 team event
 defensive vessel
@@ -31343,7 +31272,6 @@ medieval furniture
 medical device manufacturer
 system command
 cosmetic service
-saint associated with auschwitz
 muscle organ
 nautical exploration
 artistic trend
@@ -34197,7 +34125,6 @@ poaceae family member
 female rock musician
 community dietitian
 neutral salt
-first name
 internet sensation
 helical structure
 founder of rational emotive behavior therapy
@@ -36550,7 +36477,6 @@ bullet hell game
 sharp projection
 native population
 underground train system
-character associated with afterlife
 book structure
 caregiving
 starship crew member
@@ -37189,7 +37115,6 @@ scripted television series
 character in marvel comic_strip
 symbol of rage and honor
 shipping channel
-virginia locality
 italian football player
 roast
 defense cooperation group
@@ -37564,7 +37489,6 @@ symbiont host
 nationalist organization
 eukaryotic autotroph
 distillation apparatus
-study of name
 cryptid habitat
 sustainable energy company
 text translator

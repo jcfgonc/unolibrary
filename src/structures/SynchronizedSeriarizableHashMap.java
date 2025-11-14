@@ -31,8 +31,20 @@ public class SynchronizedSeriarizableHashMap<K, V> {
 		this.timeout = timeout;
 		this.rrw = new ReentrantReadWriteLock();
 		initializeKryo();
-		System.err.printf("%s: saving to %s with an interval of %ds\n", this.getClass().toString(), filename, timeout);
+//		System.err.printf("%s: saving to %s with an interval of %ds\n", this.getClass().toString(), filename, timeout);
 		load();
+	}
+
+	public synchronized boolean containsKey(Object key) {
+		return cache.containsKey(key);
+	}
+
+	public synchronized boolean isEmpty() {
+		return cache.isEmpty();
+	}
+
+	public synchronized boolean containsValue(V value) {
+		return cache.containsValue(value);
 	}
 
 	private synchronized void initializeKryo() {
@@ -54,8 +66,8 @@ public class SynchronizedSeriarizableHashMap<K, V> {
 				rrw.writeLock().unlock();
 				input.close();
 
-				double dt = ticker.getTimeDeltaLastCall();
-				System.err.println(this.getClass().toString() + ": loaded cache from " + filename + " with " + size() + " entries in " + dt + "s");
+			//	double dt = ticker.getTimeDeltaLastCall();
+			//	System.err.println(this.getClass().toString() + ": loaded cache from " + filename + " with " + size() + " entries in " + dt + "s");
 			} catch (Exception e) {
 				e.printStackTrace();
 				System.exit(-1);
