@@ -65,6 +65,95 @@ public class KnowledgeBaseBuilder {
 		return concepts;
 	}
 
+	public static void correctLifeFormConcept(StringGraph kb) throws InterruptedException {
+		HashSet<String> openSet = new HashSet<String>();
+		HashSet<String> closedSet = new HashSet<String>();
+		ArrayList<StringEdge> edges = new ArrayList<StringEdge>();
+		edges.addAll(kb.edgeSet("desires"));
+		edges.addAll(kb.edgeSet("notdesires"));
+
+		ReentrantLock kb_lock = new ReentrantLock();
+		ReentrantLock openset_lock = new ReentrantLock();
+		ReentrantReadWriteLock closedset_lock = new ReentrantReadWriteLock();
+
+		ParallelConsumer<StringEdge> pc = new ParallelConsumer<>(8);
+		pc.parallelForEach(edges, edge -> {
+			String source = edge.getSource();
+			boolean inClosedSet = false;
+			{
+				closedset_lock.readLock().lock();
+				inClosedSet = closedSet.contains(source);
+				closedset_lock.readLock().unlock();
+			}
+			if (!inClosedSet) {
+				{
+					closedset_lock.writeLock().lock();
+					closedSet.add(source);
+					closedset_lock.writeLock().unlock();
+				}
+				boolean is_life_form = OpenAiLLM_Caller.checkIfConceptIsLifeForm(source);
+				if (is_life_form) {
+					{
+						openset_lock.lock();
+						openSet.add(source);
+						openset_lock.unlock();
+					}
+					StringEdge lifeform = new StringEdge(source, "life form", "isa");
+					{
+						kb_lock.lock();
+						kb.addEdge(lifeform);
+						kb_lock.unlock();
+					}
+					System.out.println("added " + lifeform);
+				}
+			}
+		});
+		System.out.println("removing desires/notdesires edges for " + openSet.size() + " concepts");
+
+		for (String concept : openSet) {
+			ArrayList<StringEdge> toRemove = new ArrayList<StringEdge>();
+			toRemove.addAll(kb.outgoingEdgesOf(concept, "desires"));
+			toRemove.addAll(kb.outgoingEdgesOf(concept, "notdesires"));
+			kb.removeEdges(toRemove);
+		}
+	}
+
+	public static void correctPluralConcepts(StringGraph kb) throws IOException, InterruptedException {
+		HashSet<String> concepts = new HashSet<String>();
+		for (StringEdge edge : kb.edgeSet("madeof")) {
+			concepts.add(edge.getTarget());
+		}
+		for (StringEdge edge : kb.edgeSet("partof")) {
+			concepts.add(edge.getSource());
+		}
+		HashMap<String, String> conversion = new HashMap<String, String>();
+		ReentrantLock lock = new ReentrantLock();
+
+		ParallelConsumer<String> pc = new ParallelConsumer<>(NUMBER_OF_THREADS);
+		pc.parallelForEach(concepts, concept -> {
+			boolean plural = OpenAiLLM_Caller.checkIfConceptIsPlural(concept);
+			if (plural) {
+				// get singular
+				String singular = OpenAiLLM_Caller.convertPlural2Singular(concept);
+				{
+					lock.lock();
+					conversion.put(concept, singular);
+					lock.unlock();
+				}
+				System.out.println(concept + "\t->\t" + singular);
+			}
+		});
+
+		concepts.parallelStream().forEach(concept -> {
+		});
+		// single thread renaming
+		for (Entry<String, String> entry : conversion.entrySet()) {
+			String plural = entry.getKey();
+			String singular = entry.getValue();
+			kb.renameVertex(plural, singular);
+		}
+	}
+
 	public static void correctConceptsWithIS(StringGraph kb) {
 		// corrects stuff like:
 		// spawn (comic character) is part of the hellspawn group
@@ -550,7 +639,7 @@ public class KnowledgeBaseBuilder {
 		String kb_filename = "new facts v3.csv";
 		GraphReadWrite.readCSV(kb_filename, kb);
 
-		// TODO use this
+		// use this to clean the KB
 //		OpenAiLLM_Caller.correctPluralConcepts(kb);
 //		correctConceptsWithPronouns(kb);
 //		correctCreatedByConcepts(kb);
@@ -558,11 +647,13 @@ public class KnowledgeBaseBuilder {
 //		removeTextAfterParenthesis(kb);
 //		correctText(kb);
 //		correctSuchAsConcepts(kb);
+//		correctedQuotedTextWithWordBy(kb);
 
 //		OpenAiLLM_Caller.correctLifeFormConcept(kb);
 //		OpenAiLLM_Caller.correctPluralConcepts(kb);
 
-//		OpenAiLLM_Caller.populateKB_withFileExamples(kb, "data/mais conceitos.txt");
+//		populateKB_withFileExamples(kb, "data/mais conceitos.txt");
+//		populateKB_fromConceptList(kb, "data/newconcepts.txt");
 
 		// fazer histograma da primeira palavra de cada conceito
 //		getConceptPrefixHistogram(kb);
@@ -571,7 +662,6 @@ public class KnowledgeBaseBuilder {
 //		String conceptx = "preservative";
 //		OpenAiLLM_Caller.getConceptHierarchy(conceptx);
 //		System.out.println(OpenAiLLM_Caller.getIsaClass(conceptx));
-		populateKB_fromConceptListV2(kb, "data/newconcepts.txt");
 //		populateKB_hierarchy(kb);
 		GraphReadWrite.writeCSV(kb_filename, kb);
 		System.exit(0);
@@ -691,6 +781,26 @@ public class KnowledgeBaseBuilder {
 //		System.exit(0);
 	}
 
+	public static void correctedQuotedTextWithWordBy(StringGraph kb) {
+		for (String concept : kb.getVertexSet()) {
+			if (concept.startsWith("to "))
+				continue;
+			// this pattern only works for concepts containing a quote and the word " by "
+			if (concept.contains("\"")) {
+				int quote_occurrences = VariousUtils.countCharOccurences(concept, '\"');
+				int index_of_by = concept.indexOf(" by ");
+				boolean contains_by = index_of_by != -1;
+				System.out.println(quote_occurrences + "\t" + concept + "\t" + contains_by);
+				if (contains_by) {
+					String creation = concept.substring(0, index_of_by);
+					String creator = concept.substring(index_of_by + 4);
+					kb.renameVertex(concept, creation);
+					kb.addEdge(new StringEdge(creation, creator, "createdby"));
+				}
+			}
+		}
+	}
+
 	public static void populateKB_hierarchy(StringGraph kb) throws InterruptedException, IOException {
 		SynchronizedSeriarizableHashMap<String, Boolean> exploredConcepts = new SynchronizedSeriarizableHashMap<>("exploredConcepts.dat", 10);
 		ArrayList<String> concepts = new ArrayList<String>(kb.getVertexSet());
@@ -702,87 +812,91 @@ public class KnowledgeBaseBuilder {
 			if (!exploredConcepts.containsKey(concept) && // that have been explored before
 					!concept.startsWith("to ") && // that start with to
 					!concept.contains(" or ") && // contain OR / AND
-					!concept.contains(" and ")) {
+					!concept.contains(" and ") && //
+					!concept.contains(" in ") && //
+					true) {
 				int num_words = VariousUtils.countWords(concept);
 				if (num_words <= 3) {
 					boolean is_entity = OpenAiLLM_Caller.checkIfConceptIsEntity(concept);
 					if (is_entity) {
 						boolean isSuperClass = OpenAiLLM_Caller.checkIfConceptIsSuperClass(concept);
 						// System.out.printf("%s\t%s\n", concept, isSuperClass);
-//						ArrayList<StringEdge> localEdges = new ArrayList<>();
-//						// isa_out = concept,isa,X (concept is subclass of X)
-//						Set<StringEdge> isa_source;
-//						// isa_in = X,isa,concept (concept is superclass of X)
-//						Set<StringEdge> isa_target;
-//						Set<StringEdge> edgesOf;
-//						lock.readLock().lock();
-//						{
-//							isa_source = kb.outgoingEdgesOf(concept, "isa");
-//							isa_target = kb.incomingEdgesOf(concept, "isa");
-//							edgesOf = kb.edgesOf(concept);
-//						}
-//						lock.readLock().unlock();
-//						int num_isa_source = isa_source.size();
-//						int num_isa_target = isa_target.size();
-//						int num_edges = edgesOf.size();
-//
-//						// all relations that are not ISA
-//						int remaining = num_edges - num_isa_target - num_isa_source;
-//
-//						System.out.printf("%s\t%d\t%d\t%d\t%d\n", concept, num_edges, num_isa_source, num_isa_target, remaining);
-//
-//						// adicionar arestas se dif for significativo
-//
-//						// concept has a lot of information
-//						if (remaining >= 50) {
-//							// concept ISA almost OR nothing
-//							if (num_isa_source < 3000) {
-//								localEdges.addAll(OpenAiLLM_Caller.getConceptHierarchy(concept));
-//								System.lineSeparator();
-//							} else {
-//								// concept ISA many things
-//								// do not need more
-//								System.lineSeparator();
-//							}
-//							if (num_isa_target < 3) {
-//								// get examples of things that ISA concept
-//								// not for now
-//								System.lineSeparator();
-//							} else {
-//								// many things ISA concept
-//								// do not need more
-//								System.lineSeparator();
-//							}
-//							// dont ask for things that ISA,concept yet
-//							// few or no things ISA concept
-////					if (isa_in.size() < 3) {
-////						System.lineSeparator();
-////					}
-//						} else // not much information about the concept, likely to be useless
-//						{
-//							// potentially add everything (common relations+hierarchy)
-//							ArrayList<StringEdge> hierarchy = OpenAiLLM_Caller.getConceptHierarchy(concept);
-//							StringEdge lastElement = hierarchy.get(hierarchy.size() - 1);
-//							ArrayList<StringEdge> relations_contextualized = OpenAiLLM_Caller.getAllRelationsContextualized_Serial(lastElement);
-//							if (isSuperClass) {
-//								ArrayList<StringEdge> examplesOf = OpenAiLLM_Caller.getExamplesOfClass(concept);
-//								localEdges.addAll(examplesOf);
-//							}
-//							localEdges.addAll(hierarchy);
-//							localEdges.addAll(relations_contextualized);
-//
-//							System.lineSeparator();
-//						}
-//						// menos de 20 arestas e e origem de um ISA
-//						// obter contexto (isa) e popular com relacoes
-//
-//						if (!localEdges.isEmpty()) {
-//							lock.writeLock().lock();
-//							{
-//								kb.addEdges(localEdges);
-//							}
-//							lock.writeLock().unlock();
-//						}
+						ArrayList<StringEdge> localEdges = new ArrayList<>();
+						// isa_out = concept,isa,X (concept is subclass of X)
+						Set<StringEdge> isa_source;
+						// isa_in = X,isa,concept (concept is superclass of X)
+						Set<StringEdge> isa_target;
+						Set<StringEdge> edgesOf;
+						lock.readLock().lock();
+						{
+							isa_source = kb.outgoingEdgesOf(concept, "isa");
+							isa_target = kb.incomingEdgesOf(concept, "isa");
+							edgesOf = kb.edgesOf(concept);
+						}
+						lock.readLock().unlock();
+						int num_isa_source = isa_source.size();
+						int num_isa_target = isa_target.size();
+						int num_edges = edgesOf.size();
+
+						// all relations that are not ISA
+						int remaining = num_edges - num_isa_target - num_isa_source;
+
+						System.out.printf("%s\t%d\t%d\t%d\t%d\n", concept, num_edges, num_isa_source, num_isa_target, remaining);
+
+						// adicionar arestas se dif for significativo
+
+						// concept has a lot of information
+						if (remaining >= 50) {
+							// concept ISA almost OR nothing
+							if (num_isa_source < 3000) {
+								localEdges.addAll(OpenAiLLM_Caller.getConceptHierarchy(concept));
+								System.lineSeparator();
+							} else {
+								// concept ISA many things
+								// do not need more
+								System.lineSeparator();
+							}
+							if (num_isa_target < 3) {
+								// get examples of things that ISA concept
+								// not for now
+								System.lineSeparator();
+							} else {
+								// many things ISA concept
+								// do not need more
+								System.lineSeparator();
+							}
+							// dont ask for things that ISA,concept yet
+							// few or no things ISA concept
+//					if (isa_in.size() < 3) {
+//						System.lineSeparator();
+//					}
+						} else // not much information about the concept, likely to be useless
+						{
+							// TODO ver se o conceito ISA qq coisa e usar isso como contexto
+
+							// potentially add everything (common relations+hierarchy)
+							ArrayList<StringEdge> hierarchy = OpenAiLLM_Caller.getConceptHierarchy(concept);
+							StringEdge lastElement = hierarchy.get(hierarchy.size() - 1);
+							ArrayList<StringEdge> relations_contextualized = OpenAiLLM_Caller.getAllRelationsContextualized_Serial(lastElement);
+							if (isSuperClass) {
+								ArrayList<StringEdge> examplesOf = OpenAiLLM_Caller.getExamplesOfClass(concept);
+								localEdges.addAll(examplesOf);
+							}
+							localEdges.addAll(hierarchy);
+							localEdges.addAll(relations_contextualized);
+
+							System.lineSeparator();
+						}
+						// menos de 20 arestas e e origem de um ISA
+						// obter contexto (isa) e popular com relacoes
+
+						if (!localEdges.isEmpty()) {
+							lock.writeLock().lock();
+							{
+								kb.addEdges(localEdges);
+							}
+							lock.writeLock().unlock();
+						}
 					}
 				}
 				exploredConcepts.put(concept, true);
@@ -792,35 +906,46 @@ public class KnowledgeBaseBuilder {
 		exploredConcepts.save();
 	}
 
-	public static void populateKB_fromConceptListV2(StringGraph kb, String filename) throws InterruptedException, IOException {
+	public static void populateKB_fromConceptList(StringGraph kb, String filename) throws InterruptedException, IOException {
 		SynchronizedSeriarizableHashMap<String, Boolean> exploredConcepts = new SynchronizedSeriarizableHashMap<>("exploredConcepts.dat", 10);
 		ArrayList<String> conceptList = new ArrayList<String>();
 		conceptList = VariousUtils.readFileRows(filename);
-		ParallelConsumer<String> pc = new ParallelConsumer<>(5);
+		ParallelConsumer<String> pc = new ParallelConsumer<>(8);
 		ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 		pc.parallelForEach(conceptList, concept -> {
-			if (!exploredConcepts.containsKey(concept)) {
+			if (!exploredConcepts.containsKey(concept) && //
+					!concept.startsWith("to ") && // that start with to
+					!concept.contains(" or ") && // contain OR / AND
+					!concept.contains(" and ") && //
+					!concept.contains(" in ") && //
+					true) {
 				// ignore concepts that are verb phrase
 				boolean is_entity = OpenAiLLM_Caller.checkIfConceptIsEntity(concept);
 				if (is_entity) {
 					ArrayList<StringEdge> threadLocalEdges = new ArrayList<StringEdge>();
-					boolean isSuperClass = OpenAiLLM_Caller.checkIfConceptIsSuperClass(concept);
-					if (isSuperClass) {
-						ArrayList<StringEdge> examplesOf = OpenAiLLM_Caller.getExamplesOfClass(concept);
-						threadLocalEdges.addAll(examplesOf);
-						threadLocalEdges.add(new StringEdge(concept, "superclass", "isa"));
+					try {
+						boolean isSuperClass = OpenAiLLM_Caller.checkIfConceptIsSuperClass(concept);
+						if (isSuperClass) {
+							ArrayList<StringEdge> examplesOf = OpenAiLLM_Caller.getExamplesOfClass(concept);
+							threadLocalEdges.addAll(examplesOf);
+							threadLocalEdges.add(new StringEdge(concept, "superclass", "isa"));
+						}
+						ArrayList<StringEdge> hierarchy = OpenAiLLM_Caller.getConceptHierarchy(concept);
+						StringEdge lastElement = hierarchy.get(hierarchy.size() - 1);
+						ArrayList<StringEdge> relations_contextualized = OpenAiLLM_Caller.getAllRelationsContextualized_Serial(lastElement);
+						threadLocalEdges.addAll(hierarchy);
+						threadLocalEdges.addAll(relations_contextualized);
+					} catch (Exception e) {
+						e.printStackTrace();
 					}
-					ArrayList<StringEdge> hierarchy = OpenAiLLM_Caller.getConceptHierarchy(concept);
-					StringEdge lastElement = hierarchy.get(hierarchy.size() - 1);
-					ArrayList<StringEdge> relations_contextualized = OpenAiLLM_Caller.getAllRelationsContextualized_Serial(lastElement);
-					threadLocalEdges.addAll(hierarchy);
-					threadLocalEdges.addAll(relations_contextualized);
 					// push new edges into the KB
 					lock.writeLock().lock();
-					{
+					try {
 						kb.addEdges(threadLocalEdges);
+					} catch (Exception e) {
+					} finally {
+						lock.writeLock().unlock();
 					}
-					lock.writeLock().unlock();
 				}
 				exploredConcepts.put(concept, true);
 			}
@@ -828,7 +953,7 @@ public class KnowledgeBaseBuilder {
 		pc.shutdown();
 	}
 
-	public static void populateKB_FromConceptListV1(StringGraph kb, String filename) throws InterruptedException, IOException {
+	public static void populateKB_FromConceptList_old(StringGraph kb, String filename) throws InterruptedException, IOException {
 		ArrayList<String> initialConcepts = new ArrayList<String>();
 		initialConcepts = VariousUtils.readFileRows(filename);
 
@@ -1010,6 +1135,7 @@ public class KnowledgeBaseBuilder {
 		// row file format is entity TAB class
 		HashMap<String, String> fileRows = VariousUtils.readTwoColumnFile(filename, "\t");
 
+		// convert the hashmap to an arraylist supported by the ParallelConsumer
 		ArrayList<Entry<String, String>> row_list = new ArrayList<Entry<String, String>>();
 		Iterator<Entry<String, String>> it = fileRows.entrySet().iterator();
 

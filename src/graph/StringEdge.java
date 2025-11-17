@@ -24,7 +24,7 @@ public class StringEdge implements Comparable<StringEdge>, Serializable, Cloneab
 		this.label = label;
 
 		if (source.strip().isEmpty() || target.strip().isEmpty()) {
-			System.err.printf("ERROR:new StringEdge() %s,%s,%s\n", source, label, target);
+			throw new RuntimeException(String.format("ERROR:new StringEdge() %s,%s,%s\n", source, label, target));
 		}
 	}
 
@@ -164,8 +164,8 @@ public class StringEdge implements Comparable<StringEdge>, Serializable, Cloneab
 	}
 
 	/**
-	 * Creates a new StringEdge with the given oldReference (vertex) replaced with the newReference (vertex). Both source and target may be replaced. Remember
-	 * that this does not the graph containing the edge.
+	 * Creates a new StringEdge with the given oldReference (vertex) replaced with the newReference (vertex). Both source and target may be replaced. Remember that this does not
+	 * the graph containing the edge.
 	 *
 	 * @param oldReference
 	 * @param newReference

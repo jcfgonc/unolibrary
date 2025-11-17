@@ -7,9 +7,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.concurrent.CompletableFuture;
@@ -19,7 +17,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import graph.GraphReadWrite;
 import graph.StringEdge;
@@ -42,7 +39,7 @@ public class OpenAiLLM_Caller {
 	private static String api_key;
 	private static SynchronizedSeriarizableHashMap<String, String> cachedConceptIsLifeform = new SynchronizedSeriarizableHashMap<>("cachedConceptIsLifeform.dat", 10);
 	private static SynchronizedSeriarizableHashMap<String, String> cachedConceptIsPlural = new SynchronizedSeriarizableHashMap<>("cachedConceptIsPlural.dat", 10);
-	private static SynchronizedSeriarizableHashMap<String, String> cachedConceptIsEntity = new SynchronizedSeriarizableHashMap<>("cachedEntityCheck.dat", 10);
+	private static SynchronizedSeriarizableHashMap<String, String> cachedConceptIsEntity = new SynchronizedSeriarizableHashMap<>("cachedConceptIsEntity.dat", 10);
 	private static SynchronizedSeriarizableHashMap<String, String> cachedConceptIsSuperClass = new SynchronizedSeriarizableHashMap<>("cachedConceptIsSuperClass.dat", 10);
 	private static SynchronizedSeriarizableHashMap<String, String> cachedNP_to_VP = new SynchronizedSeriarizableHashMap<>("cachedNP_to_VP.dat", 10);
 	private static SynchronizedSeriarizableHashMap<String, String> cachedPlural2Singular = new SynchronizedSeriarizableHashMap<>("cachedPlural2Singular.dat", 10);
@@ -468,17 +465,13 @@ public class OpenAiLLM_Caller {
 		line = line.replaceAll("\\s+\\)", ")");// space ) space
 
 //		line = line.replaceAll("[^a-zA-Z \\-'0-9\\r\\n]+", " "); // remove all non text characters (excluding hyphen "-" )
-		line = line.replaceFirst("^[0-9]+[ -.:;,*]+", ""); // remove enumeration ie 12. something OR 1 something
-		String test = line.replaceAll("^[\\d]+[ \\t]+[\\w ]+", ""); // number followed by text
-		if (test.isEmpty()) {
-			line = line.substring(line.indexOf(' ') + 1);
-		}
-		// corrigi isto em 19/5/2025 para tentar retirar mais do que um espaço nos
-		// conceitos
-		line = line.replaceAll("[ \t]+", " "); // multiple whitespace -> space
-
-		line = line.replaceAll("[\\d]+[\\.\\-:]*[\\s]*", ""); // enumeration like 1. (space)
+		line = line.replaceFirst("^[0-9]+[\\-.:]+[\\s]*", ""); // remove enumeration ie 12. something OR 1 something
+//		String test = line.replaceAll("^[\\d]+[ \\t]+[\\w ]+", ""); // number followed by text
+//		if (test.isEmpty()) {
+//			line = line.substring(line.indexOf(' ') + 1);
+//		}
 		line = line.replaceAll("[\\d\\w]+:", ""); // class: OR kingdom:
+		line = line.replaceAll("[ \t]+", " "); // multiple whitespace -> space
 
 		//
 //		int size = line.length();
@@ -519,6 +512,7 @@ public class OpenAiLLM_Caller {
 		reply = reply.replace("\r\n", "\n"); // windows -> unix newline
 		reply = reply.replaceAll("[\n]+", "\n"); // empty lines
 		reply = reply.replaceAll("[\t ]+", " "); // multiple white space to space
+		reply = reply.replaceAll("[\s]+\n", "\n"); // space newline -> new line
 		return reply;
 	}
 
@@ -597,102 +591,6 @@ public class OpenAiLLM_Caller {
 
 		// System.out.printf("convertVP_to_NP\t%s\n", reply);
 		return reply;
-	}
-
-	public static void correctLifeFormConcept(StringGraph kb) throws InterruptedException {
-		HashSet<String> openSet = new HashSet<String>();
-		HashSet<String> closedSet = new HashSet<String>();
-		ArrayList<StringEdge> edges = new ArrayList<StringEdge>();
-		edges.addAll(kb.edgeSet("desires"));
-		edges.addAll(kb.edgeSet("notdesires"));
-
-		ReentrantLock kb_lock = new ReentrantLock();
-		ReentrantLock openset_lock = new ReentrantLock();
-		ReentrantReadWriteLock closedset_lock = new ReentrantReadWriteLock();
-
-		ParallelConsumer<StringEdge> pc = new ParallelConsumer<>(8);
-		pc.parallelForEach(edges, edge -> {
-			String source = edge.getSource();
-			boolean inClosedSet = false;
-			{
-				closedset_lock.readLock().lock();
-				inClosedSet = closedSet.contains(source);
-				closedset_lock.readLock().unlock();
-			}
-			if (!inClosedSet) {
-				{
-					closedset_lock.writeLock().lock();
-					closedSet.add(source);
-					closedset_lock.writeLock().unlock();
-				}
-				boolean is_life_form = checkIfConceptIsLifeForm(source);
-				if (is_life_form) {
-					{
-						openset_lock.lock();
-						openSet.add(source);
-						openset_lock.unlock();
-					}
-					StringEdge lifeform = new StringEdge(source, "life form", "isa");
-					{
-						kb_lock.lock();
-						kb.addEdge(lifeform);
-						kb_lock.unlock();
-					}
-					System.out.println("added " + lifeform);
-				}
-			}
-		});
-		System.out.println("removing desires/notdesires edges for " + openSet.size() + " concepts");
-
-		for (String concept : openSet) {
-			ArrayList<StringEdge> toRemove = new ArrayList<StringEdge>();
-			toRemove.addAll(kb.outgoingEdgesOf(concept, "desires"));
-			toRemove.addAll(kb.outgoingEdgesOf(concept, "notdesires"));
-			kb.removeEdges(toRemove);
-		}
-		try {
-			cachedConceptIsLifeform.save();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
-
-	public static void correctPluralConcepts(StringGraph kb) throws IOException, InterruptedException {
-		HashSet<String> concepts = new HashSet<String>();
-		for (StringEdge edge : kb.edgeSet("madeof")) {
-			concepts.add(edge.getTarget());
-		}
-		for (StringEdge edge : kb.edgeSet("partof")) {
-			concepts.add(edge.getSource());
-		}
-		HashMap<String, String> conversion = new HashMap<String, String>();
-		ReentrantLock lock = new ReentrantLock();
-
-		ParallelConsumer<String> pc = new ParallelConsumer<>(NUMBER_OF_THREADS);
-		pc.parallelForEach(concepts, concept -> {
-			boolean plural = checkIfConceptIsPlural(concept);
-			if (plural) {
-				// get singular
-				String singular = convertPlural2Singular(concept);
-				{
-					lock.lock();
-					conversion.put(concept, singular);
-					lock.unlock();
-				}
-				System.out.println(concept + "\t->\t" + singular);
-			}
-		});
-
-		concepts.parallelStream().forEach(concept -> {
-		});
-		cachedConceptIsPlural.save();
-		cachedPlural2Singular.save();
-		// single thread renaming
-		for (Entry<String, String> entry : conversion.entrySet()) {
-			String plural = entry.getKey();
-			String singular = entry.getValue();
-			kb.renameVertex(plural, singular);
-		}
 	}
 
 	/**
