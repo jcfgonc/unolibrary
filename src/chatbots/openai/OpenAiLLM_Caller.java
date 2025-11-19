@@ -45,6 +45,8 @@ public class OpenAiLLM_Caller {
 	private static SynchronizedSeriarizableHashMap<String, String> cachedPlural2Singular = new SynchronizedSeriarizableHashMap<>("cachedPlural2Singular.dat", 10);
 	private static SynchronizedSeriarizableHashMap<String, String> cachedRawPhrases = new SynchronizedSeriarizableHashMap<>("cachedRawPhrases.dat", 10);
 	private static SynchronizedSeriarizableHashMap<String, String> cachedVP_to_NP = new SynchronizedSeriarizableHashMap<>("cachedVP_to_NP.dat", 10);
+	private static SynchronizedSeriarizableHashMap<String, String> cachedConceptHasExamples = new SynchronizedSeriarizableHashMap<>("cachedConceptHasExamples.dat", 10);
+
 	private static ChatCompletions chatCompletions;
 	private static final double FREQUENCY_PENALTY = 0.25;
 	public static final String llm_model = "gpt-4o";
@@ -110,6 +112,26 @@ public class OpenAiLLM_Caller {
 		return false;
 	}
 
+	public static boolean checkIfConceptHasExamples(String concept) {
+		String prompt = PROMPT_INTRO + """
+				Answer yes or no if as a concept stored in a knowledge base,
+				the concept "%s" ontologically has a subsumption relation to more specific instances of "%s".""";
+		String text = String.format(prompt.strip(), concept, concept);
+		String reply = cachedConceptHasExamples.get(concept);
+		if (reply == null) {
+			reply = doRequest(text).toLowerCase().strip();
+			cachedConceptHasExamples.put(concept, reply);
+		}
+
+		if (reply.startsWith("yes")) {
+			return true;
+		} else if (reply.startsWith("no")) {
+			return false;
+		} else
+			System.err.println("unknown answer:" + reply + " for query\n" + text);
+		return false;
+	}
+
 	public static boolean checkIfConceptIsLifeForm(String entity) {
 		String reply = cachedConceptIsLifeform.get(entity);
 		if (reply == null) {
@@ -131,7 +153,7 @@ public class OpenAiLLM_Caller {
 		return false;
 	}
 
-	public static boolean checkIfConceptIsPlural(String entity) {
+	public static boolean checkIfConceptIsSingular(String entity) {
 		String reply = cachedConceptIsPlural.get(entity);
 		if (reply == null) {
 			String prompt = "Only answer singular or plural, what is the grammatical number of \"%s\"?";
@@ -139,17 +161,21 @@ public class OpenAiLLM_Caller {
 			reply = doRequest(text).toLowerCase().strip();
 			cachedConceptIsPlural.put(entity, reply);
 		}
+		reply = reply.replace("\r", "");
+		reply = reply.replace("\n", " ");
 		boolean singular = reply.contains("singular");
 		boolean plural = reply.contains("plural");
 		if (singular && plural) {
-			System.err.println("WTF:plural and singular!:::" + reply);
+			System.err.println("WTF:plural and singular! " + entity + " reply=" + reply);
+			return true;
 		}
 		if (singular)
-			return false;
-		if (plural)
 			return true;
-		System.err.println("WTF:not plural nor singular!:::" + reply);
-		return false;
+		if (plural)
+			return false;
+		// likely both
+		System.err.println("WTF: neither plural nor singular! " + entity + " reply=" + reply);
+		return true;
 	}
 
 	public static boolean checkIfEntityCreates(String entity) {
@@ -314,7 +340,7 @@ public class OpenAiLLM_Caller {
 			reply = doRequest(text).toLowerCase().strip();
 			cachedConceptIsSuperClass.put(concept, reply);
 		}
-		System.out.println("checkIfEntityIsSuperClass() " + concept + ": " + reply);
+//		System.out.println("checkIfEntityIsSuperClass() " + concept + ": " + reply);
 
 		if (reply.startsWith("yes")) {
 			return true;
@@ -550,7 +576,7 @@ public class OpenAiLLM_Caller {
 		String reply = cachedPlural2Singular.get(plural);
 		if (reply == null) {
 			String prompt = """
-					Do not elaborate your answer. Do not explain your answer. Answer only the converted text. Convert the following noun phrase to the singular form:
+					Do not elaborate your answer. Do not explain your answer. Only answer with the converted text. Convert the following noun phrase to the singular form:
 					%s
 					""";
 			String text = String.format(prompt.strip(), plural);
@@ -1303,7 +1329,7 @@ public class OpenAiLLM_Caller {
 //			facts.add(edge);
 		}
 //		Collections.reverse(facts);
-		System.out.println(entity + "->" + facts);
+//		System.out.println(entity + "->" + facts);
 //		System.out.println(entity + "\r\n->" + original_reply + "\n" + facts);
 		return facts;
 	}
@@ -1439,9 +1465,6 @@ public class OpenAiLLM_Caller {
 	 * @return
 	 */
 	public static ArrayList<StringEdge> getExamplesOfClass(String classType) {
-//		Set<StringEdge> edgesOfClass = kb.edgesOf(classType);
-//		assert edgesOfClass.size() > 0;
-		//
 		String prompt = PROMPT_INTRO + """
 				Give an exhaustive list of well-known examples of %s.
 				Do not explain those examples, only list their names.

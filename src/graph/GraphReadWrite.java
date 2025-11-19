@@ -143,6 +143,27 @@ public class GraphReadWrite {
 		return graph;
 	}
 
+	public static StringGraph readTSV(String filename, StringGraph graph) throws IOException, NoSuchFileException {
+		System.out.print("reading " + filename + " ...");
+		BufferedReader br = Files.newBufferedReader(Paths.get(filename), StandardCharsets.UTF_8);
+		while (br.ready()) {
+			String line = br.readLine();
+
+			String[] tokens = VariousUtils.fastSplit(line, '\t');
+			int ntokens = tokens.length;
+			if (ntokens != 3)
+				continue;
+			String sourceLabel = tokens[0].strip();
+			String edgeLabel = tokens[1].strip();
+			String targetLabel = tokens[2].strip();
+
+			graph.addEdge(sourceLabel, targetLabel, edgeLabel);
+		}
+		br.close();
+		System.out.println("done.");
+		return graph;
+	}
+
 	public static StringGraph readCSV(NonblockingBufferedReader br, StringGraph graph) throws IOException, NoSuchFileException {
 		String line;
 		while ((line = br.readLine()) != null) {
@@ -169,7 +190,7 @@ public class GraphReadWrite {
 
 	public static StringGraph readCSV(BufferedReader br, StringGraph graph) throws IOException, NoSuchFileException {
 		while (br.ready()) {
-			String line = br.readLine().strip();
+			String line = br.readLine();
 //			if (line == null)
 //				break;
 //			// ignore empty lines
@@ -184,9 +205,9 @@ public class GraphReadWrite {
 			int ntokens = tokens.length;
 			if (ntokens != 3)
 				continue;
-			String sourceLabel = tokens[0];
-			String edgeLabel = tokens[1];
-			String targetLabel = tokens[2];
+			String sourceLabel = tokens[0].strip();
+			String edgeLabel = tokens[1].strip();
+			String targetLabel = tokens[2].strip();
 
 			graph.addEdge(sourceLabel, targetLabel, edgeLabel);
 		}
@@ -219,15 +240,13 @@ public class GraphReadWrite {
 		return graph;
 	}
 
-	public static void readCSV(String filename, IntDirectedMultiGraph graph, ObjectIndex<String> vertexLabels, ObjectIndex<String> relationLabels)
-			throws IOException {
+	public static void readCSV(String filename, IntDirectedMultiGraph graph, ObjectIndex<String> vertexLabels, ObjectIndex<String> relationLabels) throws IOException {
 		BufferedReader br = Files.newBufferedReader(Paths.get(filename), StandardCharsets.UTF_8);
 		readCSV(br, graph, vertexLabels, relationLabels);
 		br.close();
 	}
 
-	public static void readCSV(BufferedReader br, IntDirectedMultiGraph graph, ObjectIndex<String> vertexLabels, ObjectIndex<String> relationLabels)
-			throws IOException {
+	public static void readCSV(BufferedReader br, IntDirectedMultiGraph graph, ObjectIndex<String> vertexLabels, ObjectIndex<String> relationLabels) throws IOException {
 		// int lineCounter = 0;
 
 		while (br.ready()) {
@@ -525,6 +544,24 @@ public class GraphReadWrite {
 		BufferedWriter out = Files.newBufferedWriter(Paths.get(filename), StandardCharsets.UTF_8);
 		writeCSV(out, graph);
 		out.close();
+	}
+
+	public static void writeTSV(String filename, StringGraph graph) throws IOException {
+		BufferedWriter bw = Files.newBufferedWriter(Paths.get(filename), StandardCharsets.UTF_8);
+		for (StringEdge se : graph.edgeSet()) {
+			String source = se.getSource();
+			String target = se.getTarget();
+			String edgeLabel = se.getLabel();
+
+			bw.write(source);
+			bw.write('\t');
+			bw.write(edgeLabel);
+			bw.write('\t');
+			bw.write(target);
+			bw.newLine();
+		}
+		bw.flush();
+		bw.close();
 	}
 
 	public static void writeDT(BufferedWriter bw, StringGraph graph, String namespace) throws IOException {

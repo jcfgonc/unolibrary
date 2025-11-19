@@ -121,7 +121,7 @@ public class SynchronizedSeriarizableHashMap<K, V> {
 			}
 		}
 		savingSemaphore.release();
-		System.err.printf("saved cache with %d entries to %s\n", cache.size(), filename);
+//		System.err.printf("saved cache with %d entries to %s\n", cache.size(), filename);
 	}
 
 	private void checkTimeout() {

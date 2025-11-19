@@ -150,8 +150,7 @@ public class VariousUtils {
 	}
 
 	/**
-	 * from
-	 * https://stackoverflow.com/questions/3585053/how-to-check-if-a-string-contains-only-ascii
+	 * from https://stackoverflow.com/questions/3585053/how-to-check-if-a-string-contains-only-ascii
 	 * 
 	 * @param v
 	 * @return
@@ -170,8 +169,7 @@ public class VariousUtils {
 	}
 
 	/**
-	 * adapt this code to whatever you need, from
-	 * https://stackoverflow.com/a/30443276
+	 * adapt this code to whatever you need, from https://stackoverflow.com/a/30443276
 	 * 
 	 * @param filePath
 	 * @return
@@ -352,8 +350,7 @@ public class VariousUtils {
 	}
 
 	/**
-	 * returns the subtraction of the set {@code b} from the set {@code a} as a new
-	 * set<br>
+	 * returns the subtraction of the set {@code b} from the set {@code a} as a new set<br>
 	 * := a-b <br>
 	 * or in another words, the elements of {@code a} NOT IN {@code b}
 	 * 
@@ -385,8 +382,7 @@ public class VariousUtils {
 	}
 
 	/**
-	 * returns the subtraction of the set {@code b} from the set {@code a} as a new
-	 * set<br>
+	 * returns the subtraction of the set {@code b} from the set {@code a} as a new set<br>
 	 * := a-b <br>
 	 * or in another words, the elements of {@code a} NOT IN {@code b}
 	 * 
@@ -464,8 +460,7 @@ public class VariousUtils {
 	}
 
 	/**
-	 * adapted from https://codereview.stackexchange.com/a/111257 to support
-	 * multiple separators
+	 * adapted from https://codereview.stackexchange.com/a/111257 to support multiple separators
 	 * 
 	 * @param text
 	 * @return
@@ -507,8 +502,7 @@ public class VariousUtils {
 	}
 
 	/**
-	 * adapted from https://codereview.stackexchange.com/a/111257 to support
-	 * multiple separators
+	 * adapted from https://codereview.stackexchange.com/a/111257 to support multiple separators
 	 * 
 	 * @param text
 	 * @return
@@ -593,8 +587,7 @@ public class VariousUtils {
 	}
 
 	/**
-	 * returns an ascending sequence of integers from the range min (inclusive) to
-	 * max (exclusive)
+	 * returns an ascending sequence of integers from the range min (inclusive) to max (exclusive)
 	 * 
 	 * @param minInclusive
 	 * @param maxExclusive
@@ -664,9 +657,7 @@ public class VariousUtils {
 	}
 
 	/**
-	 * Returns the (approx) logarithm to the base 2 of the given BigInteger. This
-	 * function calculates base 2 log because finding the number of occupied bits is
-	 * trivial.
+	 * Returns the (approx) logarithm to the base 2 of the given BigInteger. This function calculates base 2 log because finding the number of occupied bits is trivial.
 	 * 
 	 * @param val
 	 * @return
@@ -831,8 +822,7 @@ public class VariousUtils {
 	}
 
 	/**
-	 * removes a bunch of elements from the given deque, up to a maximum of n or the
-	 * size of the deque, whatever is smaller
+	 * removes a bunch of elements from the given deque, up to a maximum of n or the size of the deque, whatever is smaller
 	 * 
 	 * @param <E>
 	 * @param deque
@@ -875,8 +865,7 @@ public class VariousUtils {
 	}
 
 	/**
-	 * returns a sublist starting at start and ending at end or at its tail,
-	 * whichever is smaller
+	 * returns a sublist starting at start and ending at end or at its tail, whichever is smaller
 	 * 
 	 * @param <T>
 	 * @param list
@@ -959,7 +948,7 @@ public class VariousUtils {
 		}
 		return templates;
 	}
-	
+
 	public static HashMap<String, String> readTwoColumnFile(String filePath, String column_separator) {
 		HashMap<String, String> templates = new HashMap<String, String>();
 		try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
@@ -976,4 +965,15 @@ public class VariousUtils {
 		}
 		return templates;
 	}
+
+	public static boolean whiteSpaceCheck(String str) {
+		boolean startsWithSpace = !str.isEmpty() && Character.isWhitespace(str.charAt(0));
+		boolean endsWithSpace = !str.isEmpty() && Character.isWhitespace(str.charAt(str.length() - 1));
+
+		if (startsWithSpace || endsWithSpace) {
+			return true;
+		}
+		return false;
+	}
+
 }
