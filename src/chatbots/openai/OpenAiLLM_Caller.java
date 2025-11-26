@@ -54,7 +54,7 @@ public class OpenAiLLM_Caller {
 	private static Set<String> nounPhrases_fromFile;
 	private static final String NP_FILENAME = "D:\\My Source Code\\Java - PhD\\UnoLibrary\\data\\noun_phrases.txt";
 
-	private static final int NUMBER_OF_THREADS = 4;
+	private static final int NUMBER_OF_THREADS = 8;
 
 	private static SimpleOpenAI openAI;
 
@@ -1684,8 +1684,23 @@ public class OpenAiLLM_Caller {
 	}
 
 	public static String getPhraseType(String phrase) {
+		phrase = phrase.strip();
+
+		// shortcuts
 		if (nounPhrases_fromFile.contains(phrase))
 			return "NP";
+		// a single letter or number
+		if (phrase.length() == 1)
+			return "NP";
+		if (phrase.startsWith("to "))
+			return "VP";
+
+		int numwords = VariousUtils.countWords(phrase);
+		// single word with a number is very likely to be a NP
+		if (numwords == 1) {
+			if (VariousUtils.checkTextContainsNumber(phrase))
+				return "NP";
+		}
 
 		String reply = cachedRawPhrases.get(phrase);
 		if (reply == null) {
@@ -2014,6 +2029,12 @@ public class OpenAiLLM_Caller {
 
 	public static void saveCaches() {
 		try {
+			cachedConceptIsLifeform.save();
+			cachedConceptIsPlural.save();
+			cachedConceptIsEntity.save();
+			cachedConceptIsSuperClass.save();
+			cachedPlural2Singular.save();
+			cachedConceptHasExamples.save();
 			cachedRawPhrases.save();
 			cachedVP_to_NP.save();
 			cachedNP_to_VP.save();

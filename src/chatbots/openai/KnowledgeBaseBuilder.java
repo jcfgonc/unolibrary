@@ -654,6 +654,7 @@ public class KnowledgeBaseBuilder {
 		correctSuchAsConcepts(kb);
 		correctedQuotedTextWithWordBy(kb);
 		correctLifeFormConcept(kb);
+		OpenAiLLM_Caller.saveCaches();
 
 //		populateKB_withFileExamples(kb, "data/mais conceitos.txt");
 //		populateKB_fromConceptList(kb, "data/newconcepts.txt");

@@ -52,7 +52,8 @@ public class VariousUtils {
 	public static final Set<StringEdge> unmodifiableEmptySet = Collections.unmodifiableSet(new HashSet<StringEdge>(0));
 
 	public static int countWords(String concept) {
-		concept = concept.replaceAll("[\t ]+", " ").trim();
+		// remove duplicated whitespace
+		concept = concept.strip().replaceAll("[\\s]+", " ");
 		int spaces = VariousUtils.countCharOccurences(concept, ' ');
 		return spaces + 1;
 	}
@@ -972,6 +973,15 @@ public class VariousUtils {
 
 		if (startsWithSpace || endsWithSpace) {
 			return true;
+		}
+		return false;
+	}
+
+	public static boolean checkTextContainsNumber(String text) {
+		for (char c : text.toCharArray()) {
+			if (Character.isDigit(c)) {
+				return true;
+			}
 		}
 		return false;
 	}

@@ -432,7 +432,8 @@ public class GrammarUtilsWordNet {
 			return 0;
 		int samePOScount = 0;
 		for (OrderedPair<String> pair : pairGraph.vertexSet()) {
-			if (sameWordPOS(pair, inputSpace)) {
+			boolean sameWordPOS = sameWordPOS(pair, inputSpace);
+			if (sameWordPOS) {
 				samePOScount++;
 			}
 		}

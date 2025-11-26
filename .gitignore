@@ -8,3 +8,10 @@
 /data/openai_api_key.txt
 /data/mais conceitos.txt
 /data/newconcepts.txt
+/cached*.dat
+/data/conceitos a explorar.txt
+/data/conceitos explorados.txt
+/exploredConcepts.dat
+/libraries/corenlp/*.jar
+/*.tsv
+/*.csv

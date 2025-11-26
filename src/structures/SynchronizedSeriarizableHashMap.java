@@ -35,6 +35,11 @@ public class SynchronizedSeriarizableHashMap<K, V> {
 		load();
 	}
 
+	public SynchronizedSeriarizableHashMap(String filename) {
+		this(filename, 10);
+
+	}
+
 	public synchronized boolean containsKey(Object key) {
 		return cache.containsKey(key);
 	}
@@ -66,8 +71,8 @@ public class SynchronizedSeriarizableHashMap<K, V> {
 				rrw.writeLock().unlock();
 				input.close();
 
-			//	double dt = ticker.getTimeDeltaLastCall();
-			//	System.err.println(this.getClass().toString() + ": loaded cache from " + filename + " with " + size() + " entries in " + dt + "s");
+				// double dt = ticker.getTimeDeltaLastCall();
+				// System.err.println(this.getClass().toString() + ": loaded cache from " + filename + " with " + size() + " entries in " + dt + "s");
 			} catch (Exception e) {
 				e.printStackTrace();
 				System.exit(-1);
@@ -121,7 +126,7 @@ public class SynchronizedSeriarizableHashMap<K, V> {
 			}
 		}
 		savingSemaphore.release();
-//		System.err.printf("saved cache with %d entries to %s\n", cache.size(), filename);
+		System.err.printf("warning: saved cache with %d entries to %s\n", cache.size(), filename);
 	}
 
 	private void checkTimeout() {
