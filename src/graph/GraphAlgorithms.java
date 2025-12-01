@@ -22,6 +22,7 @@ import stream.ParallelConsumer;
 import structures.ConceptPair;
 import structures.ListOfSet;
 import structures.MapOfSet;
+import structures.ObjectCounter;
 import structures.ObjectIndex;
 import structures.OrderedPair;
 import structures.UnorderedPair;
@@ -65,8 +66,8 @@ public class GraphAlgorithms {
 	}
 
 	/**
-	 * Expands on the graph, from the openset, excluding nodes present in the closed set, returning the new expanded nodes. Whenever a new edge is being
-	 * expanded from the current set to a neighboring node, ExpandingEdge ee is invoked.
+	 * Expands on the graph, from the openset, excluding nodes present in the closed set, returning the new expanded nodes. Whenever a new edge is being expanded from the current
+	 * set to a neighboring node, ExpandingEdge ee is invoked.
 	 *
 	 * @param openSet
 	 * @param closedSet
@@ -104,8 +105,8 @@ public class GraphAlgorithms {
 	}
 
 	/**
-	 * Expands on the graph, from the openset, excluding nodes present in the closed set, returning the new expanded nodes. Whenever a new edge is being
-	 * expanded from the current set to a neighboring node, ExpandingEdge ee is invoked.
+	 * Expands on the graph, from the openset, excluding nodes present in the closed set, returning the new expanded nodes. Whenever a new edge is being expanded from the current
+	 * set to a neighboring node, ExpandingEdge ee is invoked.
 	 *
 	 * @param openSet
 	 * @param closedSet
@@ -288,8 +289,7 @@ public class GraphAlgorithms {
 		return distance;
 	}
 
-	public static HashMap<String, ArrayList<StringEdge>> lowestCommonAncestorIsa(StringGraph graph, String vertexL, String vertexR, boolean useDerivedFrom,
-			boolean useSynonym) {
+	public static HashMap<String, ArrayList<StringEdge>> lowestCommonAncestorIsa(StringGraph graph, String vertexL, String vertexR, boolean useDerivedFrom, boolean useSynonym) {
 		HashMap<String, StringEdge> cameFromEdgeL = new HashMap<>();
 		HashMap<String, StringEdge> cameFromEdgeR = new HashMap<>();
 		HashMap<String, ArrayList<StringEdge>> ancestors = new HashMap<>();
@@ -1288,8 +1288,8 @@ public class GraphAlgorithms {
 	}
 
 	/**
-	 * Returns the concept (source or target) which exists in the given conceptPair. Assumes that the conceptPair does not contain both source and target
-	 * concepts (it will return the pair's left concept in that case) and that the edge does not self-connect only one of the pair's concepts.
+	 * Returns the concept (source or target) which exists in the given conceptPair. Assumes that the conceptPair does not contain both source and target concepts (it will return
+	 * the pair's left concept in that case) and that the edge does not self-connect only one of the pair's concepts.
 	 * 
 	 * @param conceptPair
 	 * @param stringEdge
@@ -1652,6 +1652,40 @@ public class GraphAlgorithms {
 			new_edges.add(newEdge);
 		}
 		return new_edges;
+	}
+
+	public static void printVertexDegree(StringGraph kb) {
+		ObjectCounter<String> degrees = new ObjectCounter<>();
+		for (String concept : kb.getVertexSet()) {
+			degrees.addObject(concept, kb.degreeOf(concept));
+		}
+		degrees.toSystemOut(2);
+	}
+
+	public static void printRelationHistogram(String concept, StringGraph kb) {
+		ObjectCounter<String> relations = new ObjectCounter<>();
+		for (StringEdge relation : kb.edgesOf(concept)) {
+			relations.addObject(relation.getLabel());
+		}
+		relations.toSystemOut(2);
+	}
+
+	public static void printVertexDegreeIsa(StringGraph kb) {
+		ObjectCounter<String> degrees = new ObjectCounter<>();
+		for (String concept : kb.getVertexSet()) {
+			degrees.addObject(concept, kb.edgesOf(concept, "isa").size());
+		}
+		degrees.toSystemOut(2);
+	}
+
+	public static void removeVerticesHighIsaDegree(StringGraph kb, int lowerDegreeThreshold) {
+		ArrayList<String> toRemove = new ArrayList<>();
+		for (String concept : kb.getVertexSet()) {
+			int isaDegree = kb.edgesOf(concept, "isa").size();
+			if (isaDegree >= lowerDegreeThreshold)
+				toRemove.add(concept);
+		}
+		kb.removeVertices(toRemove);
 	}
 
 }

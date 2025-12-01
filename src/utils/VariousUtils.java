@@ -5,11 +5,15 @@ import java.io.BufferedWriter;
 import java.io.Console;
 import java.io.File;
 import java.io.FileFilter;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 import java.math.BigInteger;
 import java.net.URL;
 import java.nio.charset.Charset;
@@ -17,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -984,6 +989,32 @@ public class VariousUtils {
 			}
 		}
 		return false;
+	}
+
+	public static void saveObjectToFile(Object obj, String filename) throws IOException {
+		Path currentDir = Paths.get(System.getProperty("user.dir"));
+		Path tempFile = currentDir.resolve(filename + ".tmp");
+
+		// Serialize the object to the temporary file
+		OutputStream os = Files.newOutputStream(tempFile);
+		ObjectOutputStream oos = new ObjectOutputStream(os);
+		oos.writeObject(obj);
+		oos.close();
+		os.close();
+
+		// Define the new file path in the same directory
+		Path newFilePath = currentDir.resolve(filename);
+		// Rename (move) the file
+		Files.move(tempFile, newFilePath, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+	}
+
+	public static Object loadObjectFromFile(String filePath) throws IOException, ClassNotFoundException {
+		FileInputStream fis = new FileInputStream(filePath);
+		ObjectInputStream ois = new ObjectInputStream(fis);
+		Object object = ois.readObject();
+		ois.close();
+		fis.close();
+		return object;
 	}
 
 }

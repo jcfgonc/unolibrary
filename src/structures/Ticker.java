@@ -1,5 +1,7 @@
 package structures;
 
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+
 /**
  * Class to manage elapsed time. When I first started this class (some 10 years ago) I didn't knew about Apache's StopWatch.
  * 
@@ -17,10 +19,13 @@ public class Ticker {
 	 */
 	private double time_lastcall;
 
+	ReentrantReadWriteLock updateLock;
+
 	/**
 	 * Creates a new ticker, sets its timer to zero and starts counting.
 	 */
 	public Ticker() {
+		updateLock = new ReentrantReadWriteLock();
 		resetTicker();
 //		getTimeDeltaLastCall();
 	}
@@ -31,7 +36,12 @@ public class Ticker {
 	 * @return
 	 */
 	public double getElapsedTime() {
-		double dif = Math.abs(getTime() - reference);
+		double dif = 0;
+		updateLock.readLock().lock();
+		{
+			dif = Math.abs(getTime() - reference);
+		}
+		updateLock.readLock().unlock();
 		return dif;
 	}
 
@@ -50,9 +60,14 @@ public class Ticker {
 	 * @return
 	 */
 	public double getTimeDeltaLastCall() {
-		double t1 = getTime();
-		double tdif = t1 - time_lastcall;
-		time_lastcall = t1;
+		double tdif = 0;
+		updateLock.writeLock().lock();
+		{
+			double t1 = getTime();
+			tdif = t1 - time_lastcall;
+			time_lastcall = t1;
+		}
+		updateLock.writeLock().unlock();
 		return tdif;
 	}
 
@@ -60,8 +75,12 @@ public class Ticker {
 	 * Sets this ticker timer to zero and starts counting again.
 	 */
 	public void resetTicker() {
-		reference = getTime();
-		time_lastcall = reference;
+		updateLock.writeLock().lock();
+		{
+			reference = getTime();
+			time_lastcall = reference;
+		}
+		updateLock.writeLock().unlock();
 	}
 
 	public void showTimeDeltaLastCall() {

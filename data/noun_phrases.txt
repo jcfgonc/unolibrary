@@ -9,6 +9,10 @@ academic
 ada lovelace
 adele	
 adjective
+adp
+aga
+agar
+ah wilderness!
 ain't mountain high enough
 aircraft
 airplane
@@ -25,33 +29,44 @@ andrey kolmogorov
 andré marie ampère
 angelina jolie	
 animal
+ante
 antoine lavoisier
 antonie van leeuwenhoek
 archimedes
+argei
 aryabhata
+asadora!
+atp
+au
 augustin louis cauchy
 avicenna of persia (ibn sina)
 baccano!
 backstreet boys
 bang
+bc
 ben affleck
 beyoncé	
+bird
 blaise pascal
+bo
 boat
 bon jovi
 bon jovi	
+boo
 boom
 brad pitt	
 brahmagupta
 britney spears	
 bruce springsteen	
 bruce willis	
+c
 c#
 c++
 carl friedrich gauss
 carl linnaeus
 carousel
 carrousel
+cat
 celine dion	
 charles augustin de coulomb
 charles darwin
@@ -59,18 +74,25 @@ charlie bit my finger
 cher	
 chordate
 christiaan huygens
+clang
+clank!
 claude bernard
 claudius galen of pergamon
 coldplay
+como
 conjunction
 cpp
 cristiano ronaldo
 crossbreed
 dan brown	writer
 daniel bernoulli
+dari
 david beckham
+daw
+den
 devil is part-timer!
 dmitri mendeleev
+dog
 down
 dr phil mcgraw	
 drake	
@@ -86,6 +108,7 @@ eminem
 empty content
 enrico fermi
 ernest rutherford
+eta
 f#
 five
 floyd mayweather jr
@@ -101,6 +124,8 @@ gerolamo cardano
 gottfried leibniz
 gregor mendel
 guess who?
+hail
+hal
 hallelujah
 halo
 hans christian oersted
@@ -114,6 +139,8 @@ hermann von helmholtz
 hilt
 hippocrates of kos
 howard stern	
+huff
+hum
 humphry davy
 i am cat
 i gotta feeling
@@ -189,11 +216,14 @@ madhava of sangamagrama
 madonna	
 mamma mia!
 mammal
+man
 manny pacquiao
 mariah carey
 marie curie
 max planck
 mel gibson	
+men
+meow
 merry-go-round
 michael faraday
 michael jordan	
@@ -210,16 +240,12 @@ nothing compares 2 u
 noun
 noun phrase
 oklahoma!
+ola
 omar al khayyam
 omar khayyam
 oprah winfrey	
 otto hahn
 overachiever
-meow
-ola
-poff poff
-puff puff
-puff-puff
 overbooking
 overcharging
 overclock
@@ -248,10 +274,13 @@ person
 phil mcgraw	
 phrase
 pierre simon laplace
+poff poff
 pour
 preposition
 privet
 pronoun
+puff puff
+puff-puff
 pythagoras
 python
 qin jiushao
@@ -289,6 +318,7 @@ ship
 simon cowell	
 siméon denis poisson
 sin
+sorry!
 species
 spice girls
 srinivasa ramanujan
@@ -297,40 +327,11 @@ steven spielberg
 su song
 submarine
 sushi go!
+swoosh!
+tachi
 taylor swift	
 text content
 text segment
-sorry!
-swoosh!
-tachi
-yowl
-yip
-x2
-huff
-hum
-hal
-hail
-eta
-daw
-den
-dari
-como
-clank!
-clang
-c
-boo
-bo
-bc
-au
-asadora!
-argei
-ante
-ah wilderness!
-agar
-adp
-atp
-vga
-aga
 the beatles
 the police
 the rolling stones
@@ -361,6 +362,7 @@ vcf
 vco
 verb
 verb phrase
+vga
 via
 vivien theodore thomas
 walther hermann nernst
@@ -373,9 +375,13 @@ wham-o
 what makes you beautiful
 wilhelm conrad roentgen
 william thomson kelvin
+woman
+women
 ww1
 ww2
+x2
 yann lecun
+yip
 you are badass
 you are my sunshine
 you are not alone
@@ -383,6 +389,7 @@ you make my dream
 you're my best friend
 you've got mail
 you've lost lovin' feelin'
+yowl
 zhang heng
 zhang zhongjing
 zu chongzhi

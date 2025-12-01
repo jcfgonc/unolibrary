@@ -37,15 +37,15 @@ import utils.VariousUtils;
 public class OpenAiLLM_Caller {
 
 	private static String api_key;
-	private static SynchronizedSeriarizableHashMap<String, String> cachedConceptIsLifeform = new SynchronizedSeriarizableHashMap<>("cachedConceptIsLifeform.dat", 10);
-	private static SynchronizedSeriarizableHashMap<String, String> cachedConceptIsPlural = new SynchronizedSeriarizableHashMap<>("cachedConceptIsPlural.dat", 10);
-	private static SynchronizedSeriarizableHashMap<String, String> cachedConceptIsEntity = new SynchronizedSeriarizableHashMap<>("cachedConceptIsEntity.dat", 10);
-	private static SynchronizedSeriarizableHashMap<String, String> cachedConceptIsSuperClass = new SynchronizedSeriarizableHashMap<>("cachedConceptIsSuperClass.dat", 10);
-	private static SynchronizedSeriarizableHashMap<String, String> cachedNP_to_VP = new SynchronizedSeriarizableHashMap<>("cachedNP_to_VP.dat", 10);
-	private static SynchronizedSeriarizableHashMap<String, String> cachedPlural2Singular = new SynchronizedSeriarizableHashMap<>("cachedPlural2Singular.dat", 10);
-	private static SynchronizedSeriarizableHashMap<String, String> cachedRawPhrases = new SynchronizedSeriarizableHashMap<>("cachedRawPhrases.dat", 10);
-	private static SynchronizedSeriarizableHashMap<String, String> cachedVP_to_NP = new SynchronizedSeriarizableHashMap<>("cachedVP_to_NP.dat", 10);
-	private static SynchronizedSeriarizableHashMap<String, String> cachedConceptHasExamples = new SynchronizedSeriarizableHashMap<>("cachedConceptHasExamples.dat", 10);
+	private static SynchronizedSeriarizableHashMap<String, String> cachedConceptIsLifeform = new SynchronizedSeriarizableHashMap<>("cachedConceptIsLifeform.dat", 30);
+	private static SynchronizedSeriarizableHashMap<String, String> cachedConceptIsPlural = new SynchronizedSeriarizableHashMap<>("cachedConceptIsPlural.dat", 30);
+	private static SynchronizedSeriarizableHashMap<String, String> cachedConceptIsEntity = new SynchronizedSeriarizableHashMap<>("cachedConceptIsEntity.dat", 30);
+	private static SynchronizedSeriarizableHashMap<String, String> cachedConceptIsSuperClass = new SynchronizedSeriarizableHashMap<>("cachedConceptIsSuperClass.dat", 30);
+	private static SynchronizedSeriarizableHashMap<String, String> cachedNP_to_VP = new SynchronizedSeriarizableHashMap<>("cachedNP_to_VP.dat", 30);
+	private static SynchronizedSeriarizableHashMap<String, String> cachedPlural2Singular = new SynchronizedSeriarizableHashMap<>("cachedPlural2Singular.dat", 30);
+	private static SynchronizedSeriarizableHashMap<String, String> cachedRawPhrases = new SynchronizedSeriarizableHashMap<>("cachedRawPhrases.dat", 30);
+	private static SynchronizedSeriarizableHashMap<String, String> cachedVP_to_NP = new SynchronizedSeriarizableHashMap<>("cachedVP_to_NP.dat", 30);
+	private static SynchronizedSeriarizableHashMap<String, String> cachedConceptHasExamples = new SynchronizedSeriarizableHashMap<>("cachedConceptHasExamples.dat", 30);
 
 	private static ChatCompletions chatCompletions;
 	private static final double FREQUENCY_PENALTY = 0.25;
@@ -54,7 +54,7 @@ public class OpenAiLLM_Caller {
 	private static Set<String> nounPhrases_fromFile;
 	private static final String NP_FILENAME = "D:\\My Source Code\\Java - PhD\\UnoLibrary\\data\\noun_phrases.txt";
 
-	private static final int NUMBER_OF_THREADS = 8;
+	private static final int NUMBER_OF_THREADS = 16;
 
 	private static SimpleOpenAI openAI;
 
@@ -1704,6 +1704,7 @@ public class OpenAiLLM_Caller {
 
 		String reply = cachedRawPhrases.get(phrase);
 		if (reply == null) {
+		//	System.out.println("info: requesting getPhraseType for: " + phrase);
 			String prompt = """
 					You are a grammar classification program.
 					You categorize the type of phrase structure of text given at the end.

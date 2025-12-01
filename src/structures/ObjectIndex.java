@@ -1,10 +1,14 @@
 package structures;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Set;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.objects.Object2IntMap.Entry;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 
 /**
@@ -114,6 +118,24 @@ public class ObjectIndex<T> {
 
 	public Set<T> getObjects() {
 		return objectToId.keySet();
+	}
+
+	public void toSystemOut() {
+		ArrayList<Entry<T>> entries = new ArrayList<>();
+		// create a list of object-index pairs
+		for (Entry<T> entry : objectToId.object2IntEntrySet()) {
+			entries.add(entry);
+		}
+		Collections.sort(entries, new Comparator<Entry<T>>() {
+			@Override
+			public int compare(Entry<T> o1, Entry<T> o2) {
+				// sorting in descending order
+				return Integer.compare(o2.getIntValue(), o1.getIntValue());
+			}
+		});
+		for (Entry<T> entry : entries) {
+			System.out.printf("%d\t%s\n", entry.getIntValue(), entry.getKey());
+		}
 	}
 
 }
