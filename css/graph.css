@@ -1,7 +1,7 @@
 node {
 	fill-color: #00C0C0;
 	size: 24px;
-	text-size: 48;
+	text-size: 24;
 	text-color: blue;
 	text-font: verdana;
 	text-style: normal;
@@ -14,7 +14,7 @@ node.blend {
 edge {
 	fill-color: #FF0080;
 	size: 4px;
-	text-size: 48;
+	text-size: 24;
 	text-color: black;
 	shape: angle;
 	text-font: verdana;

@@ -63,6 +63,11 @@ public class VariousUtils {
 		return spaces + 1;
 	}
 
+	public static int countWords_fast(String concept) {
+		int spaces = VariousUtils.countCharOccurences(concept, ' ');
+		return spaces + 1;
+	}
+
 	public static int countCharOccurences(String str, char c) {
 		int count = 0;
 		int len = str.length();
@@ -85,7 +90,7 @@ public class VariousUtils {
 	}
 
 	/**
-	 * reads each row of the given text file as an element of the returned ArrayList
+	 * Reads each row of the given text file as an element of the returned ArrayList. In another words, each row is a line of the given filename.
 	 * 
 	 * @param path
 	 * @return
@@ -1015,6 +1020,49 @@ public class VariousUtils {
 		ois.close();
 		fis.close();
 		return object;
+	}
+
+	public static boolean endsWithS(String[] words) {
+		for (String word : words) {
+			if (word.endsWith("s"))
+				return true;
+		}
+		return false;
+	}
+
+	public static HashSet<String> prepositions = new HashSet<String>(Set.of("aboard", "about", "above", "across", "after", "against", "along", "amid", "among", "anti", "around", "as", "at", "before", "behind", "below", "beneath", "beside", "besides",
+			"between", "beyond", "but", "by", "concerning", "considering", "despite", "down", "during", "except", "excepting", "excluding", "following", "for", "from", "in", "inside", "into", "like", "minus", "near", "of", "off", "on", "onto", "opposite",
+			"outside", "over", "past", "per", "plus", "regarding", "round", "save", "since", "than", "through", "to", "toward", "towards", "under", "underneath", "unlike", "until", "up", "upon", "versus", "via", "with", "within", "without"));
+
+	public static boolean hasEnglishPreposition(String[] words) {
+		for (String word : words) {
+			if (prepositions.contains(word))
+				return true;
+		}
+		return false;
+	}
+
+	public static <T> ArrayList<T> toListExcluding(Collection<T> input, Set<T> exclusionSet) {
+		ArrayList<T> asList = new ArrayList<>();
+		for (T element : input) {
+			if (exclusionSet.contains(element))
+				continue;
+			asList.add(element);
+		}
+		return asList;
+	}
+
+	@SafeVarargs
+	public static <T> ArrayList<T> toListExcluding(Collection<T> input, Set<T>... exclusionSets) {
+		ArrayList<T> asList = new ArrayList<>();
+		outerloop: for (T element : input) {
+			for (Set<T> exclusionSet : exclusionSets) {
+				if (exclusionSet.contains(element))
+					continue outerloop;
+			}
+			asList.add(element);
+		}
+		return asList;
 	}
 
 }

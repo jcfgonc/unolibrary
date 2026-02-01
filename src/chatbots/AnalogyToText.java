@@ -12,6 +12,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import chatbots.googleai.GoogleLLM_Caller;
+import chatbots.openai.OpenAiLLM_Caller;
 import graph.GraphReadWrite;
 import graph.StringEdge;
 import graph.StringGraph;
@@ -40,13 +41,20 @@ public class AnalogyToText {
 		String concept_a = concepts[0];
 		String concept_b = concepts[1];
 
+		// generate the description of the proportional analogy
 		HashMap<String, String> rt_templates = readRelationToTextTemplates("data/relation_to_text_templates.tsv", "\t", true);
 		ArrayList<StringEdge> edgeSeq = createEdgeSequenceBFS(analogy, startingVertex);
 		String analogy_facts = textualizeAnalogy(edgeSeq, rt_templates);
-		String prompt_template = VariousUtils.readFile("data/prompt_template_1.txt");
-		String prompt = prompt_template.replace("%a%", concept_a).replace("%b%", concept_b).replace("%text%", analogy_facts);
+		
+		System.out.println(analogy_facts);
+		System.exit(0);
 
-		String reply = GoogleLLM_Caller.doRequest(prompt);
+		// prettify the analogy using a LLM
+		String prompt_template = VariousUtils.readFile("data/analogy_text_prompt_template_1.txt");
+		String prompt = prompt_template.replace("%a%", concept_a).replace("%b%", concept_b).replace("%text%", analogy_facts);
+		// String reply = GoogleLLM_Caller.doRequest(prompt);
+		String reply = OpenAiLLM_Caller.doRequest(prompt);
+
 		System.out.println(reply);
 	}
 

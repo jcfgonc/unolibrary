@@ -56,7 +56,7 @@ public class VisualGraph {
 	private Point dragEndingPoint;
 	private double rotationDegrees;
 	double magnification;
-	private final double magnificationDelta = 1.03333333;
+	private final double magnificationDelta = 1.1;
 
 	public VisualGraph(int uniqueID) {
 		id = uniqueID;
@@ -210,7 +210,7 @@ public class VisualGraph {
 		Point delta = new Point(//
 				dragEndingPoint.x - dragStartingPoint.x, //
 				dragEndingPoint.y - dragStartingPoint.y);
-		double scale = 0.0022 * magnification;
+		double scale = 0.005 * magnification;
 		translateGraph(delta.x * scale, delta.y * scale);
 	}
 

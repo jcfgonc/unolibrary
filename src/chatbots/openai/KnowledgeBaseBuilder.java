@@ -1,6 +1,7 @@
 package chatbots.openai;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayDeque;
@@ -149,8 +150,6 @@ public class KnowledgeBaseBuilder {
 			}
 		});
 
-		concepts.parallelStream().forEach(concept -> {
-		});
 		// single thread renaming
 		for (Entry<String, String> entry : conversion.entrySet()) {
 			String plural = entry.getKey();
@@ -638,26 +637,40 @@ public class KnowledgeBaseBuilder {
 	}
 
 	public static void main(String[] args) throws IOException, InterruptedException {
+		OpenAiLLM_Caller.checkIfConceptsAreRelated("fire", "electronic component");
+		System.exit(0);
 
 		// read input space
 		StringGraph kb = new StringGraph();
 		String kb_filename = "new facts v3.tsv";
 		GraphReadWrite.readTSV(kb_filename, kb);
+//
+//		for (String concept : kb.getVertexSet()) {
+//			if (concept.startsWith("to "))
+//				continue;
+//			String[] words = VariousUtils.fastSplit(concept, ' ');
+//			if (words.length <= 4 && VariousUtils.endsWithS(words) && !VariousUtils.hasEnglishPreposition(words)) {
+//				System.out.println(concept + "\t" + kb.degreeOf(concept));
+//			}
+//		}
+//
+//		System.exit(0);
 
 		// use this to clean the KB
-		correctPluralConcepts(kb);
-		correctConceptsWithPronouns(kb);
-		correctCreatedByConcepts(kb);
-		correctConceptsWithIS(kb);
-		removeTextAfterParenthesis(kb);
-		correctText(kb); // TODO
-		correctSuchAsConcepts(kb);
-		correctedQuotedTextWithWordBy(kb);
-		correctLifeFormConcept(kb);
-		OpenAiLLM_Caller.saveCaches();
+//		correctPluralConcepts(kb);
+//		correctConceptsWithPronouns(kb);
+//		correctCreatedByConcepts(kb);
+//		correctConceptsWithIS(kb);
+//		removeTextAfterParenthesis(kb);
+//		correctText(kb); // TODO
+//		correctSuchAsConcepts(kb);
+//		correctedQuotedTextWithWordBy(kb);
+//		correctLifeFormConcept(kb);
+//		correctCustomPluralConcepts(kb, "plural_concepts_to_singularize.txt");
+//		OpenAiLLM_Caller.saveCaches();
 
 //		populateKB_withFileExamples(kb, "data/mais conceitos.txt");
-//		populateKB_fromConceptList(kb, "data/newconcepts.txt");
+//		populateKB_fromConceptList(kb, "data/concept_list.txt");
 
 //		populateKB_hierarchy(kb);
 
@@ -787,6 +800,42 @@ public class KnowledgeBaseBuilder {
 //		System.exit(0);
 	}
 
+	/**
+	 * loads from the given filename the concepts that will be converted to the singular form in the given kb
+	 * 
+	 * @param kb
+	 * @param filename
+	 * @throws FileNotFoundException
+	 * @throws InterruptedException
+	 */
+	public static void correctCustomPluralConcepts(StringGraph kb, String filename) throws FileNotFoundException, InterruptedException {
+		ArrayList<String> rows = VariousUtils.readFileRows(filename);
+		HashMap<String, String> conversion = new HashMap<String, String>();
+		ReentrantLock lock = new ReentrantLock();
+
+		ParallelConsumer<String> pc = new ParallelConsumer<>(NUMBER_OF_THREADS);
+		pc.parallelForEach(rows, concept -> {
+			if (!concept.startsWith("to ")) {
+				// get singular
+				String singular = OpenAiLLM_Caller.convertPlural2Singular(concept);
+				System.lineSeparator();
+				{
+					lock.lock();
+					conversion.put(concept, singular);
+					lock.unlock();
+				}
+				System.out.println(concept + "\t->\t" + singular);
+			}
+		});
+
+		// single thread renaming
+		for (Entry<String, String> entry : conversion.entrySet()) {
+			String plural = entry.getKey();
+			String singular = entry.getValue();
+			kb.renameVertex(plural, singular);
+		}
+	}
+
 	public static void correctedQuotedTextWithWordBy(StringGraph kb) {
 		for (String concept : kb.getVertexSet()) {
 			if (concept.startsWith("to "))
@@ -910,13 +959,21 @@ public class KnowledgeBaseBuilder {
 		exploredConcepts.save();
 	}
 
+	/**
+	 * Gets data about concepts stored in a given file. The content of the file is a concept per line.
+	 * 
+	 * @param kb
+	 * @param filename
+	 * @throws InterruptedException
+	 * @throws IOException
+	 */
 	public static void populateKB_fromConceptList(StringGraph kb, String filename) throws InterruptedException, IOException {
 		SynchronizedSeriarizableHashMap<String, Boolean> exploredConcepts = new SynchronizedSeriarizableHashMap<>("exploredConcepts.dat", 10);
-		ArrayList<String> conceptList = new ArrayList<String>();
-		conceptList = VariousUtils.readFileRows(filename);
+		ArrayList<String> conceptList = VariousUtils.readFileRows(filename);
 		ParallelConsumer<String> pc = new ParallelConsumer<>(NUMBER_OF_THREADS);
 		ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 		pc.parallelForEach(conceptList, concept -> {
+			concept = concept.toLowerCase().strip(); // you never know
 			if (!exploredConcepts.containsKey(concept) && //
 					!concept.startsWith("to ") && // that start with to
 					!concept.contains(" or ") && // contain OR / AND

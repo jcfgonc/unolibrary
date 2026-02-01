@@ -105,18 +105,22 @@ public class StringGraphClipboardReader {
 		});
 
 		StringClipBoardListener cl = new StringClipBoardListener(clipboardText -> {
-			// System.out.println(clipboardText);
-			try {
-				StringGraph graph = GraphReadWrite.readCSVFromString(clipboardText);
-				if (!graph.isEmpty()) {
-					vg.refreshGraph(graph);
-//					System.out.println(graph);
-				}
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+			handlePaste(vg, clipboardText);
 		});
 		cl.start();
+	}
+
+	private static void handlePaste(VisualGraph vg, String clipboardText) {
+		// System.out.println(clipboardText);
+		try {
+			StringGraph graph = GraphReadWrite.readCSVFromString(clipboardText);
+			if (!graph.isEmpty()) {
+				vg.refreshGraph(graph);
+//					System.out.println(graph);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 	private static void close(JFrame mainFrame) {

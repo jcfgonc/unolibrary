@@ -66,8 +66,7 @@ public class GraphAlgorithms {
 	}
 
 	/**
-	 * Expands on the graph, from the openset, excluding nodes present in the closed set, returning the new expanded nodes. Whenever a new edge is being expanded from the current
-	 * set to a neighboring node, ExpandingEdge ee is invoked.
+	 * Expands on the graph, from the openset, excluding nodes present in the closed set, returning the new expanded nodes. Whenever a new edge is being expanded from the current set to a neighboring node, ExpandingEdge ee is invoked.
 	 *
 	 * @param openSet
 	 * @param closedSet
@@ -105,8 +104,7 @@ public class GraphAlgorithms {
 	}
 
 	/**
-	 * Expands on the graph, from the openset, excluding nodes present in the closed set, returning the new expanded nodes. Whenever a new edge is being expanded from the current
-	 * set to a neighboring node, ExpandingEdge ee is invoked.
+	 * Expands on the graph, from the openset, excluding nodes present in the closed set, returning the new expanded nodes. Whenever a new edge is being expanded from the current set to a neighboring node, ExpandingEdge ee is invoked.
 	 *
 	 * @param openSet
 	 * @param closedSet
@@ -466,8 +464,7 @@ public class GraphAlgorithms {
 	 * @param closedSetConcepts
 	 * @return
 	 */
-	private static HashSet<String> lcaIsaRadialExpansion(StringGraph graph, String currentVertex, boolean useDerivedFrom, boolean useSynonym,
-			HashMap<String, StringEdge> cameFromEdge, HashSet<String> closedSetConcepts) {
+	private static HashSet<String> lcaIsaRadialExpansion(StringGraph graph, String currentVertex, boolean useDerivedFrom, boolean useSynonym, HashMap<String, StringEdge> cameFromEdge, HashSet<String> closedSetConcepts) {
 		HashSet<String> newOpenSet = new HashSet<>();
 		// stop when left and right expansions collide
 		// expand edges with vertices not in the closed set
@@ -856,6 +853,8 @@ public class GraphAlgorithms {
 	}
 
 	public static <V, E> V getHighestDegreeVertex(DirectedMultiGraph<V, E> graph) {
+		if (graph.isEmpty())
+			return null; // short circuit
 		int highestDegree = -Integer.MAX_VALUE;
 		V highestDegreeVertex = null;
 		for (V vertex : graph.vertexSet()) {
@@ -1288,8 +1287,8 @@ public class GraphAlgorithms {
 	}
 
 	/**
-	 * Returns the concept (source or target) which exists in the given conceptPair. Assumes that the conceptPair does not contain both source and target concepts (it will return
-	 * the pair's left concept in that case) and that the edge does not self-connect only one of the pair's concepts.
+	 * Returns the concept (source or target) which exists in the given conceptPair. Assumes that the conceptPair does not contain both source and target concepts (it will return the pair's left concept in that case) and that the edge does not self-connect
+	 * only one of the pair's concepts.
 	 * 
 	 * @param conceptPair
 	 * @param stringEdge

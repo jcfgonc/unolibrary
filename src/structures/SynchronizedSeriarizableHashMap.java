@@ -1,5 +1,6 @@
 package structures;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Enumeration;
 import java.util.concurrent.ConcurrentHashMap;
@@ -72,16 +73,21 @@ public class SynchronizedSeriarizableHashMap<K, V> {
 
 	@SuppressWarnings({ "unchecked" })
 	public void load() {
-		try {
-			rrw.writeLock().lock();
-			cache = (ConcurrentHashMap<K, V>) VariousUtils.loadObjectFromFile(filename);
-		} catch (Exception e) {
-			e.printStackTrace();
-			System.exit(-1); // serious when loading cache
-		} finally {
-			rrw.writeLock().unlock();
+		File f = new File(filename);
+		if (f.exists() && !f.isDirectory()) {
+			try {
+				rrw.writeLock().lock();
+				cache = (ConcurrentHashMap<K, V>) VariousUtils.loadObjectFromFile(filename);
+			} catch (Exception e) {
+				e.printStackTrace();
+				System.exit(-1); // serious when loading cache
+			} finally {
+				rrw.writeLock().unlock();
+			}
+			System.err.printf("warning: loaded map with %d entries from %s\n", cache.size(), filename);
+		} else {
+			System.err.printf("warning: filename %s does not exist\n", filename);
 		}
-		System.err.printf("warning: loaded map with %d entries from %s\n", cache.size(), filename);
 	}
 
 	public long size() {

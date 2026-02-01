@@ -46,6 +46,7 @@ public class OpenAiLLM_Caller {
 	private static SynchronizedSeriarizableHashMap<String, String> cachedRawPhrases = new SynchronizedSeriarizableHashMap<>("cachedRawPhrases.dat", 30);
 	private static SynchronizedSeriarizableHashMap<String, String> cachedVP_to_NP = new SynchronizedSeriarizableHashMap<>("cachedVP_to_NP.dat", 30);
 	private static SynchronizedSeriarizableHashMap<String, String> cachedConceptHasExamples = new SynchronizedSeriarizableHashMap<>("cachedConceptHasExamples.dat", 30);
+	private static SynchronizedSeriarizableHashMap<String, String> cachedRelatedConcepts = new SynchronizedSeriarizableHashMap<>("cachedRelatedConcepts.dat", 30);
 
 	private static ChatCompletions chatCompletions;
 	private static final double FREQUENCY_PENALTY = 0.25;
@@ -139,6 +140,32 @@ public class OpenAiLLM_Caller {
 			String text = String.format(prompt.strip(), entity);
 			reply = doRequest(text).toLowerCase().strip();
 			cachedConceptIsLifeform.put(entity, reply);
+		}
+		boolean yes = reply.startsWith("yes");
+		boolean no = reply.contains("no");
+		if (yes && no) {
+			System.err.println("alive and dead!:::" + reply);
+		}
+		if (no)
+			return false;
+		if (yes)
+			return true;
+		System.err.println("WTF:not alive neither dead!:::" + reply);
+		return false;
+	}
+
+	public static boolean checkIfConceptsAreRelated(String entity0, String entity1) {
+		String entities = entity0 + "|" + entity1;
+		String reply = cachedRelatedConcepts.get(entities);
+		if (reply == null) {
+			String prompt = """
+					Do not answer metaphorical, analogical or any other figure of speech that shows linguistic creativity.
+					Answer only straightforward facts with literal meaning.
+					Is there a relationship between \"%s\" and \"%s\" ?
+					""";
+			String text = String.format(prompt.strip(), entity0, entity1);
+			reply = doRequest(text).toLowerCase().strip();
+			cachedRelatedConcepts.put(entities, reply);
 		}
 		boolean yes = reply.startsWith("yes");
 		boolean no = reply.contains("no");
@@ -1704,7 +1731,7 @@ public class OpenAiLLM_Caller {
 
 		String reply = cachedRawPhrases.get(phrase);
 		if (reply == null) {
-		//	System.out.println("info: requesting getPhraseType for: " + phrase);
+			// System.out.println("info: requesting getPhraseType for: " + phrase);
 			String prompt = """
 					You are a grammar classification program.
 					You categorize the type of phrase structure of text given at the end.
