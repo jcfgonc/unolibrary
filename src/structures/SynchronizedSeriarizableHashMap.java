@@ -84,9 +84,9 @@ public class SynchronizedSeriarizableHashMap<K, V> {
 			} finally {
 				rrw.writeLock().unlock();
 			}
-			System.err.printf("warning: loaded map with %d entries from %s\n", cache.size(), filename);
+		//	System.err.printf("warning: loaded map with %d entries from %s\n", cache.size(), filename);
 		} else {
-			System.err.printf("warning: filename %s does not exist\n", filename);
+		//	System.err.printf("warning: filename %s does not exist\n", filename);
 		}
 	}
 

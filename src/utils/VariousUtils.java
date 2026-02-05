@@ -1065,4 +1065,18 @@ public class VariousUtils {
 		return asList;
 	}
 
+	/**
+	 * Pop (get and remove) an element from the given set.
+	 * 
+	 * @param <E>
+	 * @param set
+	 * @return
+	 */
+	public static <E> E popAny(Set<E> set) {
+		Iterator<E> it = set.iterator();
+		E e = it.next();
+		it.remove(); // O(1) amortized removal
+		return e;
+	}
+
 }
