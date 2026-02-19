@@ -49,9 +49,10 @@ public class OpenAiLLM_Caller {
 	private static SynchronizedSeriarizableHashMap<String, String> cachedRelatedConcepts = new SynchronizedSeriarizableHashMap<>("cachedRelatedConcepts.dat", 30);
 
 	private static ChatCompletions chatCompletions;
-	private static final double FREQUENCY_PENALTY = 0.25;
 	public static final String llm_model = "gpt-4o";
+	private static final double FREQUENCY_PENALTY = 0.25;
 	private static final int MAX_COMPLETION_TOKENS = 128;
+	private static final double TEMPERATURE = 0.000;
 	private static Set<String> nounPhrases_fromFile;
 	private static final String NP_FILENAME = "D:\\My Source Code\\Java - PhD\\UnoLibrary\\data\\noun_phrases.txt";
 
@@ -70,7 +71,6 @@ public class OpenAiLLM_Caller {
 
 			""";
 
-	private static final double TEMPERATURE = 0.000;
 
 	static {
 		try {

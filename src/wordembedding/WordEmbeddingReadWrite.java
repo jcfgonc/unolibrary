@@ -44,11 +44,13 @@ public class WordEmbeddingReadWrite {
 		ListWordEmbedding wv = new ListWordEmbedding();
 
 		final ZipFile zipFile = new ZipFile(filename);
+		// assume that the zip file only has one entry: the text file of word embeddings
 		final ZipEntry firstEntry = zipFile.entries().nextElement();
 		if (!firstEntry.isDirectory()) {
 			InputStream input = zipFile.getInputStream(firstEntry);
 			NonblockingBufferedReader br = new NonblockingBufferedReader(input);
 			String line;
+		//	int row_counter = 0;
 			while ((line = br.readLine()) != null) {
 				if (skipFirstLine) {
 					skipFirstLine = false;
@@ -56,6 +58,8 @@ public class WordEmbeddingReadWrite {
 				}
 				String[] tokens = VariousUtils.fastSplitWhiteSpace(line);
 				wv.addWordVector(tokens);
+			//	row_counter++;
+			//	System.out.printf("read %d rows\n", row_counter);
 			}
 			// no more data to read
 			br.close();

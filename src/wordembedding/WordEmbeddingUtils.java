@@ -1,359 +1,324 @@
 package wordembedding;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.EOFException;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Scanner;
 
-import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
-
-import frames.FrameReadWrite;
-import frames.SemanticFrame;
-import graph.StringEdge;
-import graph.StringGraph;
 import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
+import it.unimi.dsi.fastutil.longs.LongIterator;
+import it.unimi.dsi.fastutil.objects.Object2DoubleMap;
 import it.unimi.dsi.fastutil.objects.Object2DoubleOpenHashMap;
-import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
-import structures.MapOfList;
-import structures.StringDoublePair;
-import structures.UnorderedPair;
+import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
+import structures.SynchronizedSeriarizableHashMap;
+import utils.NonblockingBufferedReader;
 import utils.VariousUtils;
 
-@SuppressWarnings("unused")
 public class WordEmbeddingUtils {
-	private static final String WORD_PAIR_SCORES_HEADER = "s:relation_a\ts:relation_b\tf:similarity";
+//	private static SynchronizedSeriarizableHashMap<SortedStringPair<String>, Double> cachedCosineSimilarities = new SynchronizedSeriarizableHashMap<>("cachedCosineSimilarities.dat", 30);
+	private static SynchronizedSeriarizableHashMap<String, String> cachedWord = new SynchronizedSeriarizableHashMap<>("cachedWord.dat", 30);
+	private static SynchronizedSeriarizableHashMap<SortedStringPair, Double> cachedCosineSim = new SynchronizedSeriarizableHashMap<>("cachedCosineSim.dat", 30);
+	private static Object2DoubleOpenHashMap<String> word_relative_freq;
+	private static ListWordEmbedding word_embedding;
+	private static boolean initialized = false;
 
 	public static void main(String[] a) throws IOException, InterruptedException {
 
-//		String frames_filename = "..\\PatternMiner\\results\\resultsV22.csv";
-		String synonyms_filename = "..\\PatternMiner\\results\\synonyms.txt";
-		String wordembedding_filename = "..\\ConceptNet5\\kb\\ConceptNet Numberbatch 19.08\\numberbatch-en.zip";
-//		String frameSimilarityFilename = "..\\PatternMiner\\results\\patterns_semantic_similarityV22.tsv";
-		String wordPairScores_filename = "relation_pair_scores.tsv";
-
-//		calculateAndSaveFrameSimilarity(frames_filename, wordembedding_filename, synonyms_filename, frameSimilarityFilename);
-
-		calculateAndSaveWordPairScores(synonyms_filename, wordembedding_filename, wordPairScores_filename);
-//		interactiveConsole(synonyms_filename, wordembedding_filename);
-	}
-
-	private static void calculateAndSaveWordPairScores(String synonyms_filename, String wordembedding_filename, String wordPairScores_filename)
-			throws IOException {
-		ListWordEmbedding we = WordEmbeddingReadWrite.readZippedCSV(wordembedding_filename, true);
-		MapOfList<String, String> synonyms = readSynonymWordList(synonyms_filename, we);
-		Object2DoubleOpenHashMap<UnorderedPair<String>> wps = scoreWordPairs(we, synonyms);
-		saveWordPairScores(wps, wordPairScores_filename);
-	}
-
-	private static void interactiveConsole(String synonyms_filename, String wordembedding_filename) throws IOException {
-		ListWordEmbedding we = WordEmbeddingReadWrite.readCSV(wordembedding_filename, true);
-		MapOfList<String, String> synonyms = readSynonymWordList(synonyms_filename, we);
-		Scanner s = new Scanner(System.in);
-
-		// this is to test the list with manual data refresh and show the effect on the semantic similarity
-		while (Math.random() > -1) {
-			scoreWordPairs(we, synonyms);
-			s.nextLine();
-			synonyms = readSynonymWordList(synonyms_filename, we);
+//		getCosineSimilarity(we, "feline", "canine");
+//		getCosineSimilarity(we, "door", "window");
+		ArrayList<String> pairs = VariousUtils.readFileRows("D:\\Desktop\\mapeamentos.txt");
+		for (String pair : pairs) {
+			getCosineSimilarity(pair);
 		}
-
-		// this is an interactive console to help with word embedding
-		while (true) {
-			String line = s.nextLine();
-			String[] args = VariousUtils.fastSplitWhiteSpace(line);
-			try {
-				if (line.startsWith("!q"))
-					break;
-				if (line.startsWith("!e")) {
-					List<StringDoublePair> nw = we.getNearbyEuclideanWords(args[1], Integer.parseInt(args[2]));
-					printPairs(nw);
-				} else if (line.startsWith("!c")) {
-					List<StringDoublePair> nw = we.getNearbyCosineWords(args[1], Integer.parseInt(args[2]));
-					printPairs(nw);
-				} else if (line.startsWith("!d")) {
-					List<StringDoublePair> nw = we.getNearbyDotProductWords(args[1], Integer.parseInt(args[2]));
-					printPairs(nw);
-				} else if (line.startsWith("!s")) {
-					System.out.println(getCosineSimilaritySynonyms(args[1], args[2], we, synonyms));
-				} else if (args[0].endsWith("*")) {
-					String prefix = args[0].substring(0, args[0].indexOf('*'));
-					List<String> words = getPrefixedWords(prefix, we);
-					printWords(words);
-				} else {
-					String[] words = line.split("\\s+");
-					String word0 = words[0];
-					String word1 = words[1];
-					double cs = we.getCosineSimilarity(word0, word1);
-					double ed = we.getEuclideanDistance(word0, word1);
-					System.out.printf("%f\t%f\n", cs, ed);
-				}
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-		}
-		s.close();
+		saveCaches();
 	}
 
-	private static void calculateAndSaveFrameSimilarity(String frames_filename, String wordembedding_filename, String synonyms_filename,
-			String frameSimilarityFilename) throws IOException, InterruptedException {
-		ArrayList<SemanticFrame> frames = FrameReadWrite.readPatternFrames(frames_filename);
-		ListWordEmbedding we = WordEmbeddingReadWrite.readCSV(wordembedding_filename, true);
-		MapOfList<String, String> synonyms = readSynonymWordList(synonyms_filename, we);
-		Object2DoubleOpenHashMap<UnorderedPair<String>> wps = scoreWordPairs(we, synonyms);
-		calculateFrameWithinSimilarity(frames, wps);
-		FrameReadWrite.writePatternFramesCSV(frames, frameSimilarityFilename);
-	}
-
-	public static void calculateFrameWithinSimilarity(ArrayList<SemanticFrame> frames, Object2DoubleOpenHashMap<UnorderedPair<String>> wps)
-			throws IOException, InterruptedException {
-		for (SemanticFrame frame : frames) {
-			StringGraph graph = frame.getFrame();
-			double[] sim = calculateEdgeSemanticSimilarity(graph, wps);
-			DescriptiveStatistics ds = new DescriptiveStatistics(sim);
-			long edgePairs = ds.getN();
-			double sum = ds.getSum();
-			double mean = ds.getMean();
-			double sd = ds.getStandardDeviation();
-			double min = ds.getMin();
-			double max = ds.getMax();
-			frame.setSemanticSimilarityNumberEdgePairs((int) edgePairs);
-			frame.setSemanticSimilaritySum(sum);
-			frame.setSemanticSimilarityMean(mean);
-			frame.setSemanticSimilarityStdDev(sd);
-			frame.setSemanticSimilarityMin(min);
-			frame.setSemanticSimilarityMax(max);
-		}
-	}
-
-	/**
-	 * calculates semantic similarities (based on word embedding) between pairs of connected edges in the given frame/graph. Uses the pair scores
-	 * stored in the given wps argument.
-	 * 
-	 * @param frame
-	 * @param wps
-	 * @return
-	 */
-	public static double[] calculateEdgeSemanticSimilarity(StringGraph graph, Object2DoubleOpenHashMap<UnorderedPair<String>> wps) {
-		// requires at least two edges
-		if (graph.numberOfEdges() < 2) {
-			return new double[0];
-		}
-
-		DoubleArrayList similarities = new DoubleArrayList();
-		ObjectOpenHashSet<UnorderedPair<StringEdge>> visitedEdgePairs = new ObjectOpenHashSet<UnorderedPair<StringEdge>>();
-
-		for (StringEdge curEdge : graph.edgeSet()) {
-			HashSet<StringEdge> connectedEdges = graph.edgesOf(curEdge);
-			for (StringEdge connectedEdge : connectedEdges) {
-				UnorderedPair<StringEdge> curEdgePair = new UnorderedPair<StringEdge>(curEdge, connectedEdge);
-				if (visitedEdgePairs.contains(curEdgePair))
-					continue;
-				visitedEdgePairs.add(curEdgePair);
-				String rel0 = curEdge.getLabel();
-				String rel1 = connectedEdge.getLabel();
-				double sim = 0;
-				if (rel0.equals(rel1))
-					sim = 1;
-				else {
-					UnorderedPair<String> relationPair = new UnorderedPair<String>(rel0, rel1);
-					if (wps.containsKey(relationPair)) {
-						sim = wps.getDouble(relationPair);
-						if (sim > 1.1) {
-							System.err.println("questionable semantic similarity for " + relationPair + " = " + sim);
-						}
-					} else {
-						System.err.println("ERROR: score undefined for the pair " + relationPair);
-					}
-				}
-				// System.out.printf("%s %s %f\n", rel0, rel1, sim);
-
-				similarities.add(sim);
-			}
-		}
-
-		return similarities.toDoubleArray();
-	}
-
-	public static void saveWordPairScores(Object2DoubleOpenHashMap<UnorderedPair<String>> scores, String filename) throws IOException {
-		File file = new File(filename);
-		BufferedWriter bw = new BufferedWriter(new FileWriter(file));
-		// write header
-		bw.write(WORD_PAIR_SCORES_HEADER);
-		bw.newLine();
-		for (UnorderedPair<String> pair : scores.keySet()) {
-			bw.write(pair.getLeft());
-			bw.write('\t');
-			bw.write(pair.getRight());
-			bw.write('\t');
-			double d = scores.getDouble(pair);
-			bw.write(Double.toString(d));
-			bw.newLine();
-		}
-		bw.close();
-	}
-
-	public static Object2DoubleOpenHashMap<UnorderedPair<String>> readWordPairScores(String filename) throws IOException {
-		Object2DoubleOpenHashMap<UnorderedPair<String>> scores = new Object2DoubleOpenHashMap<UnorderedPair<String>>();
-		File file = new File(filename);
-		BufferedReader br = null;
+	public static void saveCaches() {
 		try {
-			FileReader fr = new FileReader(file);
-			br = new BufferedReader(fr);
-			String line;
-			boolean readFirstLine = false;
-			while ((line = br.readLine()) != null) {
-				if (line.isBlank())
-					continue;
-				if (!readFirstLine) {
-					if (!line.equals(WORD_PAIR_SCORES_HEADER)) {
-						throw new RuntimeException("first line must be of the form:" + WORD_PAIR_SCORES_HEADER);
-					}
-					readFirstLine = true;
-					continue;
-				}
-				String[] cells = VariousUtils.fastSplitWhiteSpace(line);
-				String word0 = cells[0];
-				String word1 = cells[1];
-				double score = Double.parseDouble(cells[2]);
-				// prevent under/over flow
-				if (score > 1) {
-					score = 1;
-				} else if (score < -1) {
-					score = -1;
-				}
-				UnorderedPair<String> pair = new UnorderedPair<String>(word0, word1);
-				scores.put(pair, score);
-			}
-		} catch (NumberFormatException e) {
-			e.printStackTrace();
+			cachedCosineSim.save();
+			cachedWord.save();
 		} catch (IOException e) {
 			e.printStackTrace();
-		} finally {
-			br.close();
 		}
-		return scores;
+	}
+
+	private static void initialize() throws IOException {
+		// create word to relative frequency map
+//		Object2LongOpenHashMap<String> word_freq = readWordFrequencyCSV("D:\\My Source Code\\Java - PhD\\UnoLibrary\\data\\Google Books Ngram word freq 9.2M\\ngram_freq.csv");
+//		Object2DoubleOpenHashMap<String> word_relfreq = normalizeWordFrequencyMap(word_freq);
+//		saveBinary(word_relfreq, "word_relfreq.bin");
+
+		WordEmbeddingUtils.word_relative_freq = loadBinary_Object2DoubleOpenHashMap("word_relfreq.bin");
+
+//		ArrayList<String> stop_words = VariousUtils.readFileRows("D:\\My Source Code\\Java - PhD\\UnoLibrary\\data\\word lists\\english stop words full.txt");
+
+//		String word_emb_file = "D:\\My Source Code\\Java - PhD\\UnoLibrary\\data\\word vectors\\ENC3 English Common Crawl Corpus 300d 2M\\model.zip";
+		// ListWordEmbedding we = WordEmbeddingReadWrite.readAutoDetect(word_emb_file, false);
+		// we.saveBinary(Path.of("wordemb.bin"));
+		WordEmbeddingUtils.word_embedding = ListWordEmbedding.loadBinary("wordemb.bin");
+	}
+
+	public static void saveBinary(Object2DoubleOpenHashMap<String> map, String filename) throws IOException {
+		try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(Path.of(filename)), 1 << 20))) {
+
+			// Write map size
+			int map_size = map.size();
+			out.writeInt(map_size);
+
+			// Write entries
+			for (Object2DoubleMap.Entry<String> e : map.object2DoubleEntrySet()) {
+				String key = e.getKey();
+				if (key == null) {
+					throw new IllegalStateException("Null key encountered");
+				}
+				writeString(out, key);
+				double val = e.getDoubleValue();
+				out.writeDouble(val);
+			}
+		}
+	}
+
+	private static void writeString(DataOutputStream out, String s) throws IOException {
+		byte[] bytes = s.getBytes(StandardCharsets.UTF_8);
+		out.writeInt(bytes.length);
+		out.write(bytes);
+	}
+
+	public static Object2DoubleOpenHashMap<String> loadBinary_Object2DoubleOpenHashMap(String filename) throws IOException {
+		System.out.println("loading Object2DoubleOpenHashMap file " + filename);
+		long t0 = System.currentTimeMillis();
+		Object2DoubleOpenHashMap<String> map = null;
+		try (DataInputStream in = new DataInputStream(new BufferedInputStream(Files.newInputStream(Path.of(filename)), 1 << 20))) {
+
+			int mapSize = in.readInt();
+			map = new Object2DoubleOpenHashMap<>(mapSize * 2);
+
+			for (int i = 0; i < mapSize; i++) {
+				String key = readString(in);
+				double val = in.readDouble();
+				map.put(key, val);
+			}
+
+		} catch (EOFException eof) {
+			throw new IOException("Truncated/corrupt file: " + filename, eof);
+		}
+
+		long t1 = System.currentTimeMillis();
+		double dt = (double) (t1 - t0) / 1000.0;
+		System.out.printf("read binary file %s, took %f seconds.\n", filename, dt);
+		return map;
+	}
+
+	private static String readString(DataInputStream in) throws IOException {
+		int len = in.readInt();
+		byte[] bytes = new byte[len];
+		in.readFully(bytes);
+		return new String(bytes, StandardCharsets.UTF_8);
+	}
+
+	public static Object2DoubleOpenHashMap<String> normalizeWordFrequencyMap(Object2LongOpenHashMap<String> word_freq) {
+		// scan for the smallest frequency
+		long smallest = Long.MAX_VALUE;
+		LongIterator iterator = word_freq.values().iterator();
+		while (iterator.hasNext()) {
+			long nextLong = iterator.nextLong();
+			if (nextLong < smallest)
+				smallest = nextLong;
+		}
+		// normalize all the frequencies using the largest
+		Object2DoubleOpenHashMap<String> word_relfreq = new Object2DoubleOpenHashMap<>();
+		for (String word : word_freq.keySet()) {
+			long freq = word_freq.getLong(word);
+			double relfreq = (double) smallest / freq;
+			word_relfreq.put(word, relfreq);
+		}
+		return word_relfreq;
+	}
+
+	public static Object2LongOpenHashMap<String> readWordFrequencyCSV(String filename) throws FileNotFoundException, IOException {
+		System.out.printf("loading word frequency csv file %s\n", filename);
+		long t0 = System.currentTimeMillis();
+		// we assume that the file does not have a header
+		NonblockingBufferedReader br = new NonblockingBufferedReader(new FileReader(filename));
+		Object2LongOpenHashMap<String> map = new Object2LongOpenHashMap<>(1 << 24);
+		{
+			// read each line into the list
+			String line;
+			while ((line = br.readLine()) != null) {
+				String[] tokens = VariousUtils.fastSplit(line, ',');
+				String word = tokens[0];
+				long frequency = Long.parseLong(tokens[1]);
+				map.put(word, frequency);
+			}
+		}
+		long t1 = System.currentTimeMillis();
+		long dt = t1 - t0;
+		System.out.printf("loading done, took %f seconds\n", (double) dt / 1000);
+		return map;
+	}
+
+	private static String correctEmbeddingWord(ListWordEmbedding we, String word) {
+		String we_word = cachedWord.get(word);
+		if (we_word == null) {
+			if (we.containsWord(word)) {
+				we_word = word;
+			} else {
+				String string1 = word.replace(' ', ':');
+				String string2 = word.replace(' ', '_');
+				String string3 = word.replace(' ', '-');
+				if (we.containsWord(string1)) {
+					we_word = string1;
+				} else if (we.containsWord(string2)) {
+					we_word = string2;
+				} else if (we.containsWord(string3)) {
+					we_word = string3;
+				}
+			}
+		} else {
+			return we_word;
+		}
+		if (we_word != null) {
+			cachedWord.put(word, we_word);
+		}
+		return we_word;
+	}
+
+	private static double getCosineSimilarity(String string) {
+		String[] words = VariousUtils.fastSplit(string, '|');
+		return getCosineSimilarity(words[0], words[1]);
+	}
+
+	public static double getCosineSimilarity(String word_a, String word_b) {
+		if (!initialized) {
+			try {
+				initialize();
+			} catch (IOException e) {
+				e.printStackTrace();
+				System.exit(-1);
+			}
+			initialized = true;
+		}
+
+		SortedStringPair ssp = new SortedStringPair(word_a, word_b);
+		Double simil = cachedCosineSim.get(ssp);
+		if (simil == null) {
+			String lower = correctEmbeddingWord(word_embedding, ssp.getLowerElement());
+			String higher = correctEmbeddingWord(word_embedding, ssp.getHigherElement());
+			DoubleArrayList lowerVector = null;
+			DoubleArrayList higherVector = null;
+
+			if (lower != null) {
+				lowerVector = word_embedding.getVector(lower);
+			} else { // does not exist in the word emb vector db
+				// calculate SIF of composite
+				lowerVector = calculateCompositeWordEmbedding(word_embedding, word_relative_freq, ssp.getLowerElement());
+			}
+			if (higher != null) {
+				higherVector = word_embedding.getVector(higher);
+			} else {
+				higherVector = calculateCompositeWordEmbedding(word_embedding, word_relative_freq, ssp.getHigherElement());
+			}
+
+			simil = Double.valueOf(word_embedding.getCosineSimilarity(lowerVector, higherVector));
+			cachedCosineSim.put(ssp, simil);
+		}
+		System.out.printf("cosine similarity\t%s\t%s\t%f\n", ssp.getLowerElement(), ssp.getHigherElement(), simil.doubleValue());
+		return simil.doubleValue();
+	}
+
+	private static DoubleArrayList calculateCompositeWordEmbedding(ListWordEmbedding we, Object2DoubleOpenHashMap<String> word_relfreq, String text) {
+		String[] words = VariousUtils.fastSplit(text, ' ');
+		double[] accumulated_sum = null;
+		for (String word : words) {
+			if (word.equals("4004"))
+				System.lineSeparator();
+			double[] vector = we.getVector(word).toDoubleArray();
+			if (nullVector(vector))
+				throw new RuntimeException("word: " + word + " vector: " + vector.toString() + " is null!");
+			// word frequency map might be more limited in supported words
+			double weight = word_relfreq.getDouble(word);
+			if (weight < Double.MIN_NORMAL) {
+				weight = deduceRelativeFrequencyOfComposite(word, word_relfreq);
+				// throw new RuntimeException("word: " + word + " weight: " + weight + " is null!");
+			}
+			if (accumulated_sum == null) {
+				// must initialize here because we don't know the vector size
+				accumulated_sum = new double[vector.length];
+			}
+			accumulated_sum = vectorMultiplyAdd(accumulated_sum, vector, weight);
+		}
+		accumulated_sum = normalizeVector(accumulated_sum);
+		return new DoubleArrayList(accumulated_sum);
 	}
 
 	/**
-	 * calculates the semantic similarity between all the pairs of synonyms
+	 * used in text having words not present in the word frequency table
 	 * 
-	 * @param we
-	 * @param synonyms
+	 * @param word
+	 * @param word_relfreq
 	 * @return
 	 */
-	public static Object2DoubleOpenHashMap<UnorderedPair<String>> scoreWordPairs(ListWordEmbedding we, MapOfList<String, String> synonyms) {
-		Object2DoubleOpenHashMap<UnorderedPair<String>> wordPairScore = new Object2DoubleOpenHashMap<UnorderedPair<String>>();
-		// iterate through all the words
-		ArrayList<String> wordList = new ArrayList<String>(synonyms.keySet());
-		for (int i = 0; i < wordList.size() - 1; i++) {
-			String word0 = wordList.get(i);
-			for (int j = i + 1; j < wordList.size(); j++) {
-				String word1 = wordList.get(j);
-				// word0 and word1 are relations/concepts (present in the first column of the synonyms file)
-				// calculate the cosine similarity between the two words using their synonyms
-				double score = getCosineSimilaritySynonyms(word0, word1, we, synonyms);
-				UnorderedPair<String> wordPair = new UnorderedPair<String>(word0, word1);
-				wordPairScore.put(wordPair, score);
+	private static double deduceRelativeFrequencyOfComposite(String word, Object2DoubleOpenHashMap<String> word_relfreq) {
+		String[] tokens = VariousUtils.fastSplit(word, " -:.,_");
+		double mult = 1.0;
+		for (String token : tokens) {
+			double d = word_relfreq.getDouble(token);
+			mult *= d;
+		}
+		return mult;
+	}
+
+	private static boolean nullVector(double[] vector) {
+		for (double x : vector) {
+			if (x > Double.MIN_NORMAL)
+				return false;
+		}
+		return true;
+	}
+
+	/**
+	 * Returns a new vector that is the L2-normalized (unit-length) version of the input.
+	 *
+	 * @param v the input vector (double[])
+	 * @return a new double[] with norm 1.0
+	 * @throws IllegalArgumentException if v is null, empty, contains non-finite values, or is the zero vector (norm == 0)
+	 */
+	public static double[] normalizeVector(double[] v) {
+
+		double sumSquares = 0.0;
+		for (double x : v) {
+			if (!Double.isFinite(x)) {
+				throw new IllegalArgumentException("Vector contains non-finite value: " + x);
 			}
+			sumSquares += x * x;
 		}
-		return wordPairScore;
+
+		double norm = Math.sqrt(sumSquares);
+		if (norm == 0.0) {
+			throw new IllegalArgumentException("Cannot normalize the zero vector.");
+		}
+
+		double inv = 1.0 / norm;
+		double[] out = new double[v.length];
+		for (int i = 0; i < v.length; i++) {
+			out[i] = v[i] * inv;
+		}
+		return out;
 	}
 
-	public static List<String> getPrefixedWords(String prefix, ListWordEmbedding we) {
-		ArrayList<String> words = new ArrayList<String>();
-		for (String word : we.getWords()) {
-			if (word.startsWith(prefix)) {
-				words.add(word);
-			}
+	public static double[] vectorMultiplyAdd(double[] vector_sum, double[] vector, double weight) {
+		for (int i = 0; i < vector_sum.length; i++) {
+			vector_sum[i] = vector[i] * weight;
 		}
-		return words;
-	}
-
-	public static void printPairs(List<StringDoublePair> nw) {
-		if (nw.isEmpty()) {
-			System.out.println("[]");
-			return;
-		}
-		for (StringDoublePair pair : nw) {
-			System.out.printf("%s\t%f\n", pair.getString(), pair.getDouble());
-		}
-	}
-
-	public static void printWords(List<String> words) {
-		if (words.isEmpty()) {
-			System.out.println("[]");
-			return;
-		}
-		for (String w : words) {
-			System.out.printf("%s\t", w);
-		}
-		System.out.printf("\n");
-	}
-
-	public static MapOfList<String, String> readSynonymWordList(String filename, ListWordEmbedding we) throws IOException {
-		MapOfList<String, String> synonyms = new MapOfList<String, String>();
-		BufferedReader br = new BufferedReader(new FileReader(filename));
-		String line;
-		while ((line = br.readLine()) != null) {
-			line = line.strip();
-			if (line.isEmpty())
-				continue;
-			String[] tokens = VariousUtils.fastSplitWhiteSpace(line);
-			String word = tokens[0];
-			HashSet<String> existing = new HashSet<String>(tokens.length * 3);
-			for (int i = 1; i < tokens.length; i++) {
-				String syn = tokens[i];
-				if (we.containsWord(syn)) {
-					if (!existing.contains(syn)) {
-						synonyms.add(word, syn);
-						existing.add(syn);
-					}
-				}
-			}
-		}
-		br.close();
-		return synonyms;
-	}
-
-	public static double getCosineSimilaritySynonyms(String word0, String word1, ListWordEmbedding we, MapOfList<String, String> synonyms) {
-		List<String> synonyms0 = synonyms.get(word0);
-		List<String> synonyms1 = synonyms.get(word1);
-
-		// find the synonym pair which maximizes the similarity
-		HashSet<UnorderedPair<String>> checkedPairs = new HashSet<UnorderedPair<String>>(1024);
-		double highestCS = -Double.MAX_VALUE;
-//		 UnorderedPair<String> highestCS_pair = null;
-		for (String syn0 : synonyms0) {
-			for (String syn1 : synonyms1) {
-
-				UnorderedPair<String> currentPair = new UnorderedPair<String>(syn0, syn1);
-				if (checkedPairs.contains(currentPair))
-					continue;
-				checkedPairs.add(currentPair);
-
-				double cs = we.getCosineSimilarity(syn0, syn1);
-				if (cs > highestCS) {
-					// highestCS_pair = currentPair;
-					highestCS = cs;
-				}
-				// System.out.printf("%s\t%s\t%f\n", syn0, syn1, cs);
-			}
-		}
-		// System.out.printf("%s\t%s\t%f\n", new UnorderedPair<String>(word0, word1), highestCS_pair, highestCS);
-		// System.out.println(highestCS_pair);
-
-		// return we.getCosineSimilarity(synonyms0.get(0), synonyms1.get(0));
-		return highestCS;
-	}
-
-	public static void getOveralSimilarity(StringGraph frame) {
-
+		return vector_sum;
 	}
 
 }

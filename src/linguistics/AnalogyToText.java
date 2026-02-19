@@ -1,7 +1,6 @@
 package linguistics;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -16,7 +15,6 @@ import chatbots.openai.OpenAiLLM_Caller;
 import graph.GraphReadWrite;
 import graph.StringEdge;
 import graph.StringGraph;
-import utils.VariousUtils;
 
 public class AnalogyToText {
 
@@ -154,10 +152,10 @@ public class AnalogyToText {
 
 	public static String prettifyAnalogy(String analogyText) {
 		String prompt = """
-				The text at the end of this prompt is missing indefinite or definite articles. 
-				The text has also an incorrect verb conjugation. Correct its verb conjugation. 
-				The grammatical gender of the nouns may also be incorrect, correct the grammatical gender. Capitalize words as needed. Adjust the singular and plural of the nouns. 
-				The text is creative and as such when doing the correction, do not attempt to make the text logical or meaningful. 
+				The text at the end of this prompt is missing indefinite or definite articles.
+				The text has also an incorrect verb conjugation. Correct its verb conjugation.
+				The grammatical gender of the nouns may also be incorrect, correct the grammatical gender. Capitalize words as needed. Adjust the singular and plural of the nouns.
+				The text is creative and as such when doing the correction, do not attempt to make the text logical or meaningful.
 				Do not criticize dubious or erroneous claims in that text. The text is the following:
 
 				%s

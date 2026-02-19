@@ -99,7 +99,7 @@ public class VariousUtils {
 	 */
 	public static ArrayList<String> readFileRows(String filename) throws FileNotFoundException {
 		boolean illegalFilename = true;
-		ArrayList<String> rows = new ArrayList<String>(1 << 10);
+		ArrayList<String> rows = new ArrayList<String>(1 << 16);
 		try {
 			if (filename != null) {
 
